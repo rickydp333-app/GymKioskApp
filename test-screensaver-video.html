@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screensaver Video Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #000;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    h1 {
+      color: #00d4ff;
+      margin-bottom: 20px;
+    }
+    .video-test {
+      margin: 20px 0;
+      padding: 15px;
+      background: #2a2a2a;
+      border-radius: 8px;
+      border-left: 4px solid #00d4ff;
+    }
+    .video-test h3 {
+      margin-top: 0;
+      color: #00d4ff;
+    }
+    video {
+      width: 100%;
+      max-width: 600px;
+      height: auto;
+      background: #000;
+      border: 2px solid #00d4ff;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .status {
+      padding: 10px;
+      background: #3a3a3a;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .status.playing {
+      color: #00ff00;
+      border-left: 3px solid #00ff00;
+    }
+    .status.error {
+      color: #ff4444;
+      border-left: 3px solid #ff4444;
+    }
+    button {
+      background: #00d4ff;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+    button:hover {
+      background: #00a8cc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 Screensaver Video Test</h1>
+    
+    <div class="video-test">
+      <h3>demo1.mp4 (Should play with video AND audio)</h3>
+      <video 
+        id="video1"
+        muted
+        playsinline
+        webkit-playsinline
+        autoplay
+        controls
+        style="width: 100%; height: 100%; object-fit: cover; display: block;"
+      >
+        <source src="assets/demo/demo1.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div id="status1" class="status">Initializing...</div>
+      <button onclick="playVideo('video1')">Play</button>
+      <button onclick="pauseVideo('video1')">Pause</button>
+      <button onclick="stopVideo('video1')">Stop</button>
+    </div>
+
+    <div class="video-test">
+      <h3>GymSSasver.mp4 (Should play with video AND audio)</h3>
+      <video 
+        id="video2"
+        muted
+        playsinline
+        webkit-playsinline
+        autoplay
+        controls
+        style="width: 100%; height: 100%; object-fit: cover; display: block;"
+      >
+        <source src="assets/demo/GymSSasver.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div id="status2" class="status">Initializing...</div>
+      <button onclick="playVideo('video2')">Play</button>
+      <button onclick="pauseVideo('video2')">Pause</button>
+      <button onclick="stopVideo('video2')">Stop</button>
+    </div>
+
+    <div class="video-test">
+      <h3>GymSSasver.mp4 (With object-fit: contain)</h3>
+      <video 
+        id="video3"
+        muted
+        playsinline
+        webkit-playsinline
+        autoplay
+        controls
+        style="width: 100%; height: 100%; object-fit: contain; display: block;"
+      >
+        <source src="assets/demo/GymSSasver.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div id="status3" class="status">Initializing...</div>
+      <button onclick="playVideo('video3')">Play</button>
+      <button onclick="pauseVideo('video3')">Pause</button>
+      <button onclick="stopVideo('video3')">Stop</button>
+    </div>
+
+    <div class="video-test" style="background: #3a3a3a;">
+      <h3>📋 Video Element Properties</h3>
+      <div id="properties" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    function setupVideo(videoId) {
+      const video = document.getElementById(videoId);
+      const statusDiv = document.getElementById('status' + videoId.slice(-1));
+      
+      if (!video) return;
+
+      video.addEventListener('loadstart', () => {
+        updateStatus(statusDiv, 'Loading...', 'playing');
+      });
+
+      video.addEventListener('loadedmetadata', () => {
+        updateStatus(statusDiv, 
+          `Loaded: ${video.videoWidth}x${video.videoHeight}px, ${Math.floor(video.duration)}s, ${getCodec(video)}`, 
+          'playing');
+      });
+
+      video.addEventListener('play', () => {
+        updateStatus(statusDiv, 'Playing...', 'playing');
+      });
+
+      video.addEventListener('pause', () => {
+        updateStatus(statusDiv, 'Paused', 'playing');
+      });
+
+      video.addEventListener('ended', () => {
+        updateStatus(statusDiv, 'Finished', 'playing');
+      });
+
+      video.addEventListener('error', (e) => {
+        const error = video.error;
+        let msg = 'ERROR: ';
+        if (error.code === error.MEDIA_ERR_ABORTED) msg += 'ABORTED';
+        else if (error.code === error.MEDIA_ERR_NETWORK) msg += 'NETWORK';
+        else if (error.code === error.MEDIA_ERR_DECODE) msg += 'DECODE';
+        else if (error.code === error.MEDIA_ERR_SRC_NOT_SUPPORTED) msg += 'SRC_NOT_SUPPORTED';
+        else msg += 'UNKNOWN (' + error.code + ')';
+        updateStatus(statusDiv, msg, 'error');
+      });
+
+      video.addEventListener('canplay', () => {
+        updateStatus(statusDiv, '✓ Ready to play', 'playing');
+      });
+    }
+
+    function updateStatus(el, msg, type) {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'status ' + type;
+    }
+
+    function getCodec(video) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0);
+          const imageData = ctx.getImageData(0, 0, 1, 1);
+          return 'H.264/AVC';
+        }
+      } catch (e) {}
+      return 'Unknown Codec';
+    }
+
+    function playVideo(videoId) {
+      const video = document.getElementById(videoId);
+      if (video) {
+        video.muted = false; // Unmute so we can hear audio
+        video.play().catch(err => console.error('Play error:', err));
+      }
+    }
+
+    function pauseVideo(videoId) {
+      const video = document.getElementById(videoId);
+      if (video) video.pause();
+    }
+
+    function stopVideo(videoId) {
+      const video = document.getElementById(videoId);
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+    }
+
+    // Initialize all videos
+    ['video1', 'video2', 'video3'].forEach(setupVideo);
+
+    // Display browser/environment info
+    function getVideoProperties() {
+      const video = document.createElement('video');
+      const props = {
+        'Browser': navigator.userAgent.split('/').pop().split(' ')[0],
+        'Video Support': video.canPlayType('video/mp4'),
+        'Hardware Acceleration': 'Check Chrome DevTools',
+        'Electron': typeof window.electron !== 'undefined' ? 'Yes' : 'No'
+      };
+      
+      let html = '<table style="width: 100%; text-align: left;">';
+      for (const [key, value] of Object.entries(props)) {
+        html += `<tr><td><strong>${key}:</strong></td><td>${value}</td></tr>`;
+      }
+      html += '</table>';
+      document.getElementById('properties').innerHTML = html;
+    }
+
+    getVideoProperties();
+
+    // Log to console for debugging
+    console.log('Video test page loaded');
+    console.log('Testing both demo1.mp4 and GymSSasver.mp4');
+    console.log('Check console for any video playback errors');
+  </script>
+</body>
+</html>

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymKiosk App - Getting Started Guide</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @media print {
+      body { margin: 0; padding: 0; }
+      .page-break { page-break-after: always; }
+      a { color: #0066cc; text-decoration: underline; }
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 3px solid #0066cc;
+      padding-bottom: 20px;
+    }
+
+    .logo {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #0066cc;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.2em;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .version {
+      font-size: 0.9em;
+      color: #999;
+    }
+
+    h1 {
+      color: #0066cc;
+      font-size: 2em;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      border-left: 4px solid #d4af37;
+      padding-left: 15px;
+    }
+
+    h2 {
+      color: #0088cc;
+      font-size: 1.5em;
+      margin-top: 25px;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      color: #333;
+      font-size: 1.2em;
+      margin-top: 15px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 15px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    .code-block {
+      background: #f8f8f8;
+      border-left: 3px solid #0066cc;
+      padding: 12px;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+      overflow-x: auto;
+      font-size: 0.9em;
+    }
+
+    .info-box {
+      background: #e8f4ff;
+      border: 1px solid #0066cc;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+
+    .feature-box {
+      background: #f0f9ff;
+      border-left: 4px solid #d4af37;
+      padding: 15px;
+      margin: 12px 0;
+    }
+
+    .feature-box strong {
+      color: #d4af37;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+
+    th {
+      background: #0066cc;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+
+    .step-number {
+      display: inline-block;
+      background: #0066cc;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 30px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .screen-description {
+      background: #f5f5f5;
+      border-radius: 5px;
+      padding: 12px;
+      margin: 10px 0;
+      border-left: 3px solid #0088cc;
+    }
+
+    .page-break {
+      page-break-after: always;
+      margin-top: 40px;
+      margin-bottom: 40px;
+    }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.9em;
+      color: #999;
+    }
+
+    .quick-start {
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 5px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+
+    .quick-start h3 {
+      color: #2e7d32;
+      margin-top: 0;
+    }
+
+    .emoji {
+      font-size: 1.2em;
+      margin-right: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.5em;
+      }
+
+      h2 {
+        font-size: 1.2em;
+      }
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .feature-item {
+      background: #f8f8f8;
+      padding: 12px;
+      border-radius: 5px;
+      border-left: 3px solid #0066cc;
+    }
+
+    @media print {
+      .feature-grid {
+        display: block;
+      }
+
+      .feature-item {
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">💪 GymKiosk</div>
+      <div class="subtitle">RDPs Strength & Conditioning</div>
+      <div class="subtitle">Dual-Mode Gym Application</div>
+      <div class="version">Version 1.0.0 | February 2026</div>
+    </div>
+
+    <!-- Table of Contents -->
+    <h1>📋 Table of Contents</h1>
+    <ol>
+      <li><a href="#overview">What is GymKiosk?</a></li>
+      <li><a href="#recent-updates">Recent Updates</a></li>
+      <li><a href="#requirements">System Requirements</a></li>
+      <li><a href="#installation">Installation</a></li>
+      <li><a href="#quickstart">Quick Start</a></li>
+      <li><a href="#kiosk">Kiosk Mode (Desktop/Fullscreen)</a></li>
+      <li><a href="#mobile">Mobile Companion</a></li>
+      <li><a href="#features">Core Features</a></li>
+      <li><a href="#workflow">Typical Workout Workflow</a></li>
+      <li><a href="#calendar">Tracking & Calendar</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ol>
+
+    <!-- Overview -->
+    <h1 id="overview">⚡ What is GymKiosk?</h1>
+    <p>GymKiosk is a comprehensive gym management application with two complementary interfaces:</p>
+    
+    <div class="feature-grid">
+      <div class="feature-item">
+        <strong>🖥️ Kiosk Mode (Desktop)</strong><br>
+        Fullscreen locked interface for gym floor use
+      </div>
+      <div class="feature-item">
+        <strong>📱 Mobile Companion</strong><br>
+        QR-code-based workout access on phones
+      </div>
+    </div>
+
+    <h2>💡 Key Capabilities</h2>
+    <ul>
+      <li><strong>135+ Exercises:</strong> Organized across 9 muscle groups</li>
+      <li><strong>Intelligent Planning:</strong> Auto-generate workouts by difficulty & time</li>
+      <li><strong>Nutrition Tracking:</strong> Meal plans integrated with workouts</li>
+      <li><strong>QR Code Sharing:</strong> Instantly share workouts to phones</li>
+      <li><strong>Workout Calendar:</strong> Track completed workouts with streaks</li>
+      <li><strong>Exercise Form:</strong> Step-by-step instructions for every exercise</li>
+      <li><strong>Personal Records:</strong> Weight & reps tracking</li>
+      <li><strong>Daily Challenges:</strong> Gamified fitness goals</li>
+    </ul>
+
+    <!-- Recent Updates -->
+    <h1 id="recent-updates">🛠️ Recent Updates (March 2026)</h1>
+    <div class="info-box">
+      <ul>
+        <li><strong>Difficulty filter is fully active</strong> for exercises and stretches with All/Beginner/Intermediate/Advanced options.</li>
+        <li><strong>Section changes reset filter state</strong> to All when moving into Muscle Groups or Stretches, preventing hidden lists from stale filters.</li>
+        <li><strong>Stretch data coverage verified</strong> across all body-part categories used by the stretch screen.</li>
+        <li><strong>Exercise tile crash fixed</strong> by scoping muscle tile listeners to the muscle screen and guarding invalid inputs.</li>
+      </ul>
+    </div>
+
+    <!-- Requirements -->
+    <h1 id="requirements">📦 System Requirements</h1>
+    
+    <h2>For Kiosk Mode:</h2>
+    <ul>
+      <li>Windows 10/11 or macOS</li>
+      <li>Node.js 14+ (for server)</li>
+      <li>4GB RAM minimum</li>
+      <li>1920x1080 display recommended</li>
+    </ul>
+
+    <h2>For Mobile Access:</h2>
+    <ul>
+      <li>Same WiFi network as kiosk</li>
+      <li>Modern smartphone (iOS 12+ or Android 5+)</li>
+      <li>QR code reader app (built-in cameras have this)</li>
+    </ul>
+
+    <!-- Installation -->
+    <h1 id="installation">🔧 Installation</h1>
+
+    <h2>Step 1: Prerequisites</h2>
+    <p>Install Node.js from <strong>nodejs.org</strong> if not already installed.</p>
+
+    <h2>Step 2: Extract Files</h2>
+    <p>Extract the GymKioskApp folder to your desired location (e.g., Desktop).</p>
+
+    <h2>Step 3: Install Dependencies</h2>
+    <div class="code-block">
+cd C:\Users\YourUsername\Desktop\GymKioskApp
+npm install
+    </div>
+
+    <div class="info-box">
+      <strong>ℹ️ Note:</strong> This downloads required packages (Electron, Express, etc.). This may take 2-3 minutes.
+    </div>
+
+    <!-- Quick Start -->
+    <h1 id="quickstart">🚀 Quick Start</h1>
+
+    <div class="quick-start">
+      <h3>⚡ The Fastest Way to Get Running</h3>
+      <div class="code-block">
+npm start
+      </div>
+
+      <p>This single command starts:</p>
+      <ul>
+        <li>✅ Express server (port 3001)</li>
+        <li>✅ Electron kiosk app</li>
+        <li>✅ DevTools for debugging</li>
+      </ul>
+
+      <p><strong>Expected Output:</strong></p>
+      <div class="code-block">
+GymKiosk Mobile Server RUNNING
+Port: 3001
+Local: http://localhost:3001
+Network: http://192.168.x.x:3001
+      </div>
+
+      <p style="margin-top: 15px;"><strong>Save the "Network" URL - you'll need it for QR codes on phones!</strong></p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- Kiosk Mode -->
+    <h1 id="kiosk">🖥️ Kiosk Mode (Desktop App)</h1>
+
+    <h2>Navigation Flow</h2>
+    <div class="screen-description">
+      <strong>1. User Selection Screen</strong><br>
+      Choose your profile or create a new user. Default user is "Rick" (PIN: 1234).
+    </div>
+
+    <div class="screen-description">
+      <strong>2. Main Actions Screen</strong><br>
+      Access all available features from one hub:
+    </div>
+
+    <h3>Available Actions:</h3>
+    <ul>
+      <li><span class="emoji">💪</span> <strong>Select Exercises:</strong> Browse by muscle group</li>
+      <li><span class="emoji">📋</span> <strong>Generate Workout:</strong> AI-create personalized plans</li>
+      <li><span class="emoji">🍽️</span> <strong>Nutrition:</strong> View meal recommendations</li>
+      <li><span class="emoji">📅</span> <strong>Workout Calendar:</strong> Track completed workouts</li>
+      <li><span class="emoji">🎯</span> <strong>Daily Challenge:</strong> Try today's challenge</li>
+      <li><span class="emoji">⏱️</span> <strong>Stopwatch:</strong> Time your sets</li>
+    </ul>
+
+    <h2>How to Select & View Exercises</h2>
+    <ol>
+      <li>Click <strong>"💪 Select Exercises"</strong></li>
+      <li>Choose a muscle group (Chest, Shoulders, Back, etc.)</li>
+      <li>Browse available exercises (up to 15 per group)</li>
+      <li>Click an exercise to see:
+        <ul>
+          <li>Form instructions (step-by-step)</li>
+          <li>Primary & secondary muscles</li>
+          <li>Video demo (if available)</li>
+        </ul>
+      </li>
+      <li>Share to phone by scanning QR code</li>
+    </ol>
+
+    <!-- Mobile Mode -->
+    <h1 id="mobile">📱 Mobile Companion Mode</h1>
+
+    <h2>Accessing Workouts on Phone</h2>
+
+    <h3>Method 1: QR Code Scan (Recommended)</h3>
+    <ol>
+      <li>From kiosk, click <strong>"📲 Share"</strong> on any workout</li>
+      <li>QR code appears on screen</li>
+      <li>Open phone camera and point at QR code</li>
+      <li>Tap notification to open workout</li>
+      <li>Automatically loads on your phone's browser</li>
+    </ol>
+
+    <h3>Method 2: Manual URL Entry</h3>
+    <ol>
+      <li>Find the Network IP (shown when app starts)</li>
+      <li>On phone, open browser and type: <code>http://192.168.x.x:3001/workout/[id]</code></li>
+      <li>Workout loads automatically</li>
+    </ol>
+
+    <h2>What You Can Do on Mobile</h2>
+    <div class="feature-box">
+      <strong>✅ Track Exercise Completion</strong><br>
+      Check off each exercise as you complete it. Progress bar updates in real-time.
+    </div>
+
+    <div class="feature-box">
+      <strong>📤 Share Workout</strong><br>
+      Send your workout to friends via link or social media.
+    </div>
+
+    <div class="feature-box">
+      <strong>⬆️ Sync Progress</strong><br>
+      Save your completed exercises back to the kiosk.
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- Features -->
+    <h1 id="features">🎯 Core Features</h1>
+
+    <h2>1. Exercise Library</h2>
+    <p>135+ exercises organized by muscle group:</p>
+    <table>
+      <tr>
+        <th>Muscle Group</th>
+        <th>Example Exercises</th>
+        <th>Count</th>
+      </tr>
+      <tr>
+        <td>Chest</td>
+        <td>Bench Press, Incline Press, Dumbbell Fly</td>
+        <td>15</td>
+      </tr>
+      <tr>
+        <td>Back</td>
+        <td>Deadlift, Rows, Pull-ups</td>
+        <td>15</td>
+      </tr>
+      <tr>
+        <td>Shoulders</td>
+        <td>Military Press, Lateral Raise, Shrugs</td>
+        <td>15</td>
+      </tr>
+      <tr>
+        <td>Legs</td>
+        <td>Squats, Lunges, Leg Press</td>
+        <td>15</td>
+      </tr>
+      <tr>
+        <td>Biceps / Triceps / Abs / Core / Traps</td>
+        <td>Various isolation & compound</td>
+        <td>60+</td>
+      </tr>
+    </table>
+
+    <h2>2. Workout Generator</h2>
+    <p>Customize and generate entire workout plans:</p>
+    <ul>
+      <li><strong>By Difficulty:</strong> Beginner, Intermediate, Advanced</li>
+      <li><strong>By Focus:</strong> Choose muscle groups to target</li>
+      <li><strong>By Duration:</strong> 30min, 45min, 60min+ workouts</li>
+      <li><strong>One-Time or Weekly:</strong> Single plan or full week schedule</li>
+    </ul>
+
+    <h2>3. Nutrition Planner</h2>
+    <p>Meal recommendations based on fitness goals:</p>
+    <ul>
+      <li>Breakfast, Lunch, Dinner, Snacks</li>
+      <li>Pre/Post-Workout meals</li>
+      <li>Integrated with workout calendar</li>
+    </ul>
+
+    <h2>4. Personal Record Tracking</h2>
+    <p>Track weight & reps for every exercise:</p>
+    <ul>
+      <li>Log completed sets with weight and reps</li>
+      <li>Calculate estimated 1-rep max</li>
+      <li>View progress over time</li>
+    </ul>
+
+    <h2>5. Workout Calendar</h2>
+    <p>Visual calendar with completion tracking:</p>
+    <ul>
+      <li>See full month at a glance</li>
+      <li>Gold marker (✓) = Workout scheduled</li>
+      <li>Green marker (✅) = Workout completed</li>
+      <li>Track streaks and completion rate</li>
+    </ul>
+
+    <h2>6. Daily Challenges</h2>
+    <p>Gamified daily fitness goals:</p>
+    <ul>
+      <li>New challenge every day</li>
+      <li>Earn points for completion</li>
+      <li>Build consecutive day streaks</li>
+    </ul>
+
+    <!-- Workflow -->
+    <h1 id="workflow">📊 Typical Workout Workflow</h1>
+
+    <h2>Scenario: "I want to do a chest workout today"</h2>
+
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+      <p><span class="step-number">1</span><strong>Start the App</strong></p>
+      <p style="margin-left: 40px;">Run <code>npm start</code> from terminal</p>
+
+      <p><span class="step-number">2</span><strong>Select User</strong></p>
+      <p style="margin-left: 40px;">Click on your profile (or "Rick")</p>
+
+      <p><span class="step-number">3</span><strong>Choose Action</strong></p>
+      <p style="margin-left: 40px;">Click "💪 Select Exercises"</p>
+
+      <p><span class="step-number">4</span><strong>Pick Muscle Group</strong></p>
+      <p style="margin-left: 40px;">Click "Chest" tile</p>
+
+      <p><span class="step-number">5</span><strong>Browse Exercises</strong></p>
+      <p style="margin-left: 40px;">See 15 chest exercises with videos</p>
+
+      <p><span class="step-number">6</span><strong>Start Workout</strong></p>
+      <p style="margin-left: 40px;">Click "Start Workout" to begin</p>
+
+      <p><span class="step-number">7</span><strong>Share to Phone (Optional)</strong></p>
+      <p style="margin-left: 40px;">Click "📲 Share" → Scan QR code with phone</p>
+
+      <p><span class="step-number">8</span><strong>Track Completion</strong></p>
+      <p style="margin-left: 40px;">Check off exercises as you complete them</p>
+
+      <p><span class="step-number">9</span><strong>Mark Complete</strong></p>
+      <p style="margin-left: 40px;">When done, click "✓ Mark Workout Complete"</p>
+
+      <p><span class="step-number">10</span><strong>View Calendar</strong></p>
+      <p style="margin-left: 40px;">See green ✅ marker on today's calendar date</p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- Calendar & Tracking -->
+    <h1 id="calendar">📅 Tracking & Calendar</h1>
+
+    <h2>Viewing Your Workout Calendar</h2>
+    <ol>
+      <li>Click <strong>"📅 Workout Calendar"</strong> from main screen</li>
+      <li>See current month at a glance</li>
+      <li>View statistics:
+        <ul>
+          <li>💪 This Week: shows completed vs. total</li>
+          <li>📊 This Month: completion percentage</li>
+          <li>🔥 Streak: consecutive days</li>
+        </ul>
+      </li>
+    </ol>
+
+    <h2>Clicking on a Workout Date</h2>
+    <p>Click any date with a marker to see:</p>
+    <ul>
+      <li><strong>Complete workout details</strong> - All exercises listed</li>
+      <li><strong>Exercise checklists</strong> - Check off as you go</li>
+      <li><strong>Form instructions</strong> - Step-by-step for each exercise</li>
+      <li><strong>Progress bar</strong> - See % complete</li>
+      <li><strong>Meal plan</strong> - If one was scheduled</li>
+      <li><strong>Mark Complete button</strong> - To save completion</li>
+    </ul>
+
+    <h2>Calendar Indicators</h2>
+    <table>
+      <tr>
+        <th>Indicator</th>
+        <th>Meaning</th>
+        <th>Color</th>
+      </tr>
+      <tr>
+        <td>✓ (Check)</td>
+        <td>Workout scheduled</td>
+        <td>Gold/Yellow</td>
+      </tr>
+      <tr>
+        <td>✅ (Checkmark)</td>
+        <td>Workout completed</td>
+        <td>Green</td>
+      </tr>
+      <tr>
+        <td>Blue border</td>
+        <td>Today's date</td>
+        <td>Blue</td>
+      </tr>
+      <tr>
+        <td>Regular</td>
+        <td>No workout scheduled</td>
+        <td>Light gray</td>
+      </tr>
+    </table>
+
+    <!-- Troubleshooting -->
+    <h1 id="troubleshooting">🔧 Troubleshooting</h1>
+
+    <h2>Issue: App won't start</h2>
+    <ul>
+      <li>✓ Ensure Node.js is installed: <code>node -v</code></li>
+      <li>✓ Run <code>npm install</code> first</li>
+      <li>✓ Check no other app is using ports 3000-3001</li>
+    </ul>
+
+    <h2>Issue: QR code won't scan on phone</h2>
+    <ul>
+      <li>✓ Phone and kiosk must be on same WiFi network</li>
+      <li>✓ Check console shows Network IP (not localhost)</li>
+      <li>✓ Visit <code>http://localhost:3001/diagnostics</code> to test</li>
+      <li>✓ Allow Node.js through Windows Firewall</li>
+    </ul>
+
+    <h2>Issue: Workouts not saving to calendar</h2>
+    <ul>
+      <li>✓ Ensure user is selected (check top-left)</li>
+      <li>✓ Save button should say "💾 Save to Calendar"</li>
+      <li>✓ Check browser console for errors (F12)</li>
+      <li>✓ Try refreshing the page (F5)</li>
+    </ul>
+
+    <h2>Issue: Videos not playing</h2>
+    <ul>
+      <li>✓ Check video files exist in <code>assets/videos/</code></li>
+      <li>✓ Video format should be .mp4</li>
+      <li>✓ For missing videos, kiosk shows placeholder</li>
+      <li>✓ Form instructions still available as text</li>
+    </ul>
+
+    <h2>Issue: Slow performance</h2>
+    <ul>
+      <li>✓ Close unnecessary browser tabs/apps</li>
+      <li>✓ Make sure only one instance of app is running</li>
+      <li>✓ Check available RAM (4GB minimum recommended)</li>
+      <li>✓ Update display drivers if available</li>
+    </ul>
+
+    <h2>Quick Diagnostic Commands</h2>
+    <div class="code-block">
+# Check Node.js version
+node -v
+
+# Check if server is running
+netstat -ano | findstr :3001
+
+# Stop all Node processes
+taskkill /F /IM node.exe
+
+# Clear cache and reinstall
+del /s node_modules
+npm install
+npm start
+    </div>
+
+    <!-- Tips & Tricks -->
+    <h1>💡 Tips & Tricks</h1>
+
+    <h2>For Best Performance:</h2>
+    <ul>
+      <li><strong>Full Screen:</strong> Double-click title bar to maximize kiosk window</li>
+      <li><strong>Offline Mode:</strong> All exercises data cached locally - works without internet</li>
+      <li><strong>Multi-User:</strong> Each user has separate workout history (saved in browser storage)</li>
+      <li><strong>Keyboard Shortcuts:</strong> Use on-screen keyboard for searches</li>
+    </ul>
+
+    <h2>For Mobile Access:</h2>
+    <ul>
+      <li>Save the workout link to phone home screen for quick access</li>
+      <li>Workouts auto-save progress - no need to manually upload</li>
+      <li>Can view calendar on phone: <code>http://192.168.x.x:3001/calendar/{id}</code></li>
+    </ul>
+
+    <h2>Default Login Credentials:</h2>
+    <div class="info-box">
+      <strong>User:</strong> Rick<br>
+      <strong>PIN:</strong> 1234<br>
+      <strong>Admin Code:</strong> 7391 (to access admin panel for settings)
+    </div>
+
+    <!-- Command Reference -->
+    <h1>📖 Command Reference</h1>
+
+    <h2>Terminal Commands</h2>
+    <table>
+      <tr>
+        <th>Command</th>
+        <th>What It Does</th>
+        <th>Use When</th>
+      </tr>
+      <tr>
+        <td><code>npm start</code></td>
+        <td>Start server + kiosk</td>
+        <td>Normal use (RECOMMENDED)</td>
+      </tr>
+      <tr>
+        <td><code>npm run server</code></td>
+        <td>Start just the server</td>
+        <td>Testing mobile without kiosk</td>
+      </tr>
+      <tr>
+        <td><code>npm run kiosk</code></td>
+        <td>Start just the kiosk</td>
+        <td>Server already running elsewhere</td>
+      </tr>
+      <tr>
+        <td><code>npm install</code></td>
+        <td>Install dependencies</td>
+        <td>First time setup or after error</td>
+      </tr>
+    </table>
+
+    <!-- Getting Help -->
+    <h1>📞 Getting Help</h1>
+
+    <h2>Helpful Resources:</h2>
+    <ul>
+      <li><strong>Diagnostics Page:</strong> <code>http://localhost:3001/diagnostics</code></li>
+      <li><strong>Browser Console:</strong> Press F12 for debugging</li>
+      <li><strong>Server Log:</strong> Check terminal output for errors</li>
+      <li><strong>Local Storage:</strong> Data saved in browser storage per user</li>
+    </ul>
+
+    <h2>Common Questions:</h2>
+
+    <h3>Q: Can I create custom exercises?</h3>
+    <p>A: Currently no, but you can edit exercises.js file and restart the app.</p>
+
+    <h3>Q: How do I backup my workouts?</h3>
+    <p>A: Export calendar as JSON from settings, or download workouts.json from data/ folder.</p>
+
+    <h3>Q: Can multiple phones access the same workout?</h3>
+    <p>A: Yes! Share the QR code with multiple people or send them the URL directly.</p>
+
+    <h3>Q: Is my data stored in the cloud?</h3>
+    <p>A: No, everything is stored locally on the device except QR-shared workouts (stored on server).</p>
+
+    <h3>Q: What happens if I close the app?</h3>
+    <p>A: All your workouts and user data are saved. Just reopen the app to resume.</p>
+
+    <div class="page-break"></div>
+
+    <!-- Quick Reference Card -->
+    <h1>🎯 Quick Reference Card</h1>
+
+    <div style="background: #f0f9ff; border: 2px solid #0066cc; border-radius: 8px; padding: 20px; margin: 15px 0;">
+      <h2 style="margin-top: 0; color: #0066cc;">GETTING STARTED IN 5 STEPS</h2>
+
+      <p><strong style="font-size: 1.1em;">Step 1: Open Terminal</strong></p>
+      <p>Navigate to GymKioskApp folder</p>
+
+      <p><strong style="font-size: 1.1em;">Step 2: Run the App</strong></p>
+      <div class="code-block">npm start</div>
+
+      <p><strong style="font-size: 1.1em;">Step 3: Wait for Startup</strong></p>
+      <p>Watch for "GymKiosk Mobile Server RUNNING" message and save the Network IP</p>
+
+      <p><strong style="font-size: 1.1em;">Step 4: Select User</strong></p>
+      <p>Click on "Rick" or create a new user</p>
+
+      <p><strong style="font-size: 1.1em;">Step 5: Choose Action</strong></p>
+      <p>Select Exercises, Generate Workout, or check Daily Challenge</p>
+
+      <p style="margin-top: 20px; text-align: center; color: #0066cc; font-weight: bold;">✅ You're Ready to Start!</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p><strong>GymKiosk App - Getting Started Guide</strong></p>
+      <p>Version 1.0.0 | February 2026 | RDPs Strength & Conditioning</p>
+      <p>For questions or support, refer to the troubleshooting section above.</p>
+      <p style="margin-top: 15px; font-size: 0.8em;">
+        This guide is optimized for printing to PDF. Use Ctrl+P (Windows) or Cmd+P (Mac) to save as PDF.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Print-friendly functionality
+    function printToPDF() {
+      window.print();
+    }
+
+    // Add print button if not printing already
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        if (!window.location.search.includes('print')) {
+          const header = document.querySelector('.header');
+          const printBtn = document.createElement('button');
+          printBtn.textContent = '🖨️ Print to PDF';
+          printBtn.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+          `;
+          printBtn.onclick = printToPDF;
+          // Don't add button for print media
+          const mediaQuery = window.matchMedia('print');
+          if (!mediaQuery.matches) {
+            document.body.appendChild(printBtn);
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

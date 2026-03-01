@@ -1,0 +1,40 @@
+{
+  "appId": "com.rdps.gymkiosk.admin",
+  "productName": "GymKiosk Admin",
+  "directories": {
+    "output": "dist-admin-installer",
+    "buildResources": "assets"
+  },
+  "files": [
+    "main-admin.js",
+    "preload-admin.js",
+    "preload.js",
+    "admin/**/*",
+    "css/**/*",
+    "js/**/*",
+    "data/**/*",
+    "mobile/**/*",
+    "assets/**/*",
+    "index.html",
+    "package.json",
+    "server.js"
+  ],
+  "extraMetadata": {
+    "main": "main-admin.js"
+  },
+  "win": {
+    "icon": "assets/branding/logo.png",
+    "target": [
+      "nsis"
+    ],
+    "artifactName": "GymKiosk-Admin-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "GymKiosk Admin"
+  }
+}

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exercise Animation Preview - GymKiosk</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin: 0 0 10px 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(45, 55, 72, 0.4);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+    }
+
+    .select-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .select-group label {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    select {
+      padding: 10px 12px;
+      background: rgba(26, 31, 46, 0.8);
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    select:hover {
+      border-color: rgba(0, 212, 255, 0.6);
+      background: rgba(26, 31, 46, 1);
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--color-blue);
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+      color: var(--color-black);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: rgba(212, 175, 55, 0.2);
+      color: var(--text-primary);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+    }
+
+    button.secondary:hover {
+      background: rgba(212, 175, 55, 0.3);
+      border-color: rgba(212, 175, 55, 0.7);
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 20px;
+    }
+
+    .preview-card {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .preview-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 15px 0;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(20, 30, 50, 0.5) 100%);
+      display: block;
+    }
+
+    .animation-info {
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(0, 212, 255, 0.05);
+      border-left: 3px solid var(--color-blue);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .muscle-group {
+      display: inline-block;
+      background: rgba(212, 175, 55, 0.2);
+      color: var(--color-gold);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+
+    .message {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💪 Exercise Animation Preview</h1>
+      <p class="subtitle">Interactive demonstrations of proper exercise form</p>
+    </header>
+
+    <div class="controls">
+      <div class="select-group">
+        <label>Select Exercise</label>
+        <select id="exerciseSelect">
+          <option value="">-- Choose an exercise --</option>
+        </select>
+      </div>
+      <div class="buttons">
+        <button onclick="playAnimation()">▶️ Play</button>
+        <button class="secondary" onclick="stopAnimation()">⏹️ Stop</button>
+        <button class="secondary" onclick="resetAnimation()">🔄 Reset</button>
+      </div>
+    </div>
+
+    <div class="preview-grid" id="previewContainer">
+      <div class="message">Select an exercise to preview the animation</div>
+    </div>
+  </div>
+
+  <script src="js/animations/exercises.js"></script>
+  <script src="js/animations/animator.js"></script>
+
+  <script>
+    let currentAnimator = null;
+
+    // Populate exercise select
+    function populateExercises() {
+      const select = document.getElementById('exerciseSelect');
+      const exerciseNames = Object.keys(EXERCISE_ANIMATIONS).sort();
+
+      exerciseNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', (e) => {
+        if (e.target.value) {
+          loadExercise(e.target.value);
+        }
+      });
+    }
+
+    // Load and display exercise
+    function loadExercise(exerciseName) {
+      const animation = EXERCISE_ANIMATIONS[exerciseName];
+      if (!animation) return;
+
+      const container = document.getElementById('previewContainer');
+      container.innerHTML = '';
+
+      // Get muscle group from context
+      let muscleGroup = 'General';
+      if (exerciseName.includes('push') || exerciseName.includes('bench')) muscleGroup = 'Chest';
+      if (exerciseName.includes('pull') || exerciseName.includes('row')) muscleGroup = 'Back';
+      if (exerciseName.includes('curl')) muscleGroup = 'Biceps';
+      if (exerciseName.includes('dip')) muscleGroup = 'Triceps';
+      if (exerciseName.includes('squat') || exerciseName.includes('deadlift')) muscleGroup = 'Legs';
+      if (exerciseName.includes('press') && exerciseName.includes('shoulder')) muscleGroup = 'Shoulders';
+
+      const card = document.createElement('div');
+      card.className = 'preview-card';
+      card.innerHTML = `
+        <p class="preview-title">${exerciseName.toUpperCase()}</p>
+        <canvas id="animationCanvas"></canvas>
+        <div class="animation-info">
+          <div class="muscle-group">${muscleGroup}</div>
+          <div>Frames: ${animation.frames.length} | Speed: ${animation.frameDelay}ms per frame</div>
+          <div style="margin-top: 8px; color: var(--text-muted);">
+            Click Play to start the animation
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+
+      // Create animator
+      currentAnimator = new ExerciseAnimator('animationCanvas', exerciseName);
+    }
+
+    function playAnimation() {
+      if (currentAnimator && currentAnimator.animation) {
+        currentAnimator.play();
+      } else {
+        alert('Please select an exercise first');
+      }
+    }
+
+    function stopAnimation() {
+      if (currentAnimator) {
+        currentAnimator.stop();
+      }
+    }
+
+    function resetAnimation() {
+      if (currentAnimator && currentAnimator.animation) {
+        currentAnimator.stop();
+        currentAnimator.frame = 0;
+        const frameIndex = 0;
+        const currentFrame = currentAnimator.animation.frames[frameIndex];
+        currentAnimator.drawBackground();
+        currentAnimator.drawFigure(currentFrame.positions);
+        currentAnimator.drawText(currentFrame.label || currentAnimator.exerciseName);
+      }
+    }
+
+    // Initialize
+    populateExercises();
+  </script>
+</body>
+</html>

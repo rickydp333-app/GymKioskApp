@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RDPs STRENGTH & CONDITIONING</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/calendar.css" />
+</head>
+
+<body>
+
+<!-- ===============================
+  GLOBAL HEADER
+================================ -->
+<div class="app-header">
+  <img
+    src="assets/branding/logo.png"
+    alt="RDPs STRENGHT &amp; CONDITIONING"
+    class="app-logo"
+  />
+  <h1 id="appTitle" class="app-title" style="display: none;">
+    RDPs STRENGTH &amp; CONDITIONING
+  </h1>
+</div>
+
+<!-- ===============================
+  TOP LEFT CONTROLS (Create + Builder)
+================================ -->
+<div id="topLeftControls">
+  <button id="openAdminBtn" class="control-btn">
+    🔐 Admin
+  </button>
+  <button id="openCreateUserBtn" class="control-btn">
+    ＋ Create User
+  </button>
+  <button id="openFavoritesBtn" class="control-btn">
+    ⭐ My Favorites
+  </button>
+</div>
+
+<!-- ===============================
+  START OVER BUTTON
+================================ -->
+<div id="topRightControls">
+  <button id="startOverBtn" class="control-btn danger">
+    ⟳ Start Over
+  </button>
+   <button id="backToMuscles" class="control-btn">
+    ← Back
+  </button>
+  <button id="howToBtn" class="control-btn">
+    ❓ How To / Info
+  </button>
+</div>
+
+<div id="globalErrorBanner" class="global-error-banner hidden" role="alert" aria-live="assertive"></div>
+
+<!--======================
+  USER SELECTION SCREEN
+================================ -->
+<div id="userScreen" class="screen" style="display: block !important;">
+  <div class="user-screen-header">
+    <h2 class="title">Select Your Profile</h2>
+    <button id="openCreateUserHeaderBtn" class="control-btn">＋ Create User</button>
+  </div>
+  <div class="user-search">
+    <input id="userSearchInput" class="user-search-input" type="text" placeholder="Search users..." autocomplete="off" />
+  </div>
+  <div id="userGrid" class="user-grid"></div>
+</div>
+
+<!-- ===============================
+  MAIN ACTIONS SCREEN (After Profile Selection)
+================================ -->
+<div id="mainActionsScreen" class="screen hidden">
+  <h2 class="title">Welcome <span id="currentUserDisplay"></span></h2>
+  
+  <div class="actions-grid">
+    <button id="muscleGroupsBtn" class="action-btn">
+      <img src="assets/icons/muscle-groups.svg" class="action-icon" alt="Muscle Groups">
+      <span class="action-text">Muscle Groups</span>
+    </button>
+    
+    <button id="stretchesBtn" class="action-btn">
+      <img src="assets/icons/stretches.svg" class="action-icon" alt="Stretches">
+      <span class="action-text">Stretches</span>
+    </button>
+    
+    <button id="buildPlanBtn" class="action-btn">
+      <img src="assets/icons/build-workout.svg" class="action-icon" alt="Build Workout">
+      <span class="action-text">Build a Workout</span>
+    </button>
+
+    <button id="fullBodyGeneratorBtn" class="action-btn">
+      <img src="assets/icons/full-body.svg" class="action-icon" alt="Full-Body">
+      <span class="action-text">Full-Body Workout</span>
+    </button>
+    <button id="buildNutritionBtn" class="action-btn">
+      <img src="assets/icons/nutrition.svg" class="action-icon" alt="Nutrition">
+      <span class="action-text">Training Nutrition & Fuel Guide</span>
+    </button>
+    <button id="myCalendarBtn" class="action-btn">
+      <img src="assets/icons/calendar.svg" class="action-icon" alt="Calendar">
+      <span class="action-text">My Workout Calendar</span>
+    </button>
+    <button id="dailyChallengeBtn" class="action-btn challenge-btn">
+      <img src="assets/icons/challenge.svg" class="action-icon" alt="Challenge">
+      <span class="action-text">Daily Challenge<br>or<br><span style="font-size: 2rem; opacity: 0.8;">Challenge a friend</span></span>
+      <span class="challenge-badge" id="challengeBadge">NEW</span>
+    </button>
+
+    <button id="analyticsBtn" class="action-btn">
+      <span class="action-icon" style="font-size: 3rem; display: block;">📊</span>
+      <span class="action-text">My Analytics</span>
+    </button>
+
+    <button id="myPRsBtn" class="action-btn">
+      <span class="action-icon" style="font-size: 3rem; display: block;">🏆</span>
+      <span class="action-text">My Personal Records</span>
+    </button>
+  </div>
+
+  <div id="activityLeaderboard" class="activity-panel">
+    <div class="activity-panel-header">🔥 Most Active This Week</div>
+    <div class="activity-panel-title">🏆 Gym Grind Board</div>
+    <div class="activity-panel-top">
+      <span id="topUserName">—</span>
+      <span id="topUserCount"></span>
+    </div>
+    <div class="activity-panel-footer">⚡ Active Members Today: <span id="activeMembersToday">0</span></div>
+  </div>
+</div>
+
+<!-- ===============================
+  DAILY CHALLENGE SCREEN
+================================ -->
+<div id="dailyChallengeScreen" class="screen hidden">
+  <button id="backFromChallenge" class="back-btn">⬅ Back</button>
+  <h2 class="title" id="challengeTitle">Daily Challenge</h2>
+  
+  <div id="challengeContent" style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    <!-- Challenge details loaded dynamically -->
+  </div>
+
+  <div id="challengeActions" style="text-align: center; margin-top: 30px;">
+    <button id="markChallengeComplete" class="primary-btn" style="font-size: 20px; padding: 16px 32px;">✓ Mark as Complete</button>
+    <button id="shareChallengeBtn" class="primary-btn" style="font-size: 20px; padding: 16px 32px; margin-left: 16px;">📱 Share Challenge</button>
+  </div>
+
+  <div id="challengeStats" style="max-width: 600px; margin: 30px auto; padding: 20px; background: rgba(0, 212, 255, 0.1); border-radius: 12px; border: 1px solid rgba(0, 212, 255, 0.3);">
+    <h3 style="margin-top: 0; color: var(--color-blue);">📊 Your Challenge Stats</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
+      <div>
+        <div style="font-size: 32px; font-weight: bold; color: var(--color-gold);" id="totalChallengesCompleted">0</div>
+        <div style="font-size: 14px; color: var(--text-secondary);">Total Completed</div>
+      </div>
+      <div>
+        <div style="font-size: 32px; font-weight: bold; color: var(--color-gold);" id="currentStreak">0</div>
+        <div style="font-size: 14px; color: var(--text-secondary);">Day Streak</div>
+      </div>
+      <div>
+        <div style="font-size: 32px; font-weight: bold; color: var(--color-gold);" id="totalPoints">0</div>
+        <div style="font-size: 14px; color: var(--text-secondary);">Total Points</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="communityCompletion" style="max-width: 600px; margin: 30px auto; padding: 20px; background: rgba(212, 175, 55, 0.1); border-radius: 12px; border: 1px solid rgba(212, 175, 55, 0.3);">
+    <h3 style="margin-top: 0; color: var(--color-gold);">👥 Community Progress</h3>
+    <div style="font-size: 18px; text-align: center;">
+      <span style="font-size: 48px; font-weight: bold; color: var(--color-gold);" id="communityPercent">0%</span>
+      <div style="margin-top: 8px; color: var(--text-secondary);">of users completed today's challenge</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  CHALLENGE A FRIEND SCREEN
+================================ -->
+<div id="challengeFriendScreen" class="screen hidden">
+  <button id="backFromChallengeFriend" class="back-btn">⬅ Back</button>
+  <h2 class="title">🤝 Challenge a Friend</h2>
+  
+  <div style="max-width: 900px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, rgba(26, 31, 46, 0.8) 0%, rgba(20, 23, 32, 0.95) 100%); padding: 24px; border-radius: 16px; border: 1px solid rgba(212, 175, 55, 0.2); margin-bottom: 24px; text-align: center;">
+      <h3 style="margin: 0 0 12px 0; color: var(--color-gold); font-size: 20px;">Today's Challenge</h3>
+      <p style="margin: 0; color: var(--text-primary); font-size: 18px;">Challenge your friends to today's Daily Challenge!</p>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <h3 style="color: var(--text-primary); margin-bottom: 16px; font-size: 18px;">Select a friend to challenge:</h3>
+      <div id="challengeFriendUserList" style="display: grid; gap: 12px;">
+        <!-- Dynamically populated with user buttons -->
+      </div>
+    </div>
+
+    <div class="builder-section" style="margin-top: 30px;">
+      <h3 class="builder-section-title">Challenge History</h3>
+      <div id="friendChallengeHistory" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
+        <div style="color: var(--text-secondary); text-align: center;">No challenges sent yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  HOW TO GUIDE SCREEN
+================================ -->
+<div id="howToScreen" class="screen hidden">
+  <h2 class="title">❓ How To Guides</h2>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Choose a topic</h3>
+    <div class="builder-goal-grid" id="howToTopicGrid" style="max-width: 900px; margin: 0 auto;">
+      <div class="builder-tile" data-topic="trackWorkout">📊 How to Track Your Workouts</div>
+      <div class="builder-tile" data-topic="buildWorkout">🏋️ How to Build a Workout</div>
+      <div class="builder-tile" data-topic="fullBodyWorkout">⚡ How to Build a Full-Body Workout</div>
+      <div class="builder-tile" data-topic="nutritionPlan">🥗 How to Build a Nutrition Plan</div>
+      <div class="builder-tile" data-topic="favoritesList">⭐ How to Build Your Favorites List</div>
+      <div class="builder-tile" data-topic="sendToPhone">📲 How to Send Info to Your Phone</div>
+      <div class="builder-tile" data-topic="phoneWorkout">📱 How to Build a Workout on Your Phone</div>
+    </div>
+  </div>
+
+  <div id="howToDetail" class="nutrition-result"></div>
+
+  <button class="back-btn" id="howToBack">
+    ⬅ Back
+  </button>
+</div>
+
+<!-- ==============================
+  MUSCLE GROUP SCREEN
+================================ -->
+<div id="muscleScreen" class="screen hidden">
+  <h2 class="title">Select Muscle Group</h2>
+
+  <div class="muscle-grid">
+    <div class="muscle" data-muscle="chest">
+  <img src="assets/muscles/chest.png" alt="Chest muscles">
+  <span>Chest</span>
+</div>
+<div class="muscle" data-muscle="shoulders">
+  <img src="assets/muscles/shoulders.png" alt="Shoulders">
+  <span>Shoulders</span>
+</div>
+
+<div class="muscle" data-muscle="back">
+  <img src="assets/muscles/back.png" alt="Back">
+  <span>Back</span>
+</div>
+
+<div class="muscle" data-muscle="biceps">
+  <img src="assets/muscles/biceps.png" alt="Biceps">
+  <span>Biceps</span>
+</div>
+
+<div class="muscle" data-muscle="triceps">
+  <img src="assets/muscles/triceps.png" alt="Triceps">
+  <span>Triceps</span>
+</div>
+
+<div class="muscle" data-muscle="legs">
+  <img src="assets/muscles/legs.png" alt="Legs">
+  <span>Legs</span>
+</div>
+
+<div class="muscle" data-muscle="abs">
+  <img src="assets/muscles/abs.png" alt="Abs">
+  <span>Abs</span>
+</div>
+
+<div class="muscle" data-muscle="core">
+  <img src="assets/muscles/core.png" alt="Core">
+  <span>Core</span>
+</div>
+
+<div class="muscle" data-muscle="traps">
+  <img src="assets/muscles/traps.png" alt="Traps">
+  <span>Traps</span>
+</div>
+  </div>
+</div>
+
+<!-- ===============================
+  EXERCISE LIST SCREEN
+================================ -->
+<div id="exerciseScreen" class="screen hidden">
+  <button id="backFromExercises" class="back-btn">⬅ Back</button>
+  <h2 id="exerciseTitle" class="title"></h2>
+  
+  <div style="text-align: center; margin: 12px auto;">
+    <button id="shareWorkoutBtn" class="primary-btn" style="display: none;">
+      📱 Share QR
+    </button>
+  </div>
+  
+  <p style="text-align: center; color: #888; font-size: 14px; margin: 8px 0 16px;">
+    Complete each exercise individually to track your progress
+  </p>
+  
+  <!-- Difficulty Filter -->
+  <div id="difficultyFilterContainer" style="display: none; padding: 15px; background: #f0f0f0; border-radius: 8px; margin: 12px 0; text-align: center;">
+    <strong style="display: block; margin-bottom: 10px; color: #333;">Filter by Difficulty:</strong>
+    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+      <button class="filter-btn active" data-difficulty="all" style="padding: 8px 16px; border-radius: 6px; border: 2px solid #333; background: #333; color: #fff; cursor: pointer; font-size: 14px; font-weight: bold;">All</button>
+      <button class="filter-btn" data-difficulty="beginner" style="padding: 8px 16px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 14px; font-weight: bold;">🟢 Beginner</button>
+      <button class="filter-btn" data-difficulty="intermediate" style="padding: 8px 16px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 14px; font-weight: bold;">🟡 Intermediate</button>
+      <button class="filter-btn" data-difficulty="advanced" style="padding: 8px 16px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 14px; font-weight: bold;">🔴 Advanced</button>
+    </div>
+  </div>
+
+  <div id="exerciseGrid" class="exercise-grid"></div>
+</div>
+
+<!-- ===============================
+  ANALYTICS & STATS SCREEN
+================================ -->
+<div id="analyticsScreen" class="screen hidden">
+  <button id="backFromAnalytics" class="back-btn">⬅ Back</button>
+  <h2 class="title">📊 My Workout Analytics</h2>
+
+  <!-- Stats Overview -->
+  <div class="analytics-stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">🏋️</div>
+      <div class="stat-value" id="totalWorkoutsVal">0</div>
+      <div class="stat-label">Total Workouts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📅</div>
+      <div class="stat-value" id="monthWorkoutsVal">0</div>
+      <div class="stat-label">This Month</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⏱️</div>
+      <div class="stat-value" id="avgDurationVal">0</div>
+      <div class="stat-label">Avg Duration (min)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🔥</div>
+      <div class="stat-value" id="streakVal">0</div>
+      <div class="stat-label">Current Streak</div>
+    </div>
+  </div>
+
+  <!-- Favorite Muscle Groups -->
+  <div class="analytics-section">
+    <h3>💪 Favorite Muscle Groups</h3>
+    <div id="favoriteMusclesContainer" class="favorite-muscles"></div>
+  </div>
+
+  <!-- Smart Recommendations -->
+  <div class="analytics-section">
+    <h3>🎯 Smart Recommendations</h3>
+    <div id="smartRecommendationsContainer"></div>
+  </div>
+
+  <!-- Adaptive Difficulty / Progression -->
+  <div class="analytics-section">
+    <h3>📈 Ready for Progression</h3>
+    <div id="progressionSuggestionsContainer"></div>
+  </div>
+
+  <!-- Badges Section -->
+  <div class="analytics-section">
+    <h3>🏆 Earned Badges</h3>
+    <div id="badgesContainer" class="badges-grid"></div>
+  </div>
+
+  <!-- Upcoming Badges -->
+  <div class="analytics-section">
+    <h3>🎯 Badges in Progress</h3>
+    <div id="progressBadgesContainer" class="progress-badges"></div>
+  </div>
+
+  <!-- Recent Workouts -->
+  <div class="analytics-section">
+    <h3>📝 Recent Workouts</h3>
+    <div id="recentWorkoutsContainer" class="recent-workouts-list"></div>
+  </div>
+</div>
+
+<!-- ===============================
+  PERSONAL RECORDS SCREEN
+================================ -->
+<div id="personalRecordsScreen" class="screen hidden">
+  <button id="backFromPRs" class="back-btn">⬅ Back</button>
+  <h2 class="title">🏆 My Personal Records</h2>
+  <div id="prContainer" class="pr-container">
+    <!-- Generated by JavaScript -->
+  </div>
+</div>
+
+<!-- ===============================
+  STRETCHES BODY PARTS SCREEN
+================================ -->
+<div id="stretchScreen" class="screen hidden">
+  <h2 class="title">Select Body Part to Stretch</h2>
+  
+  <div class="muscle-grid">
+    <div class="muscle" data-body-part="neck-shoulders">
+      <span>🧠 Neck & Shoulders</span>
+    </div>
+    <div class="muscle" data-body-part="chest">
+      <span>💪 Chest</span>
+    </div>
+    <div class="muscle" data-body-part="back">
+      <span>🔙 Back</span>
+    </div>
+    <div class="muscle" data-body-part="arms-wrists">
+      <span>🤲 Arms & Wrists</span>
+    </div>
+    <div class="muscle" data-body-part="legs-glutes">
+      <span>🦵 Legs & Glutes</span>
+    </div>
+    <div class="muscle" data-body-part="hips-pelvis">
+      <span>🫀 Hips & Pelvis</span>
+    </div>
+    <div class="muscle" data-body-part="spine-core">
+      <span>🔗 Spine & Core</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+     WORKOUT CALENDAR SCREEN
+================================ -->
+<div id="workoutCalendarScreen" class="screen hidden">
+  <button id="backFromCalendar" class="back-btn">⬅ Back</button>
+  <h2 class="title">📅 My Workout Calendar</h2>
+  <div style="text-align: center; margin-bottom: 16px;">
+    <button id="shareCalendarBtn" class="primary-btn">📲 Share Calendar QR</button>
+  </div>
+  
+  <div class="calendar-container">
+    <div class="calendar-header">
+      <button class="calendar-nav-btn" id="prevMonthBtn">◀</button>
+      <h2 class="calendar-month-title" id="calendarTitle">January 2026</h2>
+      <button class="calendar-nav-btn" id="nextMonthBtn">▶</button>
+    </div>
+    
+    <div class="calendar-stats">
+      <div class="stat-card">
+        <div class="stat-label">This Month</div>
+        <div class="stat-value" id="monthWorkoutCount">0</div>
+        <div class="stat-unit">workouts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">This Week</div>
+        <div class="stat-value" id="weekWorkoutCount">0</div>
+        <div class="stat-unit">workouts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Current Streak</div>
+        <div class="stat-value" id="streakCount">0</div>
+        <div class="stat-unit">days</div>
+      </div>
+    </div>
+
+    <div class="calendar-weekdays">
+      <div class="calendar-weekday">Sun</div>
+      <div class="calendar-weekday">Mon</div>
+      <div class="calendar-weekday">Tue</div>
+      <div class="calendar-weekday">Wed</div>
+      <div class="calendar-weekday">Thu</div>
+      <div class="calendar-weekday">Fri</div>
+      <div class="calendar-weekday">Sat</div>
+    </div>
+
+    <div class="calendar-grid" id="calendarGrid">
+      <!-- Days will be generated dynamically -->
+    </div>
+
+    <div class="calendar-legend">
+      <div class="legend-item">
+        <span class="legend-dot workout-complete"></span>
+        <span>Workout Completed</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot today-highlight"></span>
+        <span>Today</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+     ADMIN PANEL
+================================ -->
+<div id="adminPanel" class="screen hidden">
+  <h2 class="title">Admin Panel</h2>
+
+  <div class="admin-actions">
+    <button id="resetApp" class="primary-btn">
+      🔄 Return to Profile Screen
+    </button>
+
+    <button id="adminToggleAutoLogout" class="back-btn admin-small-option">
+      🔒 Screensaver Auto-Logout: ON
+    </button>
+
+    <div id="adminAutoLogoutStatus" class="admin-auto-logout-status">
+      Current status: ON
+    </div>
+
+    <button id="adminResetDisclaimer" class="back-btn admin-small-option">
+      ⚠ Re-show Disclaimer Next Visit
+    </button>
+
+    <button id="adminResetActivityStats" class="back-btn admin-small-option">
+      📈 Clear Activity Leaderboard
+    </button>
+
+    <button id="exitAdmin" class="back-btn">
+      ⬅ Exit Admin
+    </button>
+
+    <h3 class="title">👥 Users</h3>
+
+<div id="adminUserList" class="admin-user-list"></div>
+
+<button id="adminAddUser" class="primary-btn">
+  ➕ Add User
+</button>
+<h3>Manage Users</h3>
+
+<select id="adminUserSelect"></select>
+
+    <h3 class="title">⚠ Destructive Actions</h3>
+
+    <h3 class="title">📊 Reset User Stats</h3>
+    <div class="admin-stats-reset">
+      <select id="adminStatsUserSelect" class="admin-input">
+        <option value="">Select a user...</option>
+      </select>
+      <button id="resetUserStatsBtn" class="primary-btn danger-btn">
+        🔄 Reset Selected User Stats
+      </button>
+    </div>
+
+<button id="adminDeleteUser" class="danger-btn">
+  🗑 Delete Selected User
+</button>
+
+    <h3 class="title">🛠 Data Maintenance</h3>
+
+    <button id="adminClearCalendarData" class="back-btn admin-small-option">
+      🗓 Clear Calendar Data (All Users)
+    </button>
+
+    <button id="adminClearChallengeData" class="back-btn admin-small-option">
+      🏁 Clear Challenge & Points Data
+    </button>
+
+    <button id="adminResetAllUserStats" class="back-btn admin-small-option">
+      👥 Reset Stats for All Users
+    </button>
+
+    <button id="clearUserData" class="primary-btn danger-btn">
+      🗑 Delete ALL Users & Data
+    </button>
+  </div>
+</div>
+<!-- ===============================
+  FAVORITES SCREEN
+================================ -->
+<div id="favoritesScreen" class="screen hidden">
+  <h2 class="title">My Favorite Exercises</h2>
+  <button id="backFromFavorites" class="back-btn">⬅ Back</button>
+  <button id="shareFavoritesQR" class="primary-btn" style="position: fixed; bottom: 100px; right: 40px; padding: 16px 24px; font-size: 16px; z-index: 100;">📱 Share to Phone</button>
+  <div id="favoritesGrid" class="exercise-grid"></div>
+</div>
+
+<!-- ===============================
+  USER PIN MODAL
+================================ -->
+<div id="userPinModal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="userPinTitle">Enter PIN</h3>
+    <div id="userPinDisplay" class="pin-display">••••</div>
+
+    <div class="keypad">
+      <button data-key="1">1</button>
+      <button data-key="2">2</button>
+      <button data-key="3">3</button>
+      <button data-key="4">4</button>
+      <button data-key="5">5</button>
+      <button data-key="6">6</button>
+      <button data-key="7">7</button>
+      <button data-key="8">8</button>
+      <button data-key="9">9</button>
+      <button data-key="clear">C</button>
+      <button data-key="0">0</button>
+      <button data-key="ok">OK</button>
+    </div>
+
+    <button id="cancelUserPin" class="back-btn">Cancel</button>
+  </div>
+</div>
+<!-- ===============================
+  ADMIN EDIT USER 
+================================ -->
+<div id="editUserModal" class="modal hidden">
+  <div class="modal-card">
+    <h2 class="title">Edit User</h2>
+
+    <input
+      id="editUsernameInput"
+      placeholder="Username"
+      autocomplete="off"
+    />
+
+    <button id="resetUserPin" class="primary-btn">
+      🔐 Reset PIN
+    </button>
+
+    <button id="saveUserChanges" class="primary-btn">
+      💾 Save
+    </button>
+
+    <button id="deleteUser" class="danger-btn">
+      🗑 Delete User
+    </button>
+
+    <button id="cancelEditUser" class="back-btn">
+      ⬅ Cancel
+    </button>
+  </div>
+</div>
+
+<!-- ===============================
+  ADMIN PIN MODAL
+================================ -->
+<div id="adminPinModal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Admin Access</h3>
+    <div id="adminPinDisplay" class="pin-display">••••</div>
+
+    <div class="keypad">
+      <button data-key="1">1</button>
+      <button data-key="2">2</button>
+      <button data-key="3">3</button>
+      <button data-key="4">4</button>
+      <button data-key="5">5</button>
+      <button data-key="6">6</button>
+      <button data-key="7">7</button>
+      <button data-key="8">8</button>
+      <button data-key="9">9</button>
+      <button data-key="clear">C</button>
+      <button data-key="0">0</button>
+      <button data-key="ok">OK</button>
+    </div>
+
+    <button id="cancelAdminPin" class="back-btn">Cancel</button>
+  </div>
+</div>
+
+<!-- ===============================
+  CUSTOM CONFIRMATION MODAL
+================================ -->
+<div id="confirmModal" class="modal hidden">
+  <div class="modal-card" style="max-width: 500px;">
+    <h3 id="confirmModalTitle">Confirm Action</h3>
+    <p id="confirmModalMessage" style="color: var(--text-primary); font-size: 1.1rem; line-height: 1.6; margin: 24px 0;">
+      Are you sure?
+    </p>
+    <div class="modal-actions" style="display: flex; gap: 16px; justify-content: center; margin-top: 32px;">
+      <button id="confirmModalCancel" type="button" style="background: rgba(255, 255, 255, 0.1); color: var(--text-primary); padding: 14px 32px; font-size: 1.1rem; min-width: 120px;">
+        Cancel
+      </button>
+      <button id="confirmModalConfirm" type="button" class="danger-btn" style="padding: 14px 32px; font-size: 1.1rem; min-width: 120px;">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  CUSTOM ALERT MODAL
+================================ -->
+<div id="alertModal" class="modal hidden">
+  <div class="modal-card" style="max-width: 500px;">
+    <h3 id="alertModalTitle">Notice</h3>
+    <p id="alertModalMessage" style="color: var(--text-primary); font-size: 1.1rem; line-height: 1.6; margin: 24px 0;">
+      Message
+    </p>
+    <div class="modal-actions" style="display: flex; justify-content: center; margin-top: 32px;">
+      <button id="alertModalOk" type="button" class="primary-btn" style="padding: 14px 48px; font-size: 1.1rem; min-width: 150px;">
+        OK
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  SAFETY DISCLAIMER MODAL
+================================ -->
+<div id="disclaimerModal" class="modal hidden">
+  <div class="modal-card disclaimer-card">
+    <h2>Important Safety Notice</h2>
+    <p>
+      This kiosk provides general exercise guidance only. By continuing, you acknowledge and agree:
+    </p>
+    <ul class="disclaimer-list">
+      <li>Use of this app and all workout suggestions is at your own risk.</li>
+      <li>RDPs Strength &amp; Conditioning is not liable for injuries, losses, or damages related to use of this content.</li>
+      <li>Consult a qualified medical professional before starting any new exercise program.</li>
+      <li>Stop immediately if you feel pain, dizziness, or discomfort.</li>
+    </ul>
+    <div class="modal-actions disclaimer-actions">
+      <button id="acceptDisclaimerBtn" type="button" class="primary-btn">I Understand &amp; Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  ADMIN PIN KEYPAD MODAL
+================================ -->
+<div id="adminPinKeypadModal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Edit PIN</h3>
+    <div class="keypad">
+      <button type="button" class="admin-pin-key" data-key="1">1</button>
+      <button type="button" class="admin-pin-key" data-key="2">2</button>
+      <button type="button" class="admin-pin-key" data-key="3">3</button>
+      <button type="button" class="admin-pin-key" data-key="4">4</button>
+      <button type="button" class="admin-pin-key" data-key="5">5</button>
+      <button type="button" class="admin-pin-key" data-key="6">6</button>
+      <button type="button" class="admin-pin-key" data-key="7">7</button>
+      <button type="button" class="admin-pin-key" data-key="8">8</button>
+      <button type="button" class="admin-pin-key" data-key="9">9</button>
+      <button type="button" class="admin-pin-key" data-key="clear">Clear</button>
+      <button type="button" class="admin-pin-key" data-key="0">0</button>
+      <button type="button" class="admin-pin-key primary-btn" data-key="save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  EXERCISE VARIANTS MODAL
+================================ -->
+<div id="exerciseVariantModal" class="modal hidden">
+  <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+    <button class="modal-close" onclick="closeExerciseVariantModal()">Close</button>
+    <h2 id="variantExerciseName" style="margin-top: 0; color: var(--color-gold);">Exercise Variants</h2>
+    
+    <div style="margin-bottom: 20px; color: var(--text-primary); line-height: 1.8;">
+      <p style="margin: 5px 0;">⚡ <strong>Power variant</strong></p>
+      <p style="margin: 5px 0;">💪 <strong>Hypertrophy variant</strong></p>
+      <p style="margin: 5px 0;">🛌 <strong>Rehab variant</strong></p>
+    </div>
+    
+    <div class="variant-tabs">
+      <button class="variant-tab active" data-variant="power" onclick="setActiveVariant('power')">⚡ Power</button>
+      <button class="variant-tab" data-variant="hypertrophy" onclick="setActiveVariant('hypertrophy')">💪 Hypertrophy</button>
+      <button class="variant-tab" data-variant="rehab" onclick="setActiveVariant('rehab')">🛌 Rehab</button>
+    </div>
+
+    <div id="variantContent" class="variant-content"></div>
+  </div>
+</div>
+
+<!-- ===============================
+  SWAP ITEM MODAL
+================================ -->
+<div id="swapModal" class="modal hidden">
+  <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+    <button class="modal-close" onclick="closeSwapModal()">Close</button>
+    <h2 id="swapModalTitle" style="margin-top: 0; color: var(--color-gold);">Swap Item</h2>
+    <div id="swapModalBody"></div>
+  </div>
+</div>
+
+<!-- ===============================
+  SCREENSAVER OVERLAY
+================================ -->
+<div id="screensaverOverlay" class="screensaver-overlay hidden">
+  <button class="screensaver-start-button" onclick="stopScreensaver(); event.stopPropagation();">🚀 START HERE</button>
+  <img src="assets/branding/NFC1.png" alt="RDP's" class="screensaver-logo-video">
+  <video
+    id="screensaverVideo"
+    muted
+    playsinline
+    webkit-playsinline
+    crossorigin="anonymous"
+    preload="auto"
+    style="width: 100%; height: 100%; object-fit: contain; display: block;"
+  ></video>
+</div>
+
+<!-- ===============================
+  WORKOUT BUILDER
+================================ -->
+<div id="builderScreen" class="screen hidden">
+  <h2 class="title">Workout Builder</h2>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Build Type</h3>
+    <div class="builder-goal-grid" id="builderTypeGrid" style="max-width: 600px; margin: 0 auto;">
+      <div class="builder-tile" data-value="single">📅 Single Workout</div>
+      <div class="builder-tile" data-value="weekly">📆 Weekly Plan</div>
+    </div>
+  </div>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Workout Type</h3>
+    <div class="builder-goal-grid" id="builderWorkoutTypeGrid" style="max-width: 600px; margin: 0 auto;">
+      <div class="builder-tile" data-value="muscle">💪 Muscle Workouts</div>
+      <div class="builder-tile" data-value="stretch">🧘 Stretches</div>
+    </div>
+  </div>
+
+  <div class="builder-section" id="singleWorkoutSection">
+    <h3 class="builder-section-title" id="muscleGroupTitle">Select Muscle Group</h3>
+    <div class="builder-muscle-grid" id="builderMuscleGrid">
+      <div class="builder-tile" data-value="push" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">⬆️ Push (Chest, Shoulders, Triceps)</div>
+      <div class="builder-tile" data-value="pull" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">⬇️ Pull (Back, Biceps)</div>
+      <div class="builder-tile" data-value="chest">Chest</div>
+      <div class="builder-tile" data-value="back">Back</div>
+      <div class="builder-tile" data-value="shoulders">Shoulders</div>
+      <div class="builder-tile" data-value="biceps">Biceps</div>
+      <div class="builder-tile" data-value="triceps">Triceps</div>
+      <div class="builder-tile" data-value="legs">Legs</div>
+      <div class="builder-tile" data-value="abs">Abs</div>
+      <div class="builder-tile" data-value="core">Core</div>
+      <div class="builder-tile" data-value="traps">Traps</div>
+    </div>
+    <div class="builder-muscle-grid" id="builderStretchGrid" style="display: none;">
+      <div class="builder-tile" data-value="neck-shoulders">🧠 Neck & Shoulders</div>
+      <div class="builder-tile" data-value="arms-wrists">🤲 Arms & Wrists</div>
+      <div class="builder-tile" data-value="legs-glutes">🦵 Legs & Glutes</div>
+      <div class="builder-tile" data-value="hips-pelvis">🫀 Hips & Pelvis</div>
+      <div class="builder-tile" data-value="spine-core">🔗 Spine & Core</div>
+      <div class="builder-tile" data-value="chest">💙 Chest</div>
+      <div class="builder-tile" data-value="back">🔙 Back</div>
+    </div>
+  </div>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Select Goal</h3>
+    <div class="builder-goal-grid" id="builderGoalGrid">
+      <div class="builder-tile" data-value="strength">💪 Strength</div>
+      <div class="builder-tile" data-value="hypertrophy">🏋️ Muscle Growth</div>
+      <div class="builder-tile" data-value="fatloss">🔥 Fat Loss</div>
+      <div class="builder-tile" data-value="balance">⚖️ Balance & Coordination</div>
+      <div class="builder-tile" data-value="flexibility">🤸 Flexibility & Mobility</div>
+      <div class="builder-tile" data-value="functional">🏃 Functional Training</div>
+    </div>
+  </div>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Sport/Activity (Optional)</h3>
+    <p style="text-align: center; color: #888; font-size: 14px; margin: -8px 0 16px;">Select a sport to optimize your workout, or skip this step</p>
+    <select id="builderSportSelect" class="builder-select" style="width: 100%; max-width: 500px; margin: 0 auto; display: block; padding: 16px; font-size: 18px; border-radius: 12px; border: 2px solid #333; background: #1a1e27; color: #fff;">
+      <option value="">None</option>
+      <option value="hockey">🏒 Hockey</option>
+      <option value="basketball">🏀 Basketball</option>
+      <option value="soccer">⚽ Soccer</option>
+      <option value="football">🏈 Football</option>
+      <option value="baseball">⚾ Baseball</option>
+      <option value="lacrosse">🥍 Lacrosse</option>
+      <option value="rugby">🏉 Rugby</option>
+      <option value="volleyball">🏐 Volleyball</option>
+      <option value="skiing">⛷️ Skiing</option>
+      <option value="snowboarding">🏂 Snowboarding</option>
+      <option value="curling">🥌 Curling</option>
+      <option value="skating">⛸️ Figure Skating</option>
+      <option value="running">🏃 Running</option>
+      <option value="cycling">🚴 Cycling</option>
+      <option value="swimming">🏊 Swimming</option>
+      <option value="tennis">🎾 Tennis</option>
+      <option value="golf">⛳ Golf</option>
+      <option value="martial-arts">🥋 Martial Arts</option>
+      <option value="crossfit">🏋️ CrossFit</option>
+    </select>
+  </div>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Time Available</h3>
+    <div class="builder-time-grid" id="builderTimeGrid">
+      <div class="builder-tile" data-value="30">⏱️ 30 Min</div>
+      <div class="builder-tile" data-value="45">⏱️ 45 Min</div>
+      <div class="builder-tile" data-value="60">⏱️ 60 Min</div>
+      <div class="builder-tile" data-value="90">⏱️ 90 Min</div>
+      <div class="builder-tile" data-value="120">⏱️ 120 Min</div>
+    </div>
+  </div>
+
+  <button id="generateWorkout" class="primary-btn" style="margin: 32px auto; display: block; max-width: 400px;">
+    Generate Workout
+  </button>
+
+  <div id="builderResult" class="workout-result"></div>
+
+  <button class="back-btn" id="builderBack">
+    ⬅ Back
+  </button>
+</div>
+
+<!-- ==============================
+  NUTRITION BUILDER SCREEN
+================================ -->
+<div id="nutritionBuilderScreen" class="screen hidden">
+  <h2 class="title">🥗 Training Nutrition & Fuel Guide</h2>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Plan Type</h3>
+    <div class="builder-goal-grid" id="nutritionTypeGrid" style="max-width: 600px; margin: 0 auto;">
+      <div class="builder-tile" data-value="single">📅 Single Day Plan</div>
+      <div class="builder-tile" data-value="weekly">📆 Weekly Plan</div>
+    </div>
+  </div>
+
+  <div class="builder-section">
+    <h3 class="builder-section-title">Select Training Goal</h3>
+    <div class="builder-goal-grid" id="nutritionGoalGrid">
+      <div class="builder-tile" data-value="strength">💪 Strength</div>
+      <div class="builder-tile" data-value="hypertrophy">🏋️ Muscle Growth</div>
+      <div class="builder-tile" data-value="fatloss">🔥 Fat Loss</div>
+      <div class="builder-tile" data-value="balance">⚖️ Balance & Coordination</div>
+      <div class="builder-tile" data-value="flexibility">🤸 Flexibility & Mobility</div>
+      <div class="builder-tile" data-value="functional">🏃 Functional Training</div>
+    </div>
+  </div>
+
+  <button id="generateNutritionPlan" class="primary-btn" style="margin: 32px auto; display: block; max-width: 400px;">
+    Generate Nutrition Plan
+  </button>
+
+  <div id="nutritionResult" class="nutrition-result"></div>
+  
+  <!-- Featured Recipes Section -->
+  <div style="margin-top: 60px; padding: 40px 20px; background: rgba(0, 0, 0, 0.3); border-radius: 16px;">
+    <div id="featuredRecipesContainer"></div>
+  </div>
+
+  <button class="back-btn" id="nutritionBuilderBack">
+    ⬅ Back
+  </button>
+</div>
+
+<!-- removed duplicate floating build button (moved to top-left) -->
+<div id="createUserModal" class="modal hidden">
+  <div class="modal-content modal-with-keyboard">
+    <h2>Create New Profile</h2>
+
+    <input
+      id="newUsernameInput"
+      type="text"
+      placeholder="Enter username (max 20 chars)"
+      autocomplete="off"
+      maxlength="20"
+    />
+
+    <label for="newUserPin" class="icon-label">Create 4-digit PIN (required)</label>
+    <input
+      id="newUserPin"
+      type="text"
+      placeholder="Enter 4-digit PIN"
+      autocomplete="off"
+      maxlength="4"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      required
+    />
+
+    <label for="newUserColor" class="icon-label">Choose button color</label>
+    <select id="newUserColor">
+      <option value="#3B82F6">Blue</option>
+      <option value="#10B981">Green</option>
+      <option value="#F59E0B">Orange</option>
+      <option value="#EF4444">Red</option>
+      <option value="#8B5CF6">Purple</option>
+      <option value="#EC4899">Pink</option>
+      <option value="#06B6D4">Cyan</option>
+      <option value="#F97316">Amber</option>
+      <option value="#14B8A6">Teal</option>
+      <option value="#84CC16">Lime</option>
+    </select>
+
+    <label class="icon-label">Choose profile icon</label>
+    <div class="custom-icon-selector">
+      <div class="icon-selector-selected" id="iconSelectorSelected">
+        <img src="assets/icons/user-icon-01.svg" alt="Selected icon" class="selected-icon-preview">
+        <span class="selected-icon-name">Dumbbell</span>
+        <span class="icon-dropdown-arrow">▼</span>
+      </div>
+      <div class="icon-selector-dropdown" id="iconSelectorDropdown">
+        <div class="icon-grid">
+          <div class="icon-option selected" data-value="user-icon-01.svg" data-name="Dumbbell">
+            <img src="assets/icons/user-icon-01.svg" alt="Dumbbell">
+          </div>
+          <div class="icon-option" data-value="user-icon-02.svg" data-name="Barbell">
+            <img src="assets/icons/user-icon-02.svg" alt="Barbell">
+          </div>
+          <div class="icon-option" data-value="user-icon-03.svg" data-name="Kettlebell">
+            <img src="assets/icons/user-icon-03.svg" alt="Kettlebell">
+          </div>
+          <div class="icon-option" data-value="user-icon-04.svg" data-name="Plate">
+            <img src="assets/icons/user-icon-04.svg" alt="Plate">
+          </div>
+          <div class="icon-option" data-value="user-icon-05.svg" data-name="Bench">
+            <img src="assets/icons/user-icon-05.svg" alt="Bench">
+          </div>
+          <div class="icon-option" data-value="user-icon-06.svg" data-name="Rack">
+            <img src="assets/icons/user-icon-06.svg" alt="Rack">
+          </div>
+          <div class="icon-option" data-value="user-icon-07.svg" data-name="Shoe">
+            <img src="assets/icons/user-icon-07.svg" alt="Shoe">
+          </div>
+          <div class="icon-option" data-value="user-icon-08.svg" data-name="Timer">
+            <img src="assets/icons/user-icon-08.svg" alt="Timer">
+          </div>
+          <div class="icon-option" data-value="user-icon-09.svg" data-name="Heart">
+            <img src="assets/icons/user-icon-09.svg" alt="Heart">
+          </div>
+          <div class="icon-option" data-value="user-icon-10.svg" data-name="Shaker">
+            <img src="assets/icons/user-icon-10.svg" alt="Shaker">
+          </div>
+          <div class="icon-option" data-value="user-icon-11.svg" data-name="Water">
+            <img src="assets/icons/user-icon-11.svg" alt="Water">
+          </div>
+          <div class="icon-option" data-value="user-icon-12.svg" data-name="YogaMat">
+            <img src="assets/icons/user-icon-12.svg" alt="YogaMat">
+          </div>
+          <div class="icon-option" data-value="user-icon-13.svg" data-name="Gloves">
+            <img src="assets/icons/user-icon-13.svg" alt="Gloves">
+          </div>
+          <div class="icon-option" data-value="user-icon-14.svg" data-name="Tape">
+            <img src="assets/icons/user-icon-14.svg" alt="Tape">
+          </div>
+          <div class="icon-option" data-value="user-icon-15.svg" data-name="MedBall">
+            <img src="assets/icons/user-icon-15.svg" alt="MedBall">
+          </div>
+          <div class="icon-option" data-value="user-icon-16.svg" data-name="Pullup">
+            <img src="assets/icons/user-icon-16.svg" alt="Pullup">
+          </div>
+          <div class="icon-option" data-value="user-icon-17.svg" data-name="JumpRope">
+            <img src="assets/icons/user-icon-17.svg" alt="JumpRope">
+          </div>
+          <div class="icon-option" data-value="user-icon-18.svg" data-name="Bike">
+            <img src="assets/icons/user-icon-18.svg" alt="Bike">
+          </div>
+          <div class="icon-option" data-value="user-icon-19.svg" data-name="Treadmill">
+            <img src="assets/icons/user-icon-19.svg" alt="Treadmill">
+          </div>
+          <div class="icon-option" data-value="user-icon-20.svg" data-name="Cable">
+            <img src="assets/icons/user-icon-20.svg" alt="Cable">
+          </div>
+          <div class="icon-option" data-value="user-icon-21.svg" data-name="Band">
+            <img src="assets/icons/user-icon-21.svg" alt="Band">
+          </div>
+          <div class="icon-option" data-value="user-icon-22.svg" data-name="AbRoller">
+            <img src="assets/icons/user-icon-22.svg" alt="AbRoller">
+          </div>
+          <div class="icon-option" data-value="user-icon-23.svg" data-name="SlamBall">
+            <img src="assets/icons/user-icon-23.svg" alt="SlamBall">
+          </div>
+          <div class="icon-option" data-value="user-icon-24.svg" data-name="Sled">
+            <img src="assets/icons/user-icon-24.svg" alt="Sled">
+          </div>
+          <div class="icon-option" data-value="user-icon-25.svg" data-name="Boxing">
+            <img src="assets/icons/user-icon-25.svg" alt="Boxing">
+          </div>
+          <div class="icon-option" data-value="arm.png" data-name="Arm">
+            <img src="assets/icons/arm.png" alt="Arm">
+          </div>
+          <div class="icon-option" data-value="arm2.png" data-name="Arm 2">
+            <img src="assets/icons/arm2.png" alt="Arm 2">
+          </div>
+          <div class="icon-option" data-value="arm3.png" data-name="Arm 3">
+            <img src="assets/icons/arm3.png" alt="Arm 3">
+          </div>
+          <div class="icon-option" data-value="bar.png" data-name="Bar">
+            <img src="assets/icons/bar.png" alt="Bar">
+          </div>
+          <div class="icon-option" data-value="bar2.png" data-name="Bar 2">
+            <img src="assets/icons/bar2.png" alt="Bar 2">
+          </div>
+          <div class="icon-option" data-value="bar3.png" data-name="Bar 3">
+            <img src="assets/icons/bar3.png" alt="Bar 3">
+          </div>
+          <div class="icon-option" data-value="base.png" data-name="Base">
+            <img src="assets/icons/base.png" alt="Base">
+          </div>
+          <div class="icon-option" data-value="base2.png" data-name="Base 2">
+            <img src="assets/icons/base2.png" alt="Base 2">
+          </div>
+          <div class="icon-option" data-value="basket.png" data-name="Basketball">
+            <img src="assets/icons/basket.png" alt="Basketball">
+          </div>
+          <div class="icon-option" data-value="bike.png" data-name="Bike">
+            <img src="assets/icons/bike.png" alt="Bike">
+          </div>
+          <div class="icon-option" data-value="box.png" data-name="Box">
+            <img src="assets/icons/box.png" alt="Box">
+          </div>
+          <div class="icon-option" data-value="box2.png" data-name="Box 2">
+            <img src="assets/icons/box2.png" alt="Box 2">
+          </div>
+          <div class="icon-option" data-value="box3.png" data-name="Box 3">
+            <img src="assets/icons/box3.png" alt="Box 3">
+          </div>
+          <div class="icon-option" data-value="circle.png" data-name="Circle">
+            <img src="assets/icons/circle.png" alt="Circle">
+          </div>
+          <div class="icon-option" data-value="combo.png" data-name="Combo">
+            <img src="assets/icons/combo.png" alt="Combo">
+          </div>
+          <div class="icon-option" data-value="cup.png" data-name="Cup">
+            <img src="assets/icons/cup.png" alt="Cup">
+          </div>
+          <div class="icon-option" data-value="curl.png" data-name="Curl">
+            <img src="assets/icons/curl.png" alt="Curl">
+          </div>
+          <div class="icon-option" data-value="curl2.png" data-name="Curl 2">
+            <img src="assets/icons/curl2.png" alt="Curl 2">
+          </div>
+          <div class="icon-option" data-value="golf.png" data-name="Golf">
+            <img src="assets/icons/golf.png" alt="Golf">
+          </div>
+          <div class="icon-option" data-value="gym.png" data-name="Gym">
+            <img src="assets/icons/gym.png" alt="Gym">
+          </div>
+          <div class="icon-option" data-value="hand.png" data-name="Hand">
+            <img src="assets/icons/hand.png" alt="Hand">
+          </div>
+          <div class="icon-option" data-value="hang.png" data-name="Hang">
+            <img src="assets/icons/hang.png" alt="Hang">
+          </div>
+          <div class="icon-option" data-value="hips.png" data-name="Hips">
+            <img src="assets/icons/hips.png" alt="Hips">
+          </div>
+          <div class="icon-option" data-value="man.png" data-name="Man">
+            <img src="assets/icons/man.png" alt="Man">
+          </div>
+          <div class="icon-option" data-value="overhead.png" data-name="Overhead">
+            <img src="assets/icons/overhead.png" alt="Overhead">
+          </div>
+          <div class="icon-option" data-value="pink.png" data-name="Pink">
+            <img src="assets/icons/pink.png" alt="Pink">
+          </div>
+          <div class="icon-option" data-value="pink2.png" data-name="Pink 2">
+            <img src="assets/icons/pink2.png" alt="Pink 2">
+          </div>
+          <div class="icon-option" data-value="run.png" data-name="Run">
+            <img src="assets/icons/run.png" alt="Run">
+          </div>
+          <div class="icon-option" data-value="skip.png" data-name="Skip">
+            <img src="assets/icons/skip.png" alt="Skip">
+          </div>
+          <div class="icon-option" data-value="smith.png" data-name="Smith">
+            <img src="assets/icons/smith.png" alt="Smith">
+          </div>
+          <div class="icon-option" data-value="soccer.png" data-name="Soccer">
+            <img src="assets/icons/soccer.png" alt="Soccer">
+          </div>
+          <div class="icon-option" data-value="swim.png" data-name="Swim">
+            <img src="assets/icons/swim.png" alt="Swim">
+          </div>
+          <div class="icon-option" data-value="tread.png" data-name="Treadmill">
+            <img src="assets/icons/tread.png" alt="Treadmill">
+          </div>
+          <div class="icon-option" data-value="volly.png" data-name="Volleyball">
+            <img src="assets/icons/volly.png" alt="Volleyball">
+          </div>
+          <div class="icon-option" data-value="win.png" data-name="Win">
+            <img src="assets/icons/win.png" alt="Win">
+          </div>
+          <div class="icon-option" data-value="yoga.png" data-name="Yoga">
+            <img src="assets/icons/yoga.png" alt="Yoga">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-Screen Keyboard -->
+    <div class="keyboard-container">
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key" data-key="Q">Q</button>
+        <button type="button" class="keyboard-key" data-key="W">W</button>
+        <button type="button" class="keyboard-key" data-key="E">E</button>
+        <button type="button" class="keyboard-key" data-key="R">R</button>
+        <button type="button" class="keyboard-key" data-key="T">T</button>
+        <button type="button" class="keyboard-key" data-key="Y">Y</button>
+        <button type="button" class="keyboard-key" data-key="U">U</button>
+        <button type="button" class="keyboard-key" data-key="I">I</button>
+        <button type="button" class="keyboard-key" data-key="O">O</button>
+        <button type="button" class="keyboard-key" data-key="P">P</button>
+      </div>
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key" data-key="A">A</button>
+        <button type="button" class="keyboard-key" data-key="S">S</button>
+        <button type="button" class="keyboard-key" data-key="D">D</button>
+        <button type="button" class="keyboard-key" data-key="F">F</button>
+        <button type="button" class="keyboard-key" data-key="G">G</button>
+        <button type="button" class="keyboard-key" data-key="H">H</button>
+        <button type="button" class="keyboard-key" data-key="J">J</button>
+        <button type="button" class="keyboard-key" data-key="K">K</button>
+        <button type="button" class="keyboard-key" data-key="L">L</button>
+      </div>
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key" data-key="Z">Z</button>
+        <button type="button" class="keyboard-key" data-key="X">X</button>
+        <button type="button" class="keyboard-key" data-key="C">C</button>
+        <button type="button" class="keyboard-key" data-key="V">V</button>
+        <button type="button" class="keyboard-key" data-key="B">B</button>
+        <button type="button" class="keyboard-key" data-key="N">N</button>
+        <button type="button" class="keyboard-key" data-key="M">M</button>
+      </div>
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key" data-key="0">0</button>
+        <button type="button" class="keyboard-key" data-key="1">1</button>
+        <button type="button" class="keyboard-key" data-key="2">2</button>
+        <button type="button" class="keyboard-key" data-key="3">3</button>
+        <button type="button" class="keyboard-key" data-key="4">4</button>
+        <button type="button" class="keyboard-key" data-key="5">5</button>
+        <button type="button" class="keyboard-key" data-key="6">6</button>
+        <button type="button" class="keyboard-key" data-key="7">7</button>
+        <button type="button" class="keyboard-key" data-key="8">8</button>
+        <button type="button" class="keyboard-key" data-key="9">9</button>
+      </div>
+      <div class="keyboard-row keyboard-bottom">
+        <button type="button" class="keyboard-key keyboard-backspace" data-key="backspace">⌫ Back</button>
+        <button type="button" class="keyboard-key keyboard-space" data-key=" ">Space</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="confirmCreateUser" type="button">Create</button>
+      <button id="cancelCreateUser" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===============================
+  SEARCH USER KEYBOARD MODAL
+================================ -->
+<div id="searchUserKeyboardModal" class="modal hidden">
+  <div class="modal-content" style="max-width: 950px; padding: 32px;">
+    <h2 style="margin-bottom: 20px; text-align: center;">Search Users</h2>
+    
+    <!-- On-Screen Keyboard for Search -->
+    <div class="keyboard-container">
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key" data-key="Q">Q</button>
+        <button type="button" class="keyboard-key" data-key="W">W</button>
+        <button type="button" class="keyboard-key" data-key="E">E</button>
+        <button type="button" class="keyboard-key" data-key="R">R</button>
+        <button type="button" class="keyboard-key" data-key="T">T</button>
+        <button type="button" class="keyboard-key" data-key="Y">Y</button>
+        <button type="button" class="keyboard-key" data-key="U">U</button>
+        <button type="button" class="keyboard-key" data-key="I">I</button>
+        <button type="button" class="keyboard-key" data-key="O">O</button>
+        <button type="button" class="keyboard-key" data-key="P">P</button>
+      </div>
+
+      <div class="keyboard-row">
+        <span style="width: 20px;"></span>
+        <button type="button" class="keyboard-key" data-key="A">A</button>
+        <button type="button" class="keyboard-key" data-key="S">S</button>
+        <button type="button" class="keyboard-key" data-key="D">D</button>
+        <button type="button" class="keyboard-key" data-key="F">F</button>
+        <button type="button" class="keyboard-key" data-key="G">G</button>
+        <button type="button" class="keyboard-key" data-key="H">H</button>
+        <button type="button" class="keyboard-key" data-key="J">J</button>
+        <button type="button" class="keyboard-key" data-key="K">K</button>
+        <button type="button" class="keyboard-key" data-key="L">L</button>
+      </div>
+
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key keyboard-backspace" data-key="backspace" style="min-width: 60px;">← Backspace</button>
+        <button type="button" class="keyboard-key" data-key="Z">Z</button>
+        <button type="button" class="keyboard-key" data-key="X">X</button>
+        <button type="button" class="keyboard-key" data-key="C">C</button>
+        <button type="button" class="keyboard-key" data-key="V">V</button>
+        <button type="button" class="keyboard-key" data-key="B">B</button>
+        <button type="button" class="keyboard-key" data-key="N">N</button>
+        <button type="button" class="keyboard-key" data-key="M">M</button>
+      </div>
+
+      <div class="keyboard-row">
+        <button type="button" class="keyboard-key keyboard-space" data-key=" ">Space</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 20px;">
+      <button id="closeSearchKeyboard" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===============================
+  FULL-BODY WORKOUT GENERATOR SCREEN
+================================ -->
+<div id="fullBodyGeneratorScreen" class="screen hidden">
+  <button id="backFromGenerator" class="back-btn">⬅ Back</button>
+  <h2 class="title">🏋️ Full-Body Workout Generator</h2>
+  
+  <div class="builder-section" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    
+    <div style="margin-bottom: 30px;">
+      <h3 style="margin-bottom: 15px; color: #333; text-align: center;">Number of Exercises</h3>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button class="generator-btn" data-exercises="6" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">6 Exercises</button>
+        <button class="generator-btn" data-exercises="8" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">8 Exercises</button>
+        <button class="generator-btn" data-exercises="10" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">10 Exercises</button>
+        <button class="generator-btn" data-exercises="12" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">12 Exercises</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 30px;">
+      <h3 style="margin-bottom: 15px; color: #333; text-align: center;">Difficulty Level</h3>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button class="generator-difficulty-btn" data-level="beginner" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">🟢 Beginner</button>
+        <button class="generator-difficulty-btn" data-level="intermediate" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">🟡 Intermediate</button>
+        <button class="generator-difficulty-btn" data-level="advanced" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #fff; color: #333; cursor: pointer; font-size: 16px; font-weight: bold;">🔴 Advanced</button>
+        <button class="generator-difficulty-btn active" data-level="mixed" style="padding: 12px 20px; border-radius: 6px; border: 2px solid #333; background: #333; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold;">🎲 Mixed</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 30px;">
+      <label style="display: block; margin-bottom: 10px; color: #333; font-weight: bold; text-align: center;">
+        <input type="checkbox" id="includeStretches" style="margin-right: 8px;"> Include Stretches (3-5 stretches)
+      </label>
+    </div>
+
+    <button id="generateFullBodyWorkout" class="primary-btn" style="width: 100%; max-width: 400px; padding: 16px; margin: 0 auto; display: block; font-size: 18px; font-weight: bold;">
+      Generate Workout
+    </button>
+  </div>
+
+  <div id="generatedWorkoutResult" style="margin-top: 30px; padding: 20px;"></div>
+</div>
+
+<!-- ===============================
+  CHALLENGE NOTIFICATION MODAL
+================================ -->
+<div id="challengeNotificationModal" class="modal" style="display: none;">
+  <div class="modal-card" style="max-width: 600px;">
+    <h3 id="challengeNotificationTitle" style="text-align: center; font-size: 28px; margin-bottom: 8px;">🤝 You've Been Challenged!</h3>
+    <p id="challengeNotificationMessage" style="color: var(--text-primary); font-size: 18px; text-align: center; line-height: 1.6; margin: 16px 0 24px 0;">
+      <!-- Dynamically populated -->
+    </p>
+    <div id="challengeNotificationDetails" style="background: rgba(212, 175, 55, 0.1); padding: 16px; border-radius: 12px; border-left: 4px solid var(--color-gold); margin-bottom: 24px; font-size: 16px;">
+      <!-- Dynamically populated with challenge details -->
+    </div>
+    <div class="modal-actions" style="display: flex; gap: 16px; justify-content: center;">
+      <button id="challengeNotificationDecline" type="button" style="background: rgba(255, 255, 255, 0.1); color: var(--text-primary); padding: 12px 32px; font-size: 16px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.2);">
+        Decline Challenge ❌
+      </button>
+      <button id="challengeNotificationAccept" type="button" style="background: rgba(76, 175, 80, 0.3); color: #4CAF50; padding: 12px 32px; font-size: 16px; border-radius: 6px; cursor: pointer; border: 2px solid #4CAF50;">
+        Accept Challenge ✅
+      </button>
+      <button id="challengeNotificationView" type="button" class="primary-btn" style="padding: 12px 32px; font-size: 16px;">
+        View Challenge 🎯
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts: Load in order -->
+<script src="js/data/exercises.js"></script>
+<script src="js/data/meals.js"></script>
+<script src="js/data/exerciseVariants.js"></script>
+<script src="js/data/challenges.js"></script>
+<script src="js/animations/exercises.js"></script>
+<script src="js/animations/animator.js"></script>
+<script src="js/api.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/gamification.js"></script>
+<script src="js/recommendations.js"></script>
+<script src="js/recommendations-ui.js"></script>
+<script src="js/workouts.js"></script>
+<script src="js/qr.js"></script>
+<script src="js/recipeFetcher.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/runtime-utils.js"></script>
+<script src="js/admin-module.js"></script>
+<script src="js/calendar-module.js"></script>
+<script src="js/challenges-module.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/reset.js"></script>
+<script src="renderer.js"></script>
+</body>
+</html>

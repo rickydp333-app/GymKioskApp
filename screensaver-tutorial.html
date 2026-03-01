@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymKiosk - Interactive Screensaver Tutorial</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      color: white;
+    }
+
+    .screensaver-container {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .logo-area {
+      text-align: center;
+      margin-bottom: 40px;
+      animation: fadeIn 1s ease-in;
+    }
+
+    .logo {
+      font-size: 4em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-title {
+      font-size: 2.5em;
+      font-weight: 300;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+
+    .app-subtitle {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      max-width: 1400px;
+      margin: 40px 0;
+      width: 100%;
+    }
+
+    .step-card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 30px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+      transition: all 0.3s ease;
+      animation: slideUp 0.8s ease-out forwards;
+      opacity: 0;
+    }
+
+    .step-card:nth-child(1) { animation-delay: 0.2s; }
+    .step-card:nth-child(2) { animation-delay: 0.4s; }
+    .step-card:nth-child(3) { animation-delay: 0.6s; }
+    .step-card:nth-child(4) { animation-delay: 0.8s; }
+
+    .step-card:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-10px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .step-emoji {
+      font-size: 3.5em;
+      margin-bottom: 15px;
+      display: inline-block;
+      animation: bounce 2s infinite;
+    }
+
+    .step-card:nth-child(1) .step-emoji { animation-delay: 0s; }
+    .step-card:nth-child(2) .step-emoji { animation-delay: 0.3s; }
+    .step-card:nth-child(3) .step-emoji { animation-delay: 0.6s; }
+    .step-card:nth-child(4) .step-emoji { animation-delay: 0.9s; }
+
+    .step-title {
+      font-size: 1.5em;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .step-description {
+      font-size: 1em;
+      opacity: 0.95;
+      line-height: 1.5;
+    }
+
+    .step-arrow {
+      position: absolute;
+      font-size: 2em;
+      animation: slideRight 1.5s ease-in-out infinite;
+    }
+
+    .carousel-section {
+      width: 100%;
+      margin: 40px 0;
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      display: none;
+      animation: fadeIn 1s ease-in;
+    }
+
+    .carousel-section.active {
+      display: block;
+    }
+
+    .carousel-title {
+      font-size: 2em;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .carousel-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .carousel-image {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .carousel-image-emoji {
+      font-size: 4em;
+      margin-bottom: 15px;
+    }
+
+    .carousel-text {
+      font-size: 1.1em;
+      line-height: 1.8;
+      opacity: 0.95;
+    }
+
+    .carousel-text strong {
+      color: #ffd700;
+    }
+
+    .carousel-list {
+      list-style: none;
+      margin: 15px 0;
+    }
+
+    .carousel-list li {
+      margin: 10px 0;
+      padding-left: 30px;
+      position: relative;
+    }
+
+    .carousel-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #ffd700;
+      font-weight: bold;
+    }
+
+    .controls-section {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      display: flex;
+      gap: 15px;
+      z-index: 1000;
+    }
+
+    .control-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .start-button {
+      position: fixed;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+      border: 2px solid white;
+      color: #333;
+      padding: 15px 35px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 1.3em;
+      font-weight: 700;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      z-index: 1100;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .start-button:hover {
+      background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+      transform: translateX(-50%) translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .start-button:active {
+      transform: translateX(-50%) translateY(-1px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .screensaver-logo {
+      position: fixed;
+      top: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 300px;
+      height: auto;
+      z-index: 1100;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+      animation: fadeIn 1s ease-in;
+    }
+
+    @media (max-width: 768px) {
+      .screensaver-logo {
+        max-width: 200px;
+        top: 85px;
+      }
+    }
+
+    .slide-counter {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      font-size: 1.1em;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px 20px;
+      border-radius: 25px;
+      backdrop-filter: blur(10px);
+    }
+
+    .info-banner {
+      position: fixed;
+      top: 30px;
+      left: 30px;
+      font-size: 1em;
+      background: rgba(255, 215, 0, 0.2);
+      border-left: 4px solid #ffd700;
+      padding: 15px 20px;
+      border-radius: 5px;
+      backdrop-filter: blur(10px);
+    }
+
+    .quick-tips {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 25px;
+      margin: 20px 0;
+      animation: fadeIn 1.5s ease-in 0.5s forwards;
+      opacity: 0;
+    }
+
+    .quick-tips h3 {
+      color: #ffd700;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+
+    .quick-tips ul {
+      list-style: none;
+      columns: 2;
+      gap: 20px;
+    }
+
+    .quick-tips li {
+      margin-bottom: 10px;
+      padding-left: 25px;
+      position: relative;
+    }
+
+    .quick-tips li:before {
+      content: "💡";
+      position: absolute;
+      left: 0;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideRight {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      50% {
+        transform: translateX(10px);
+      }
+    }
+
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-20px);
+      }
+    }
+
+    .floating-element {
+      position: fixed;
+      font-size: 3em;
+      opacity: 0.1;
+      pointer-events: none;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .float-1 { top: 10%; left: 5%; animation-delay: 0s; }
+    .float-2 { top: 20%; right: 10%; animation-delay: 1s; }
+    .float-3 { bottom: 15%; left: 15%; animation-delay: 2s; }
+    .float-4 { bottom: 20%; right: 5%; animation-delay: 3s; }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .steps-container {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .carousel-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .steps-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .app-title {
+        font-size: 1.8em;
+      }
+
+      .logo {
+        font-size: 2.5em;
+      }
+
+      .carousel-section {
+        padding: 20px;
+      }
+
+      .controls-section {
+        bottom: 20px;
+        right: 20px;
+        gap: 10px;
+      }
+
+      .control-btn {
+        padding: 8px 15px;
+        font-size: 0.9em;
+      }
+
+      .start-button {
+        padding: 12px 25px;
+        font-size: 1.1em;
+      }
+
+      .info-banner {
+        font-size: 0.9em;
+        padding: 10px 15px;
+      }
+
+      .slide-counter {
+        display: none;
+      }
+    }
+
+    .mode-indicator {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 0.95em;
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+<body>
+  <!-- Floating background elements -->
+  <div class="float-1 floating-element">💪</div>
+  <div class="float-2 floating-element">🏋️</div>
+  <div class="float-3 floating-element">📱</div>
+  <div class="float-4 floating-element">🎯</div>
+
+  <!-- Start Button at Top -->
+  <button class="start-button" id="start-btn">🚀 START HERE</button>
+  
+  <!-- Logo below Start Button -->
+  <img src="assets/branding/NFC1.png" alt="RDP's" class="screensaver-logo">
+
+  <div class="slide-counter">
+    <span id="current-slide">1</span> / <span id="total-slides">4</span>
+  </div>
+
+  <!-- Main content -->
+  <div class="screensaver-container">
+    <!-- Overview Slide -->
+    <div class="carousel-section active" id="slide-1">
+      <div class="logo-area">
+        <div class="logo">💪</div>
+        <div class="app-title">GymKiosk</div>
+        <div class="app-subtitle">Your Personal Strength & Conditioning Hub</div>
+      </div>
+
+      <div class="steps-container">
+        <div class="step-card">
+          <div class="step-emoji">👤</div>
+          <div class="step-title">1. Create User</div>
+          <div class="step-description">Set up your profile with personal details</div>
+        </div>
+        <div class="step-card">
+          <div class="step-emoji">💪</div>
+          <div class="step-title">2. Generate Workouts</div>
+          <div class="step-description">Create custom muscle workouts or stretch routines</div>
+        </div>
+        <div class="step-card">
+          <div class="step-emoji">🍽️</div>
+          <div class="step-title">3. Plan Nutrition</div>
+          <div class="step-description">Meal recommendations for your workouts</div>
+        </div>
+        <div class="step-card">
+          <div class="step-emoji">📱</div>
+          <div class="step-title">4. Share to Phone</div>
+          <div class="step-description">QR code access from any smartphone</div>
+        </div>
+      </div>
+
+      <div class="quick-tips">
+        <h3>🚀 Quick Features</h3>
+        <ul>
+          <li>135+ Exercise Library</li>
+          <li>Push/Pull & Stretch Routines</li>
+          <li>Real-time Progress Tracking</li>
+          <li>Workout Calendar</li>
+          <li>Daily Challenges</li>
+          <li>Personal Records</li>
+          <li>Mobile Companion</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Step 1: Create User -->
+    <div class="carousel-section" id="slide-2">
+      <div class="carousel-title">Step 1: Create Your User Profile</div>
+      <div class="carousel-content">
+        <div class="carousel-image">
+          <div class="carousel-image-emoji">👤</div>
+          <p style="margin-top: 15px; opacity: 0.9;">User Selection Screen</p>
+        </div>
+        <div class="carousel-text">
+          <strong>Getting Started with Your Profile:</strong>
+          <ul class="carousel-list">
+            <li>Click on an existing user or select "Create New User"</li>
+            <li>Enter your name (e.g., "Rick", "Sarah")</li>
+            <li>Set a PIN for security</li>
+            <li>Choose an avatar/icon</li>
+            <li>Your profile is saved automatically</li>
+          </ul>
+          <p style="margin-top: 20px;"><strong>💡 Pro Tip:</strong> Default user "Rick" (PIN: 1234) is pre-loaded for quick start</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Generate Workout -->
+    <div class="carousel-section" id="slide-3">
+      <div class="carousel-title">Step 2: Generate a Workout Plan</div>
+      <div class="carousel-content">
+        <div class="carousel-image">
+          <div class="carousel-image-emoji">💪</div>
+          <p style="margin-top: 15px; opacity: 0.9;">Workout Generator</p>
+        </div>
+        <div class="carousel-text">
+          <strong>Create Your Perfect Workout:</strong>
+          <ul class="carousel-list">
+            <li>Select "Workout Builder" from main menu</li>
+            <li>Choose Build Type: Single Workout or Weekly Plan</li>
+            <li>Select Workout Type: 💪 Muscle Workouts OR 🧘 Stretches</li>
+            <li>Pick target: Push/Pull routines, specific muscle groups (Chest, Back, Legs), or Stretch categories</li>
+            <li>Choose goal: Strength, Muscle Growth, Fat Loss, Flexibility</li>
+            <li>Select duration: 30min, 45min, 60min, 90min, or 120min</li>
+          </ul>
+          <p style="margin-top: 20px;"><strong>📊 Result:</strong> Customized workout with proper format - reps for muscles, time holds for stretches</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Plan Nutrition -->
+    <div class="carousel-section" id="slide-4">
+      <div class="carousel-title">Step 3: Add Meal Plans & Nutrition</div>
+      <div class="carousel-content">
+        <div class="carousel-image">
+          <div class="carousel-image-emoji">🍽️</div>
+          <p style="margin-top: 15px; opacity: 0.9;">Nutrition Planner</p>
+        </div>
+        <div class="carousel-text">
+          <strong>Optimize Your Nutrition:</strong>
+          <ul class="carousel-list">
+            <li>Access "Nutrition" from main menu</li>
+            <li>View meal recommendations for each day</li>
+            <li>Meals sync with your workout calendar</li>
+            <li>Pre-workout, post-workout suggestions</li>
+            <li>Track macros: Protein, Carbs, Fats</li>
+          </ul>
+          <p style="margin-top: 20px;"><strong>🎯 Goal:</strong> Complete nutrition + fitness = optimal results</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Share to Phone (moved to new slide) -->
+    <div class="carousel-section" id="slide-5">
+      <div class="carousel-title">Step 4: Share Workouts to Your Phone</div>
+      <div class="carousel-content">
+        <div class="carousel-image">
+          <div class="carousel-image-emoji">📱</div>
+          <p style="margin-top: 15px; opacity: 0.9;">QR Code Sharing</p>
+        </div>
+        <div class="carousel-text">
+          <strong>Mobile Access in 3 Easy Steps:</strong>
+          <ul class="carousel-list">
+            <li>Click "Share" on any workout</li>
+            <li>Point your phone camera at the QR code</li>
+            <li>Tap the notification to open on your phone</li>
+          </ul>
+          <p style="margin-top: 20px;"><strong>📲 On Your Phone You Can:</strong></p>
+          <ul class="carousel-list">
+            <li>Track exercise completion in real-time</li>
+            <li>See progress bar as you work</li>
+            <li>Record weight & reps</li>
+            <li>Share with friends</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-section">
+    <button class="control-btn" id="prev-btn">← Previous</button>
+    <button class="control-btn" id="next-btn">Next →</button>
+  </div>
+
+  <div class="mode-indicator" id="mode-indicator">🖱️ Interactive Mode</div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 5;
+    let autoPlayInterval;
+    let userInteracted = false;
+
+    function showSlide(n) {
+      // Hide all slides
+      document.querySelectorAll('.carousel-section').forEach(slide => {
+        slide.classList.remove('active');
+      });
+
+      // Show current slide
+      const slide = document.getElementById(`slide-${n}`);
+      if (slide) {
+        slide.classList.add('active');
+      }
+
+      // Update counter
+      document.getElementById('current-slide').textContent = n;
+      document.getElementById('total-slides').textContent = totalSlides;
+
+      // Update button states
+      document.getElementById('prev-btn').disabled = (n === 1);
+      document.getElementById('next-btn').disabled = (n === totalSlides);
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        showSlide(currentSlide);
+        resetAutoPlay();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        showSlide(currentSlide);
+        resetAutoPlay();
+      }
+    }
+
+    function startAutoPlay() {
+      autoPlayInterval = setInterval(() => {
+        if (currentSlide === totalSlides) {
+          currentSlide = 1;
+        } else {
+          currentSlide++;
+        }
+        showSlide(currentSlide);
+      }, 8000); // Change slide every 8 seconds
+    }
+
+    function resetAutoPlay() {
+      clearInterval(autoPlayInterval);
+      if (!userInteracted) {
+        startAutoPlay();
+      }
+    }
+
+    // Event listeners
+    document.getElementById('next-btn').addEventListener('click', nextSlide);
+    document.getElementById('prev-btn').addEventListener('click', prevSlide);
+    
+    // Start button - returns to app
+    document.getElementById('start-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('START HERE button clicked');
+      returnToApp();
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      userInteracted = true;
+      if (e.key === 'ArrowRight') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+      if (e.key === 'Escape') returnToApp();
+    });
+
+    // Touch detection - return to app
+    document.addEventListener('click', (e) => {
+      // Don't close if clicking on navigation buttons or start button
+      if (e.target.closest('.control-btn') || 
+          e.target.id === 'start-btn' || 
+          e.target.closest('.controls-section')) {
+        return;
+      }
+      returnToApp();
+    });
+
+    document.addEventListener('touchstart', (e) => {
+      // Don't close if touching buttons
+      if (e.target.closest('.control-btn') || 
+          e.target.id === 'start-btn' || 
+          e.target.closest('.controls-section')) {
+        return;
+      }
+      returnToApp();
+    });
+
+    function returnToApp() {
+      console.log('Returning to app from screensaver');
+      
+      // Try parent window's closeScreensaver first (set by reset.js)
+      if (window.opener && window.opener.closeScreensaver) {
+        window.opener.closeScreensaver();
+      } else if (window.closeScreensaver && typeof window.closeScreensaver === 'function') {
+        window.closeScreensaver();
+      } else {
+        // Fallback: close window
+        console.log('Closing window directly');
+        window.close();
+      }
+    }
+
+    // Initialize
+    showSlide(currentSlide);
+    startAutoPlay();
+
+    // Add keyboard hint
+    console.log('🚀 START HERE button at top | Arrow Keys to Navigate | Escape to Exit');
+  </script>
+</body>
+</html>

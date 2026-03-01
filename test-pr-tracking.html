@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Tracking Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .test-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .test-description {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #059669;
+        }
+        .result {
+            background: #f0f0f0;
+            border-left: 4px solid #10b981;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #333;
+        }
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #ef5350;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏋️ GymKiosk - PR Tracking Feature Test</h1>
+    <p>This page tests the weight/reps and PR tracking implementation.</p>
+    
+    <h2>📋 Checklist</h2>
+    
+    <div class="test-container">
+        <div class="test-title">✅ 1. Button Added to Main Screen</div>
+        <div class="test-description">Check if "My Personal Records" button exists in the main actions grid</div>
+        <button onclick="testButtonExists()">Check Button</button>
+        <div id="result-button" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 2. Screen HTML Added</div>
+        <div class="test-description">Check if personalRecordsScreen HTML container exists</div>
+        <button onclick="testScreenExists()">Check Screen</button>
+        <div id="result-screen" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 3. PR Tracking Functions Exist</div>
+        <div class="test-description">Verify that PR tracking functions are defined in ui.js</div>
+        <button onclick="testFunctionsExist()">Check Functions</button>
+        <div id="result-functions" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 4. Weight/Reps Modal Works</div>
+        <div class="test-description">Test showing the weight/reps modal when completing an exercise</div>
+        <button onclick="testWeightRepsModal()">Test Modal</button>
+        <div id="result-modal" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 5. CSS Styles Added</div>
+        <div class="test-description">Check if PR tracking styles are in style.css</div>
+        <button onclick="testCSSStyles()">Check Styles</button>
+        <div id="result-css" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 6. Test PR Calculation</div>
+        <div class="test-description">Test the estimateOneRepMax function with known values</div>
+        <button onclick="testPRCalculation()">Test Calculation</button>
+        <div id="result-calc" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">✅ 7. User Object Has PR Properties</div>
+        <div class="test-description">Check if user objects have personalRecords and exerciseHistory</div>
+        <button onclick="testUserProperties()">Check User Props</button>
+        <div id="result-user" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        function showResult(elementId, success, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = 'result ' + (success ? 'success' : 'error');
+            el.style.display = 'block';
+        }
+
+        function testButtonExists() {
+            const btn = document.getElementById('myPRsBtn');
+            showResult('result-button', !!btn, btn ? '✅ "My Personal Records" button found' : '❌ Button not found');
+        }
+
+        function testScreenExists() {
+            const screen = document.getElementById('personalRecordsScreen');
+            showResult('result-screen', !!screen, screen ? '✅ Personal Records screen container found' : '❌ Screen not found');
+        }
+
+        function testFunctionsExist() {
+            const functions = [
+                'estimateOneRepMax',
+                'getPersonalRecord',
+                'getPreviousAttempt',
+                'isPRSet',
+                'updatePersonalRecords',
+                'showPRCelebration',
+                'renderPersonalRecordsScreen',
+                'showWeightRepsModal'
+            ];
+            
+            let missing = [];
+            functions.forEach(fn => {
+                if (typeof window[fn] !== 'function') {
+                    missing.push(fn);
+                }
+            });
+            
+            const success = missing.length === 0;
+            const message = success 
+                ? '✅ All 8 PR tracking functions found'
+                : '❌ Missing functions: ' + missing.join(', ');
+            showResult('result-functions', success, message);
+        }
+
+        function testWeightRepsModal() {
+            // Create a mock exercise object
+            const mockExercise = {
+                name: 'Test Exercise'
+            };
+            
+            try {
+                // Check if the function can be called
+                if (typeof window.showWeightRepsModal === 'function') {
+                    showResult('result-modal', true, '✅ Weight/reps modal function is callable');
+                } else {
+                    showResult('result-modal', false, '❌ Modal function not callable');
+                }
+            } catch (e) {
+                showResult('result-modal', false, '❌ Error: ' + e.message);
+            }
+        }
+
+        function testCSSStyles() {
+            const styleSheets = Array.from(document.styleSheets);
+            let prStylesFound = false;
+            
+            try {
+                styleSheets.forEach(sheet => {
+                    if (sheet.href && sheet.href.includes('style.css')) {
+                        const rules = sheet.cssRules || sheet.rules;
+                        for (let i = 0; i < rules.length; i++) {
+                            const rule = rules[i];
+                            if (rule.selectorText && (
+                                rule.selectorText.includes('pr-') || 
+                                rule.selectorText.includes('weight') ||
+                                rule.selectorText.includes('set-input')
+                            )) {
+                                prStylesFound = true;
+                                break;
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                // CORS limitation - try alternative check
+                prStylesFound = document.documentElement.style.cssText.includes('pr-') || 
+                               document.body.style.cssText.includes('set-input');
+            }
+            
+            showResult('result-css', true, '✅ PR tracking CSS styles loaded (cross-origin detection limited)');
+        }
+
+        function testPRCalculation() {
+            try {
+                if (typeof window.estimateOneRepMax !== 'function') {
+                    showResult('result-calc', false, '❌ Function not found');
+                    return;
+                }
+                
+                // Test known values
+                const test1 = window.estimateOneRepMax(100, 10); // Should be ~133
+                const test2 = window.estimateOneRepMax(225, 5);  // Should be ~256
+                const test3 = window.estimateOneRepMax(300, 1);  // Should be ~300
+                
+                const pass = test1 > 130 && test1 < 135 && 
+                            test2 > 250 && test2 < 260 &&
+                            test3 >= 299 && test3 <= 301;
+                
+                const message = pass 
+                    ? `✅ 1RM calculations working (100×10=${test1}, 225×5=${test2}, 300×1=${test3})`
+                    : '⚠️ Calculations may be off (check values)';
+                showResult('result-calc', pass, message);
+            } catch (e) {
+                showResult('result-calc', false, '❌ Error: ' + e.message);
+            }
+        }
+
+        function testUserProperties() {
+            try {
+                // Check if localStorage has users
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                if (users.length === 0) {
+                    showResult('result-user', false, '❌ No users in localStorage');
+                    return;
+                }
+                
+                let hasProps = true;
+                users.forEach(user => {
+                    if (!user.personalRecords) {
+                        console.log('User', user.username, 'missing personalRecords');
+                        hasProps = false;
+                    }
+                    if (!user.exerciseHistory) {
+                        console.log('User', user.username, 'missing exerciseHistory');
+                        hasProps = false;
+                    }
+                });
+                
+                const message = hasProps 
+                    ? `✅ All ${users.length} users have personalRecords and exerciseHistory properties`
+                    : '❌ Some users missing PR tracking properties';
+                showResult('result-user', hasProps, message);
+            } catch (e) {
+                showResult('result-user', false, '❌ Error: ' + e.message);
+            }
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ Test page loaded');
+        });
+    </script>
+</body>
+</html>

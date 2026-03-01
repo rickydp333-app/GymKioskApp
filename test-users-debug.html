@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug Users Storage</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #222; color: #0f0; }
+    .log { white-space: pre-wrap; background: #111; padding: 10px; margin: 10px 0; border: 1px solid #0f0; }
+    button { padding: 10px; margin: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Users Storage Debug</h1>
+  <button onclick="checkUsers()">Check Users</button>
+  <button onclick="seedUsers()">Seed Default Users</button>
+  <button onclick="clearUsers()">Clear Users</button>
+  <button onclick="checkGrid()">Check Grid Elements</button>
+  <div id="output" class="log"></div>
+
+  <script>
+    function log(msg) {
+      const out = document.getElementById('output');
+      out.textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    function checkUsers() {
+      document.getElementById('output').textContent = '';
+      log('=== CHECKING USERS ===');
+      const raw = localStorage.getItem('users');
+      log('Raw localStorage.users: ' + raw);
+      
+      if (raw) {
+        const users = JSON.parse(raw);
+        log('Parsed users: ' + users.length + ' users');
+        users.forEach(u => {
+          log('  - ' + u.username);
+        });
+      } else {
+        log('No users in localStorage!');
+      }
+    }
+
+    function seedUsers() {
+      document.getElementById('output').textContent = '';
+      log('=== SEEDING USERS ===');
+      const defaultUsers = [
+        { username: 'RICK', pin: '1234', favorites: { exercises: [], muscles: [] }, icon: 'user-icon-01.svg', color: '#06B6D4' },
+        { username: 'Mel', pin: null, favorites: { exercises: [], muscles: [] }, icon: 'user-icon-02.svg', color: '#EC4899' },
+        { username: 'Kean', pin: null, favorites: { exercises: [], muscles: [] }, icon: 'user-icon-03.svg', color: '#EF4444' }
+      ];
+      localStorage.setItem('users', JSON.stringify(defaultUsers));
+      log('✅ Users seeded!');
+      checkUsers();
+    }
+
+    function clearUsers() {
+      document.getElementById('output').textContent = '';
+      log('=== CLEARING USERS ===');
+      localStorage.removeItem('users');
+      log('✅ Users cleared!');
+    }
+
+    function checkGrid() {
+      document.getElementById('output').textContent = '';
+      log('=== CHECKING GRID ELEMENTS ===');
+      const grid = document.getElementById('userGrid');
+      log('userGrid element: ' + (grid ? 'EXISTS' : 'NOT FOUND'));
+      if (grid) {
+        log('userGrid children: ' + grid.children.length);
+        log('userGrid innerHTML length: ' + grid.innerHTML.length);
+        log('userGrid display: ' + getComputedStyle(grid).display);
+      }
+    }
+  </script>
+</body>
+</html>

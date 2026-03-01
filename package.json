@@ -1,0 +1,30 @@
+{
+	"name": "gym-kiosk-app",
+	"version": "1.0.0",
+	"main": "main.js",
+	"scripts": {
+		"start": "node scripts/start.cjs",
+		"admin-app": "electron main-admin.js",
+		"build:admin": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.win.signAndEditExecutable=false",
+		"build:admin:dir": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json",
+		"server": "node server.js",
+		"kiosk": "electron .",
+		"kiosk:wait": "wait-on tcp:3001 && electron .",
+		"test:smoke": "node tests/smoke-server.cjs",
+		"test:ops": "node tests/ops-regression.cjs",
+		"test:kiosk-ops": "node tests/kiosk-ops.cjs"
+	},
+	"devDependencies": {
+		"app-builder-bin": "^4.2.0",
+		"concurrently": "^9.0.1",
+		"electron": "^30.0.0",
+		"electron-builder": "^24.13.3",
+		"wait-on": "^8.0.1"
+	},
+	"dependencies": {
+		"cors": "^2.8.6",
+		"express": "^5.2.1",
+		"qrcode": "^1.5.4",
+		"uuid": "^13.0.0"
+	}
+}

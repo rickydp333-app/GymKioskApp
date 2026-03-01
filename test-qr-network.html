@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Network Test</title>
+  <style>
+    body {
+      background: #0a0e14;
+      color: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    
+    .container {
+      background: linear-gradient(135deg, rgba(26, 31, 46, 0.95) 0%, rgba(20, 23, 32, 0.98) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.3);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      text-align: center;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+    }
+    
+    h1 {
+      color: #00d4ff;
+      margin-top: 0;
+      font-size: 24px;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 10px 5px;
+      transition: all 0.3s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+    }
+    
+    .info {
+      background: rgba(45, 55, 72, 0.4);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+      font-size: 14px;
+      color: #c4cfe0;
+      text-align: left;
+    }
+    
+    .code {
+      background: rgba(20, 23, 32, 0.8);
+      color: #00d4ff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      word-break: break-all;
+      margin: 10px 0;
+    }
+    
+    #qrImage {
+      max-width: 300px;
+      border-radius: 12px;
+      margin: 20px auto;
+      display: block;
+    }
+    
+    .loading {
+      color: #8b95a8;
+    }
+    
+    .success {
+      color: #4ade80;
+    }
+    
+    .error {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 QR Code Network Test</h1>
+    
+    <div class="info">
+      <p><strong>This test will:</strong></p>
+      <ul style="text-align: left; margin: 10px 0;">
+        <li>Fetch network configuration from server</li>
+        <li>Generate a QR code with network IP</li>
+        <li>Display the generated URL</li>
+      </ul>
+    </div>
+    
+    <button onclick="testQRGeneration()">Generate QR Code</button>
+    <button onclick="testNetworkAccess()">Test Network Access</button>
+    
+    <div id="status" class="loading" style="margin-top: 20px; min-height: 30px;"></div>
+    
+    <div id="results" style="display: none; margin-top: 20px;">
+      <h3>Results:</h3>
+      <div id="serverInfo" class="info"></div>
+      <div id="qrContainer" style="text-align: center;">
+        <img id="qrImage" alt="QR Code">
+      </div>
+      <div class="code" id="urlDisplay"></div>
+    </div>
+  </div>
+
+  <script>
+    async function getKioskNetworkIP() {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = '⏳ Fetching server info...';
+      statusDiv.className = 'loading';
+      
+      try {
+        const response = await fetch('http://localhost:3001/api/info');
+        if (!response.ok) throw new Error('Server not responding');
+        
+        const data = await response.json();
+        console.log('Server info:', data);
+        
+        document.getElementById('serverInfo').innerHTML = `
+          <strong>Server Configuration:</strong><br>
+          IP Address: <code style="color: #00d4ff;">${data.ipAddress}</code><br>
+          Port: <code style="color: #d4af37;">3001</code><br>
+          User Count: ${data.userCount}<br>
+          Workout Count: ${data.workoutCount}
+        `;
+        
+        statusDiv.textContent = '✓ Server info retrieved!';
+        statusDiv.className = 'success';
+        
+        return data.ipAddress || 'localhost';
+      } catch (err) {
+        statusDiv.textContent = `✗ Error: ${err.message}`;
+        statusDiv.className = 'error';
+        console.error('Could not get server IP:', err);
+        return null;
+      }
+    }
+
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    async function testQRGeneration() {
+      const ipAddress = await getKioskNetworkIP();
+      if (!ipAddress) return;
+      
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = '⏳ Generating QR code...';
+      statusDiv.className = 'loading';
+      
+      try {
+        const workoutId = generateUUID();
+        const workoutUrl = `http://${ipAddress}:3001/workout/${workoutId}`;
+        
+        console.log('Workout URL:', workoutUrl);
+        
+        // Generate QR code
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workoutUrl)}&color=f5f7fa&bgcolor=1a1f2e`;
+        
+        document.getElementById('qrImage').src = qrUrl;
+        document.getElementById('urlDisplay').textContent = workoutUrl;
+        document.getElementById('results').style.display = 'block';
+        
+        statusDiv.textContent = `✓ QR Code generated! (Workout ID: ${workoutId})`;
+        statusDiv.className = 'success';
+      } catch (err) {
+        statusDiv.textContent = `✗ Error generating QR: ${err.message}`;
+        statusDiv.className = 'error';
+        console.error('QR generation error:', err);
+      }
+    }
+
+    async function testNetworkAccess() {
+      const ipAddress = await getKioskNetworkIP();
+      if (!ipAddress) return;
+      
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = '⏳ Testing network access...';
+      statusDiv.className = 'loading';
+      
+      try {
+        const response = await fetch(`http://${ipAddress}:3001/api/info`);
+        if (!response.ok) throw new Error('Network not responding');
+        
+        const data = await response.json();
+        
+        statusDiv.innerHTML = `✓ Network access verified!<br><small>Server accessible at http://${ipAddress}:3001</small>`;
+        statusDiv.className = 'success';
+      } catch (err) {
+        statusDiv.innerHTML = `✗ Network test failed: ${err.message}<br><small>Server may not be accessible from network IP</small>`;
+        statusDiv.className = 'error';
+        console.error('Network test error:', err);
+      }
+    }
+  </script>
+</body>
+</html>
