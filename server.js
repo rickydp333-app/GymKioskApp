@@ -8,17 +8,55 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const STATIC_MOBILE_DIR_CANDIDATES = [
+  path.join(__dirname, 'mobile'),
+  path.join(__dirname, 'public', 'mobile')
+];
+const MOBILE_FILE_DIR_CANDIDATES = [
+  ...STATIC_MOBILE_DIR_CANDIDATES,
+  __dirname
+];
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_RETENTION_MS = 35 * 24 * 60 * 60 * 1000;
 const WORKOUT_RETENTION_DAYS = 120;
 const CHALLENGE_RETENTION_DAYS = 60;
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 
+function isDirectory(dirPath) {
+  try {
+    return fs.statSync(dirPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+const STATIC_MOBILE_DIR = STATIC_MOBILE_DIR_CANDIDATES.find(isDirectory) || null;
+const MOBILE_FILE_DIRS = MOBILE_FILE_DIR_CANDIDATES.filter(isDirectory);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'mobile')));
+if (STATIC_MOBILE_DIR) {
+  app.use(express.static(STATIC_MOBILE_DIR));
+} else {
+  console.warn('⚠ No mobile static directory found. Static web assets may be unavailable.');
+}
 app.use('/assets', express.static(path.join(__dirname, 'assets'))); // Serve exercise videos and images
+
+function sendMobileFile(res, preferredFile, fallbackFiles = []) {
+  const candidates = [preferredFile, ...fallbackFiles].filter(Boolean);
+
+  for (const dir of MOBILE_FILE_DIRS) {
+    for (const filename of candidates) {
+      const filePath = path.join(dir, filename);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+    }
+  }
+
+  return res.status(503).send('Mobile web files are not available on this deployment yet.');
+}
 
 // ========================================
 // FILE STORAGE SETUP
@@ -747,27 +785,27 @@ app.get('/api/diagnostics', (req, res) => {
 // ========================================
 
 app.get('/workout/:workoutId', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'viewer.html'));
+  sendMobileFile(res, 'viewer.html', ['index.html']);
 });
 
 app.get('/meal/:mealPlanId', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'viewer-meal.html'));
+  sendMobileFile(res, 'viewer-meal.html', ['viewer.html', 'index.html']);
 });
 
 app.get('/favorites/:favoritesId', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'favorites.html'));
+  sendMobileFile(res, 'favorites.html', ['viewer.html', 'index.html']);
 });
 
 app.get('/diagnostics', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'diagnostics.html'));
+  sendMobileFile(res, 'diagnostics.html', ['index.html']);
 });
 
 app.get('/calendar/:calendarId', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'calendar.html'));
+  sendMobileFile(res, 'calendar.html', ['index.html']);
 });
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile', 'index.html'));
+  sendMobileFile(res, 'index.html', ['viewer.html']);
 });
 
 // ========================================
