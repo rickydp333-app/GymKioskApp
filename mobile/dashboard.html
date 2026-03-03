@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – RDP's Gym</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    header {
+      background: #1a1e28;
+      border-bottom: 1px solid #3d4a5c;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
+    .logout-btn {
+      background: none;
+      border: 1px solid #3d4a5c;
+      color: #a0aec0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .logout-btn:hover { border-color: #d4af37; color: #d4af37; }
+    .greeting { padding: 20px 20px 8px; font-size: 0.9rem; color: #a0aec0; }
+    .greeting strong { color: #f5f7fa; }
+    .section-title { padding: 16px 20px 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 0 16px 16px;
+    }
+    .tile {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      color: #f5f7fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.2s;
+    }
+    .tile:hover { border-color: #d4af37; }
+    .tile-icon { font-size: 2rem; }
+    .tile-label { font-size: 0.85rem; font-weight: bold; }
+    .workouts-list { padding: 0 16px 24px; }
+    .workout-item {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .workout-meta { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 20px;
+      background: rgba(212,175,55,0.15);
+      color: #d4af37;
+      border: 1px solid rgba(212,175,55,0.3);
+    }
+    .badge.done { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3); }
+    .empty { color: #a0aec0; font-size: 0.9rem; text-align: center; padding: 20px; }
+    .spinner { text-align: center; padding: 20px; color: #a0aec0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="header-title">🏋️ RDP'S GYM</span>
+    <button class="logout-btn" onclick="logout()">Sign Out</button>
+  </header>
+
+  <div class="greeting">Welcome back, <strong id="userEmail">—</strong></div>
+
+  <div class="section-title">Quick Actions</div>
+  <div class="grid">
+    <a href="/builder.html" class="tile">
+      <span class="tile-icon">🏗️</span>
+      <span class="tile-label">Build Workout</span>
+    </a>
+    <a href="/diagnostics" class="tile">
+      <span class="tile-icon">🔧</span>
+      <span class="tile-label">Diagnostics</span>
+    </a>
+  </div>
+
+  <div class="section-title">My Workouts</div>
+  <div id="workoutsList" class="workouts-list">
+    <div class="spinner">Loading…</div>
+  </div>
+
+  <script>
+    const sessionId = sessionStorage.getItem('sessionId');
+    if (!sessionId) window.location.href = '/';
+
+    document.getElementById('userEmail').textContent = sessionStorage.getItem('email') || 'User';
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = '/';
+    }
+
+    async function loadWorkouts() {
+      const container = document.getElementById('workoutsList');
+      try {
+        const res = await fetch('/api/user/workouts', {
+          headers: { 'Authorization': 'Bearer ' + sessionId }
+        });
+        if (!res.ok) {
+          if (res.status === 401) { logout(); return; }
+          throw new Error('Failed to load');
+        }
+        const data = await res.json();
+        const list = data.workouts || [];
+        if (!list.length) {
+          container.innerHTML = '<div class="empty">No workouts yet. Build your first one!</div>';
+          return;
+        }
+        container.innerHTML = list.map(w => `
+          <div class="workout-item">
+            <div>
+              <div>${new Date(w.created).toLocaleDateString()}</div>
+              <div class="workout-meta">${w.exercises} exercise${w.exercises !== 1 ? 's' : ''}</div>
+            </div>
+            <span class="badge ${w.completed ? 'done' : ''}">${w.completed ? 'Done' : 'Pending'}</span>
+          </div>
+        `).join('');
+      } catch {
+        container.innerHTML = '<div class="empty">Could not load workouts.</div>';
+      }
+    }
+
+    loadWorkouts();
+  </script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnostics – RDP's Gym</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    header {
+      background: #1a1e28;
+      border-bottom: 1px solid #3d4a5c;
+      padding: 14px 20px;
+    }
+    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
+    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
+    .section-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a0aec0;
+      margin: 20px 0 8px;
+    }
+    .info-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #2a3040;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-key { font-size: 0.85rem; color: #a0aec0; }
+    .info-value { font-size: 0.85rem; font-weight: bold; color: #f5f7fa; text-align: right; max-width: 60%; word-break: break-all; }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .status-ok { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .status-err { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
+    .refresh-btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: rgba(212,175,55,0.1);
+      border: 1px solid #d4af37;
+      border-radius: 8px;
+      color: #d4af37;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 16px;
+      font-weight: bold;
+    }
+    .refresh-btn:hover { background: rgba(212,175,55,0.2); }
+    .network-item { padding: 10px 16px; border-bottom: 1px solid #2a3040; }
+    .network-item:last-child { border-bottom: none; }
+    .network-name { font-size: 0.8rem; color: #a0aec0; }
+    .network-addr { font-size: 0.85rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">🔧 System Diagnostics</div>
+  </header>
+
+  <div class="content" id="diagContent">
+    <div class="spinner">Running diagnostics…</div>
+  </div>
+
+  <script>
+    async function loadDiagnostics() {
+      const content = document.getElementById('diagContent');
+      try {
+        const [diagRes, healthRes] = await Promise.all([
+          fetch('/api/diagnostics'),
+          fetch('/api/health')
+        ]);
+
+        const diag = await diagRes.json();
+        const health = await healthRes.json();
+
+        const uptime = formatUptime(diag.server?.uptime || health.uptime || 0);
+
+        content.innerHTML = '';
+
+        // Server status
+        const statusTitle = document.createElement('div');
+        statusTitle.className = 'section-title';
+        statusTitle.textContent = 'Server Status';
+        content.appendChild(statusTitle);
+
+        const statusCard = document.createElement('div');
+        statusCard.className = 'info-card';
+        statusCard.innerHTML = `
+          <div class="info-row">
+            <span class="info-key">Status</span>
+            <span class="info-value"><span class="status-badge status-ok">● Online</span></span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Uptime</span>
+            <span class="info-value">${uptime}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Port</span>
+            <span class="info-value">${diag.server?.port || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">IP Address</span>
+            <span class="info-value">${diag.server?.ipAddress || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Timestamp</span>
+            <span class="info-value">${diag.server?.timestamp ? new Date(diag.server.timestamp).toLocaleString() : '—'}</span>
+          </div>
+        `;
+        content.appendChild(statusCard);
+
+        // Storage
+        const storageTitle = document.createElement('div');
+        storageTitle.className = 'section-title';
+        storageTitle.textContent = 'Storage';
+        content.appendChild(storageTitle);
+
+        const storageCard = document.createElement('div');
+        storageCard.className = 'info-card';
+        storageCard.innerHTML = `
+          <div class="info-row">
+            <span class="info-key">Workouts</span>
+            <span class="info-value">${diag.storage?.workoutCount ?? '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Users</span>
+            <span class="info-value">${diag.storage?.userCount ?? '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Calendars</span>
+            <span class="info-value">${diag.storage?.calendarCount ?? '—'}</span>
+          </div>
+        `;
+        content.appendChild(storageCard);
+
+        // Network
+        const netTitle = document.createElement('div');
+        netTitle.className = 'section-title';
+        netTitle.textContent = 'Network Interfaces';
+        content.appendChild(netTitle);
+
+        const netCard = document.createElement('div');
+        netCard.className = 'info-card';
+        const interfaces = diag.networkInfo?.networkInterfaces || [];
+        if (!interfaces.length) {
+          netCard.innerHTML = '<div class="network-item" style="color:#a0aec0;">No interfaces found.</div>';
+        } else {
+          interfaces.forEach(iface => {
+            iface.addresses.forEach(addr => {
+              const item = document.createElement('div');
+              item.className = 'network-item';
+              item.innerHTML = `<div class="network-name">${iface.name}${addr.internal ? ' (internal)' : ''}</div><div class="network-addr">${addr.address}</div>`;
+              netCard.appendChild(item);
+            });
+          });
+        }
+        content.appendChild(netCard);
+
+        // System
+        const sysTitle = document.createElement('div');
+        sysTitle.className = 'section-title';
+        sysTitle.textContent = 'System';
+        content.appendChild(sysTitle);
+
+        const sysCard = document.createElement('div');
+        sysCard.className = 'info-card';
+        sysCard.innerHTML = `
+          <div class="info-row">
+            <span class="info-key">Hostname</span>
+            <span class="info-value">${diag.networkInfo?.hostname || '—'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Platform</span>
+            <span class="info-value">${diag.networkInfo?.platform || '—'}</span>
+          </div>
+        `;
+        content.appendChild(sysCard);
+
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'refresh-btn';
+        refreshBtn.textContent = '↻ Refresh';
+        refreshBtn.onclick = () => {
+          content.innerHTML = '<div class="spinner">Running diagnostics…</div>';
+          loadDiagnostics();
+        };
+        content.appendChild(refreshBtn);
+
+      } catch (err) {
+        content.innerHTML = `
+          <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:20px;color:#f87171;text-align:center;margin-top:20px;">
+            <div style="font-size:2rem;margin-bottom:8px;">⚠️</div>
+            <div>Could not reach server.</div>
+            <div style="font-size:0.8rem;margin-top:8px;color:#a0aec0;">${err.message}</div>
+          </div>
+          <button class="refresh-btn" onclick="loadDiagnostics()" style="margin-top:16px;">↻ Retry</button>
+        `;
+      }
+    }
+
+    function formatUptime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      return [h && `${h}h`, m && `${m}m`, `${s}s`].filter(Boolean).join(' ');
+    }
+
+    loadDiagnostics();
+  </script>
+</body>
+</html>

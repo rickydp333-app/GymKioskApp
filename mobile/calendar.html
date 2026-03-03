@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout Calendar – RDP's Gym</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    header {
+      background: #1a1e28;
+      border-bottom: 1px solid #3d4a5c;
+      padding: 14px 20px;
+    }
+    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
+    .header-sub { color: #a0aec0; font-size: 0.8rem; margin-top: 2px; }
+    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
+    .meta-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .meta-label { font-size: 0.75rem; color: #a0aec0; }
+    .meta-value { font-weight: bold; font-size: 1rem; color: #d4af37; }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin-bottom: 20px;
+    }
+    .day-header {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #a0aec0;
+      padding: 4px 0;
+    }
+    .day-cell {
+      background: #1a1e28;
+      border: 1px solid #2a3040;
+      border-radius: 4px;
+      min-height: 36px;
+      padding: 4px;
+      text-align: center;
+      font-size: 0.75rem;
+    }
+    .day-cell.today { border-color: #d4af37; }
+    .day-cell.has-workout { background: rgba(212,175,55,0.12); }
+    .day-cell.empty { background: transparent; border-color: transparent; }
+    .day-num { font-size: 0.7rem; color: #a0aec0; }
+    .day-dot { width: 6px; height: 6px; background: #d4af37; border-radius: 50%; margin: 2px auto 0; }
+    .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-bottom: 10px; }
+    .event-list { }
+    .event-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+    .event-date { font-size: 0.8rem; color: #a0aec0; margin-bottom: 4px; }
+    .event-name { font-weight: bold; font-size: 0.95rem; }
+    .event-meta { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
+    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
+    .error-box {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 16px;
+      color: #f87171;
+      text-align: center;
+    }
+    .empty { color: #a0aec0; text-align: center; padding: 24px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">📅 Workout Calendar</div>
+    <div class="header-sub" id="calendarOwner">Loading…</div>
+  </header>
+
+  <div id="mainContent" class="content">
+    <div class="spinner">Loading calendar…</div>
+  </div>
+
+  <script>
+    const calendarId = location.pathname.split('/').pop();
+
+    async function loadCalendar() {
+      const content = document.getElementById('mainContent');
+      try {
+        const res = await fetch(`/api/calendar/${encodeURIComponent(calendarId)}`);
+        if (!res.ok) {
+          const d = await res.json();
+          content.innerHTML = `<div class="error-box">${d.error || 'Calendar not found.'}</div>`;
+          return;
+        }
+        const { userName, data, created } = await res.json();
+        document.getElementById('calendarOwner').textContent = `${userName}'s Calendar`;
+        document.title = `${userName}'s Calendar – RDP's Gym`;
+
+        const events = Array.isArray(data?.events) ? data.events : [];
+        const createdDate = new Date(created);
+
+        content.innerHTML = '';
+
+        // Meta card
+        const meta = document.createElement('div');
+        meta.className = 'meta-card';
+        meta.innerHTML = `
+          <div><div class="meta-label">Owner</div><div class="meta-value">${userName}</div></div>
+          <div><div class="meta-label">Saved</div><div class="meta-value">${createdDate.toLocaleDateString()}</div></div>
+          <div><div class="meta-label">Events</div><div class="meta-value">${events.length}</div></div>
+        `;
+        content.appendChild(meta);
+
+        // Mini calendar for current month
+        renderMiniCalendar(content, events);
+
+        // Event list
+        const titleEl = document.createElement('div');
+        titleEl.className = 'section-title';
+        titleEl.textContent = 'Scheduled Workouts';
+        content.appendChild(titleEl);
+
+        if (!events.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = 'No events scheduled.';
+          content.appendChild(empty);
+          return;
+        }
+
+        events
+          .slice()
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .forEach(ev => {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            card.innerHTML = `
+              <div class="event-date">${new Date(ev.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+              <div class="event-name">${ev.name || ev.title || 'Workout'}</div>
+              ${ev.notes ? `<div class="event-meta">${ev.notes}</div>` : ''}
+            `;
+            content.appendChild(card);
+          });
+      } catch (err) {
+        content.innerHTML = `<div class="error-box">Failed to load calendar. ${err.message}</div>`;
+      }
+    }
+
+    function renderMiniCalendar(container, events) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      const eventDates = new Set(events.map(e => {
+        const d = new Date(e.date);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      }));
+
+      const grid = document.createElement('div');
+      grid.style.marginBottom = '20px';
+
+      const monthLabel = document.createElement('div');
+      monthLabel.style.cssText = 'font-size:.85rem;color:#d4af37;font-weight:bold;margin-bottom:8px;';
+      monthLabel.textContent = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      grid.appendChild(monthLabel);
+
+      const calGrid = document.createElement('div');
+      calGrid.className = 'cal-grid';
+
+      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'day-header';
+        h.textContent = d;
+        calGrid.appendChild(h);
+      });
+
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day-cell empty';
+        calGrid.appendChild(empty);
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${year}-${month}-${d}`;
+        const isToday = d === now.getDate();
+        const hasEvent = eventDates.has(key);
+        const cell = document.createElement('div');
+        cell.className = `day-cell${isToday ? ' today' : ''}${hasEvent ? ' has-workout' : ''}`;
+        cell.innerHTML = `<div class="day-num">${d}</div>${hasEvent ? '<div class="day-dot"></div>' : ''}`;
+        calGrid.appendChild(cell);
+      }
+
+      grid.appendChild(calGrid);
+      container.appendChild(grid);
+    }
+
+    loadCalendar();
+  </script>
+</body>
+</html>
