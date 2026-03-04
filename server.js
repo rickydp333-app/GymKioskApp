@@ -16,6 +16,13 @@ const MOBILE_FILE_DIR_CANDIDATES = [
   ...STATIC_MOBILE_DIR_CANDIDATES,
   __dirname
 ];
+const KIOSK_CSS_DIR = path.join(__dirname, 'css');
+const KIOSK_JS_DIR = path.join(__dirname, 'js');
+const KIOSK_HTML_DIR = __dirname;
+const SCREENSAVER_TUTORIAL_CANDIDATES = [
+  path.join(__dirname, 'screensaver-tutorial.html'),
+  path.join(__dirname, 'assets', 'screensaver-tutorial.html')
+];
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_RETENTION_MS = 35 * 24 * 60 * 60 * 1000;
 const WORKOUT_RETENTION_DAYS = 120;
@@ -41,6 +48,12 @@ if (STATIC_MOBILE_DIR) {
 } else {
   console.warn('⚠ No mobile static directory found. Static web assets may be unavailable.');
 }
+if (isDirectory(KIOSK_CSS_DIR)) {
+  app.use('/css', express.static(KIOSK_CSS_DIR));
+}
+if (isDirectory(KIOSK_JS_DIR)) {
+  app.use('/js', express.static(KIOSK_JS_DIR));
+}
 app.use('/assets', express.static(path.join(__dirname, 'assets'))); // Serve exercise videos and images
 
 function sendMobileFile(res, preferredFile, fallbackFiles = []) {
@@ -56,6 +69,16 @@ function sendMobileFile(res, preferredFile, fallbackFiles = []) {
   }
 
   return res.status(503).send('Mobile web files are not available on this deployment yet.');
+}
+
+function sendFirstExistingFile(res, absolutePaths = []) {
+  for (const filePath of absolutePaths) {
+    if (filePath && fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+
+  return res.status(404).send('Requested file is not available on this deployment.');
 }
 
 // ========================================
@@ -890,6 +913,22 @@ app.get('/calendar/:calendarId', (req, res) => {
 
 app.get('/stats', (req, res) => {
   sendMobileFile(res, 'stats.html', ['dashboard.html']);
+});
+
+app.get('/kiosk', (req, res) => {
+  sendFirstExistingFile(res, [path.join(KIOSK_HTML_DIR, 'index.html')]);
+});
+
+app.get('/kiosk/index.html', (req, res) => {
+  sendFirstExistingFile(res, [path.join(KIOSK_HTML_DIR, 'index.html')]);
+});
+
+app.get('/screensaver-tutorial.html', (req, res) => {
+  sendFirstExistingFile(res, SCREENSAVER_TUTORIAL_CANDIDATES);
+});
+
+app.get('/kiosk/screensaver-tutorial.html', (req, res) => {
+  sendFirstExistingFile(res, SCREENSAVER_TUTORIAL_CANDIDATES);
 });
 
 app.get('/', (req, res) => {
