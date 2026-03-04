@@ -502,7 +502,7 @@
         <div class="step-card">
           <div class="step-emoji">📱</div>
           <div class="step-title">4. Share to Phone</div>
-          <div class="step-description">QR code access from any smartphone</div>
+          <div class="step-description">Workout, meals, favorites, calendar, and stats QR sharing</div>
         </div>
       </div>
 
@@ -598,7 +598,7 @@
         <div class="carousel-text">
           <strong>Mobile Access in 3 Easy Steps:</strong>
           <ul class="carousel-list">
-            <li>Click "Share" on any workout</li>
+            <li>Tap the matching share action: Workout, Meal Plan, Favorites, Calendar, or Share My Stats QR</li>
             <li>Point your phone camera at the QR code</li>
             <li>Tap the notification to open on your phone</li>
           </ul>
@@ -607,7 +607,7 @@
             <li>Track exercise completion in real-time</li>
             <li>See progress bar as you work</li>
             <li>Record weight & reps</li>
-            <li>Share with friends</li>
+            <li>View private stats after sign-in (user-locked)</li>
           </ul>
         </div>
       </div>
@@ -729,6 +729,8 @@
       // Try parent window's closeScreensaver first (set by reset.js)
       if (window.opener && window.opener.closeScreensaver) {
         window.opener.closeScreensaver();
+      } else if (window.parent && window.parent !== window && typeof window.parent.closeScreensaver === 'function') {
+        window.parent.closeScreensaver();
       } else if (window.closeScreensaver && typeof window.closeScreensaver === 'function') {
         window.closeScreensaver();
       } else {

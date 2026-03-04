@@ -2749,28 +2749,31 @@ const HOW_TO_GUIDES = {
   sendToPhone: {
     title: '📲 How to Send Info to Your Phone',
     steps: [
-      'After generating a workout or nutrition plan, tap “Share”.',
-      'On Featured Fuel of the Day, tap “Export Featured Fuel QR”.',
-      'A QR code will appear on the screen.',
-      'Open your phone camera and scan the QR code.',
-      'The plan opens in your mobile browser instantly.'
+      'After generating content, tap the matching share action: Workout QR, Meal Plan QR, Favorites QR, Calendar QR, or Share My Stats QR.',
+      'A QR code modal appears with both a scannable code and a copyable link.',
+      'Scan with your phone camera, or tap “Copy Link” and open it manually on mobile.',
+      'Workout, meal, favorites, and calendar links open directly in the mobile viewer.',
+      'Stats QR opens the /stats page, which requires mobile sign-in and only shows that signed-in user’s stats.'
     ],
     tips: [
-      'Make sure your phone is on the same Wi‑Fi network as the kiosk.',
-      'If the QR code doesn’t open, try scanning again or move closer.'
+      'Each share link includes a fresh query nonce to reduce stale-cache opens.',
+      'If a page looks stale, open the QR link in a private tab and rescan.',
+      'Stats are protected by session auth, so one user cannot view another user’s stats data.'
     ]
   },
   phoneWorkout: {
     title: '📱 How to Build a Workout on Your Phone',
     steps: [
       'Scan a QR code from the kiosk to open the mobile page.',
+      'Sign in from the mobile home page when prompted (required for saving progress and viewing private stats).',
       'Use the mobile workout view to follow the exercises.',
       'If a builder screen is available, pick muscle groups and confirm.',
       'Save the workout and keep it open during your session.'
     ],
     tips: [
       'Rotate your phone to landscape for a bigger view.',
-      'Bookmark the workout link to revisit it later.'
+      'Bookmark the workout link to revisit it later.',
+      'Open /stats after sign-in to view your private progress summary.'
     ]
   }
 };
