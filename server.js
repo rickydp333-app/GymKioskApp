@@ -256,6 +256,70 @@ const calendars = loadCalendars(); // calendarId -> { userName, data, created }
 const friendChallenges = loadFriendChallenges(); // array of friend challenge entries
 const sessions = new Map(); // sessionId -> { userId, expiresAt }
 
+function getAuthenticatedUser(req, res) {
+  const sessionId = req.headers['authorization']?.replace('Bearer ', '');
+  if (!sessionId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+
+  const session = sessions.get(sessionId);
+  if (!session || session.expiresAt < Date.now()) {
+    res.status(401).json({ error: 'Session expired' });
+    return null;
+  }
+
+  const user = users.get(session.userId);
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return null;
+  }
+
+  return { sessionId, userId: session.userId, user };
+}
+
+function getExerciseCount(workoutData = {}) {
+  const exercises = Array.isArray(workoutData.exercises) ? workoutData.exercises : [];
+  if (!exercises.length) return 0;
+
+  if (Array.isArray(exercises[0]?.dayExercises)) {
+    return exercises.reduce((total, dayGroup) => {
+      const dayExercises = Array.isArray(dayGroup.dayExercises) ? dayGroup.dayExercises.length : 0;
+      return total + dayExercises;
+    }, 0);
+  }
+
+  return exercises.length;
+}
+
+function buildUserStats(userId) {
+  const user = users.get(userId);
+  const workoutIds = Array.isArray(user?.workouts) ? user.workouts : [];
+  const ownedWorkouts = workoutIds
+    .map((workoutId) => ({ workoutId, workout: workouts.get(workoutId) }))
+    .filter((entry) => !!entry.workout);
+
+  const totalWorkouts = ownedWorkouts.length;
+  const completedWorkouts = ownedWorkouts.filter((entry) => !!entry.workout.completed).length;
+  const totalExercises = ownedWorkouts.reduce((sum, entry) => sum + getExerciseCount(entry.workout.data), 0);
+
+  const lastWorkoutMs = ownedWorkouts.reduce((latest, entry) => {
+    const createdAt = entry.workout?.created || entry.workout?.data?.created;
+    const createdMs = toTimestamp(createdAt);
+    return Math.max(latest, createdMs);
+  }, 0);
+
+  return {
+    userId,
+    email: user?.email || null,
+    totalWorkouts,
+    completedWorkouts,
+    totalExercises,
+    completionRate: totalWorkouts ? Math.round((completedWorkouts / totalWorkouts) * 100) : 0,
+    lastWorkoutAt: lastWorkoutMs ? new Date(lastWorkoutMs).toISOString() : null
+  };
+}
+
 // ========================================
 // USER AUTHENTICATION
 // ========================================
@@ -482,27 +546,19 @@ app.get('/api/workouts/:workoutId', (req, res) => {
 
 // Get user's workouts
 app.get('/api/user/workouts', (req, res) => {
-  const sessionId = req.headers['authorization']?.replace('Bearer ', '');
+  const auth = getAuthenticatedUser(req, res);
+  if (!auth) return;
 
-  if (!sessionId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const session = sessions.get(sessionId);
-  if (!session || session.expiresAt < Date.now()) {
-    return res.status(401).json({ error: 'Session expired' });
-  }
-
-  const user = users.get(session.userId);
-  const userWorkouts = user.workouts.map(wId => {
+  const userWorkouts = auth.user.workouts.map(wId => {
     const w = workouts.get(wId);
+    if (!w) return null;
     return {
       id: wId,
       created: w.created,
       completed: w.completed,
-      exercises: w.data.exercises.length
+      exercises: getExerciseCount(w.data)
     };
-  });
+  }).filter(Boolean);
 
   res.json({
     success: true,
@@ -514,11 +570,27 @@ app.get('/api/user/workouts', (req, res) => {
 app.put('/api/workouts/:workoutId', (req, res) => {
   const { workoutId } = req.params;
   const { completed, progress } = req.body;
-  const sessionId = req.headers['authorization']?.replace('Bearer ', '');
+  const auth = getAuthenticatedUser(req, res);
+  if (!auth) return;
 
   const workout = workouts.get(workoutId);
   if (!workout) {
     return res.status(404).json({ error: 'Workout not found' });
+  }
+
+  if (workout.userId && workout.userId !== auth.userId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  if (!workout.userId) {
+    workout.userId = auth.userId;
+  }
+
+  if (!Array.isArray(auth.user.workouts)) {
+    auth.user.workouts = [];
+  }
+  if (!auth.user.workouts.includes(workoutId)) {
+    auth.user.workouts.push(workoutId);
   }
 
   if (completed !== undefined) {
@@ -530,10 +602,22 @@ app.put('/api/workouts/:workoutId', (req, res) => {
 
   // Save to file
   saveWorkouts();
+  saveUsers();
 
   res.json({
     success: true,
     workout
+  });
+});
+
+app.get('/api/user/stats', (req, res) => {
+  const auth = getAuthenticatedUser(req, res);
+  if (!auth) return;
+
+  const stats = buildUserStats(auth.userId);
+  res.json({
+    success: true,
+    stats
   });
 });
 
@@ -802,6 +886,10 @@ app.get('/diagnostics', (req, res) => {
 
 app.get('/calendar/:calendarId', (req, res) => {
   sendMobileFile(res, 'calendar.html');
+});
+
+app.get('/stats', (req, res) => {
+  sendMobileFile(res, 'stats.html', ['dashboard.html']);
 });
 
 app.get('/', (req, res) => {

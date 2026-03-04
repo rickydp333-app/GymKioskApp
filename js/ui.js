@@ -4045,6 +4045,20 @@ function initializeApp() {
     showScreen('personalRecordsScreen');
     renderPersonalRecordsScreen();
   });
+
+  document.getElementById('shareStatsBtn')?.addEventListener('click', async () => {
+    if (typeof displayStatsQRCodeModal === 'function') {
+      await displayStatsQRCodeModal(kioskIP);
+      return;
+    }
+
+    console.error('displayStatsQRCodeModal function not found');
+    if (typeof showAlert === 'function') {
+      await showAlert('Unavailable', 'Stats QR sharing is not available right now.');
+    } else {
+      alert('Stats QR sharing is not available right now.');
+    }
+  });
   
   // Initialize Calendar
   initializeCalendar();

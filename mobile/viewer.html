@@ -552,12 +552,21 @@
 
     async function syncToKiosk() {
       try {
+        const sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) {
+          alert('Please sign in from the mobile home page before saving progress to your account.');
+          return;
+        }
+
         const checkboxes = document.querySelectorAll('.exercise-checkbox');
         const progress = Array.from(checkboxes).map(cb => cb.checked);
 
         const response = await fetch(`/api/workouts/${workoutId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionId}`
+          },
           body: JSON.stringify({
             completed: document.querySelectorAll('.exercise-checkbox:checked').length > 0,
             progress: progress

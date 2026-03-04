@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Stats - RDPs STRENGTH & CONDITIONING</title>
+  <style>
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      padding: 18px 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .nav-btn {
+      background: rgba(45, 55, 72, 0.6);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      color: var(--text-primary);
+      border-radius: 10px;
+      padding: 10px 14px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-blue);
+    }
+
+    .meta-card {
+      margin-top: 14px;
+      background: rgba(0, 212, 255, 0.08);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .loading, .error {
+      margin-top: 20px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .error { color: #ff8b8b; }
+
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 My Stats</h1>
+      <a class="nav-btn" href="/dashboard.html">← Dashboard</a>
+    </header>
+
+    <div id="loadingState" class="loading">Loading your stats...</div>
+    <div id="errorState" class="error" style="display: none;"></div>
+
+    <div id="statsState" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Workouts</div>
+          <div class="stat-value" id="totalWorkouts">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Completed Workouts</div>
+          <div class="stat-value" id="completedWorkouts">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Exercises</div>
+          <div class="stat-value" id="totalExercises">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Completion Rate</div>
+          <div class="stat-value" id="completionRate">0%</div>
+        </div>
+      </div>
+
+      <div class="meta-card">
+        Last Workout: <strong id="lastWorkoutAt">—</strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessionId = localStorage.getItem('sessionId');
+    if (!sessionId) {
+      window.location.href = '/index.html';
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/user/stats', {
+          headers: {
+            Authorization: `Bearer ${sessionId}`
+          }
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to load stats');
+        }
+
+        const stats = result.stats || {};
+        document.getElementById('totalWorkouts').textContent = stats.totalWorkouts || 0;
+        document.getElementById('completedWorkouts').textContent = stats.completedWorkouts || 0;
+        document.getElementById('totalExercises').textContent = stats.totalExercises || 0;
+        document.getElementById('completionRate').textContent = `${stats.completionRate || 0}%`;
+        document.getElementById('lastWorkoutAt').textContent = formatDate(stats.lastWorkoutAt);
+
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('statsState').style.display = 'block';
+      } catch (error) {
+        document.getElementById('loadingState').style.display = 'none';
+        const errorState = document.getElementById('errorState');
+        errorState.textContent = error.message;
+        errorState.style.display = 'block';
+      }
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

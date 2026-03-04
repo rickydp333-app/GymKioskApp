@@ -179,6 +179,17 @@ async function generateFavoritesQRCode(favoritesId, kioskIP) {
   return { qrCode: qrUrl, favoritesUrl };
 }
 
+async function generateStatsQRCode(kioskIP) {
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
+
+  const statsUrl = addRequestNonce(await buildResolvedShareUrl('/stats'));
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(statsUrl)}&color=f5f7fa&bgcolor=1a1f2e&t=${Date.now()}`;
+
+  return { qrCode: qrUrl, statsUrl };
+}
+
 async function displayQRCodeModal(workoutId, kioskIP) {
   try {
     const { qrCode, workoutUrl } = await generateQRCode(workoutId, kioskIP);
@@ -421,6 +432,126 @@ async function displayFavoritesQRCodeModal(favoritesId, kioskIP) {
       showAlert('Error', 'Error generating QR code: ' + error.message);
     } else {
       alert('Error generating QR code: ' + error.message);
+    }
+  }
+}
+
+async function displayStatsQRCodeModal(kioskIP) {
+  try {
+    const { qrCode, statsUrl } = await generateStatsQRCode(kioskIP);
+
+    const existingModal = document.getElementById('qrModal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'qrModal';
+    modal.className = 'modal';
+    modal.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 14, 20, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+      <div class="qr-modal" style="
+        background: linear-gradient(135deg, rgba(26, 31, 46, 0.95) 0%, rgba(20, 23, 32, 0.98) 100%);
+        border: 2px solid rgba(212, 175, 55, 0.3);
+        border-radius: 20px;
+        padding: 32px;
+        max-width: 520px;
+        width: 90%;
+        position: relative;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+      ">
+        <button class="modal-close" onclick="closeQRModal()" style="
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: none;
+          border: none;
+          color: #c4cfe0;
+          font-size: 24px;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+        ">✕</button>
+
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📊 Share My Stats</h2>
+
+        <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 16px 0; line-height: 1.6;">
+          Scan this QR code to open the stats page on your phone.
+        </p>
+
+        <p style="text-align: center; color: #8b95a8; font-size: 13px; margin: 0 0 20px 0; line-height: 1.5;">
+          The page is login-protected and only shows the signed-in user's stats.
+        </p>
+
+        <div style="
+          background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+          border: 2px solid rgba(212, 175, 55, 0.2);
+          border-radius: 16px;
+          padding: 24px;
+          text-align: center;
+          margin-bottom: 20px;
+        ">
+          <img src="${qrCode}" alt="Stats QR Code" style="
+            width: 280px;
+            height: 280px;
+            border-radius: 12px;
+            image-rendering: crisp-edges;
+          ">
+        </div>
+
+        <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 16px 0; word-break: break-all;">
+          Or visit: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #00d4ff; font-size: 11px; font-family: 'Courier New', monospace;">${statsUrl}</code>
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
+          <button class="primary-btn" onclick="copyWorkoutLink('${statsUrl}')" style="
+            padding: 12px 16px;
+            font-size: 14px;
+            width: 100%;
+            background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+          ">📋 Copy Link</button>
+          <button class="primary-btn" onclick="closeQRModal()" style="
+            padding: 12px 16px;
+            font-size: 14px;
+            width: 100%;
+            background: rgba(45, 55, 72, 0.6);
+            color: #f5f7fa;
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+          ">✓ Done</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeQRModal();
+    });
+  } catch (error) {
+    console.error('Error generating stats QR code:', error);
+    if (typeof showAlert === 'function') {
+      showAlert('Error', 'Error generating stats QR code: ' + error.message);
+    } else {
+      alert('Error generating stats QR code: ' + error.message);
     }
   }
 }
