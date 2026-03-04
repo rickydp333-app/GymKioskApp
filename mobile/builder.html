@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout Builder – RDP's Gym</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    header {
+      background: #1a1e28;
+      border-bottom: 1px solid #3d4a5c;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .back-btn {
+      background: none;
+      border: none;
+      color: #d4af37;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
+    .section { padding: 16px; }
+    .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-bottom: 10px; }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: #a0aec0; }
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 8px;
+      color: #f5f7fa;
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37; }
+    .exercise-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .exercise-card h3 { font-size: 0.95rem; margin-bottom: 8px; color: #f5f7fa; }
+    .exercise-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .mini-input {
+      width: 100%;
+      padding: 8px;
+      background: #252d3a;
+      border: 1px solid #3d4a5c;
+      border-radius: 6px;
+      color: #f5f7fa;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+    .mini-label { font-size: 0.7rem; color: #a0aec0; text-align: center; margin-bottom: 3px; }
+    .remove-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #f87171;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .add-btn {
+      width: 100%;
+      padding: 12px;
+      background: rgba(212,175,55,0.1);
+      border: 1px dashed #d4af37;
+      border-radius: 8px;
+      color: #d4af37;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+    .add-btn:hover { background: rgba(212,175,55,0.2); }
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: #d4af37;
+      color: #0a0e14;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .save-btn:hover { background: #f0c454; }
+    .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 0.875rem; text-align: center; }
+    .msg.error { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .msg.success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .share-box {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      word-break: break-all;
+      font-size: 0.85rem;
+      color: #a0aec0;
+    }
+    .share-box a { color: #d4af37; }
+  </style>
+</head>
+<body>
+  <header>
+    <button class="back-btn" onclick="history.back()">←</button>
+    <span class="header-title">🏗️ Workout Builder</span>
+  </header>
+
+  <div class="section">
+    <div class="section-title">Workout Details</div>
+    <div class="form-group">
+      <label for="workoutName">Workout Name</label>
+      <input type="text" id="workoutName" placeholder="e.g. Monday Push Day" />
+    </div>
+    <div class="form-group">
+      <label for="workoutNotes">Notes (optional)</label>
+      <textarea id="workoutNotes" rows="2" placeholder="Any notes for this session…"></textarea>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Exercises</div>
+    <div id="exerciseList"></div>
+    <button class="add-btn" onclick="addExercise()">＋ Add Exercise</button>
+    <button class="save-btn" onclick="saveWorkout()">💾 Save &amp; Share</button>
+    <div id="saveMsg"></div>
+    <div id="shareBox" class="share-box" style="display:none;"></div>
+  </div>
+
+  <script>
+    let exercises = [];
+
+    function addExercise() {
+      const id = Date.now();
+      exercises.push({ id, name: '', sets: '', reps: '', weight: '' });
+      renderExercises();
+    }
+
+    function removeExercise(id) {
+      exercises = exercises.filter(e => e.id !== id);
+      renderExercises();
+    }
+
+    function renderExercises() {
+      const container = document.getElementById('exerciseList');
+      if (!exercises.length) {
+        container.innerHTML = '<div style="color:#a0aec0;text-align:center;padding:20px;font-size:0.9rem;">No exercises yet. Add one above.</div>';
+        return;
+      }
+      container.innerHTML = exercises.map((ex, i) => `
+        <div class="exercise-card">
+          <button class="remove-btn" onclick="removeExercise(${ex.id})">✕</button>
+          <h3>Exercise ${i + 1}</h3>
+          <div class="form-group">
+            <input type="text" class="mini-input" style="text-align:left;padding:8px 10px;"
+              placeholder="Exercise name"
+              value="${ex.name}"
+              onchange="updateExercise(${ex.id}, 'name', this.value)" />
+          </div>
+          <div class="exercise-row">
+            <div>
+              <div class="mini-label">Sets</div>
+              <input type="text" class="mini-input" placeholder="3"
+                value="${ex.sets}"
+                onchange="updateExercise(${ex.id}, 'sets', this.value)" />
+            </div>
+            <div>
+              <div class="mini-label">Reps</div>
+              <input type="text" class="mini-input" placeholder="10"
+                value="${ex.reps}"
+                onchange="updateExercise(${ex.id}, 'reps', this.value)" />
+            </div>
+            <div>
+              <div class="mini-label">Weight</div>
+              <input type="text" class="mini-input" placeholder="lbs"
+                value="${ex.weight}"
+                onchange="updateExercise(${ex.id}, 'weight', this.value)" />
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateExercise(id, field, value) {
+      const ex = exercises.find(e => e.id === id);
+      if (ex) ex[field] = value;
+    }
+
+    async function saveWorkout() {
+      const name = document.getElementById('workoutName').value.trim() || 'My Workout';
+      const notes = document.getElementById('workoutNotes').value.trim();
+      if (!exercises.length) return showMsg('saveMsg', 'Add at least one exercise.', 'error');
+      const workoutId = 'mob-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+      const payload = {
+        workoutId,
+        data: { name, notes, exercises, created: new Date().toISOString(), source: 'mobile' }
+      };
+      try {
+        const res = await fetch('/api/workouts/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) return showMsg('saveMsg', data.error || 'Save failed.', 'error');
+        showMsg('saveMsg', 'Workout saved!', 'success');
+        const url = window.location.origin + data.shareUrl;
+        const shareBox = document.getElementById('shareBox');
+        shareBox.style.display = 'block';
+        shareBox.innerHTML = `Share link: <a href="${data.shareUrl}">${url}</a>`;
+      } catch {
+        showMsg('saveMsg', 'Network error. Please try again.', 'error');
+      }
+    }
+
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'msg ' + type;
+    }
+
+    // Init with one empty exercise
+    addExercise();
+  </script>
+</body>
+</html>

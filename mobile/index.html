@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RDP's Strength &amp; Conditioning – Mobile</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #0a0e14;
+      color: #f5f7fa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .logo-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #d4af37;
+      text-align: center;
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+    .card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 12px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #3d4a5c;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      color: #a0aec0;
+      font-weight: bold;
+      border: none;
+      background: none;
+      font-size: 0.95rem;
+    }
+    .tab.active {
+      color: #d4af37;
+      border-bottom: 2px solid #d4af37;
+      margin-bottom: -2px;
+    }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: #a0aec0; }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      background: #252d3a;
+      border: 1px solid #3d4a5c;
+      border-radius: 8px;
+      color: #f5f7fa;
+      font-size: 1rem;
+    }
+    input:focus { outline: none; border-color: #d4af37; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #d4af37;
+      color: #0a0e14;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn:hover { background: #f0c454; }
+    .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 0.875rem; text-align: center; }
+    .msg.error { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .msg.success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="logo-title">🏋️ RDP'S STRENGTH &amp; CONDITIONING</div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('login')">Sign In</button>
+      <button class="tab" onclick="showTab('register')">Register</button>
+    </div>
+
+    <!-- Login -->
+    <div id="loginPanel" class="panel active">
+      <div class="form-group">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn" onclick="doLogin()">Sign In</button>
+      <div id="loginMsg"></div>
+    </div>
+
+    <!-- Register -->
+    <div id="registerPanel" class="panel">
+      <div class="form-group">
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label for="regConfirm">Confirm Password</label>
+        <input type="password" id="regConfirm" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <button class="btn" onclick="doRegister()">Create Account</button>
+      <div id="registerMsg"></div>
+    </div>
+  </div>
+
+  <script>
+    function showTab(tab) {
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+      });
+      document.getElementById('loginPanel').classList.toggle('active', tab === 'login');
+      document.getElementById('registerPanel').classList.toggle('active', tab === 'register');
+    }
+
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'msg ' + type;
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!email || !password) return showMsg('loginMsg', 'Please fill in all fields.', 'error');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return showMsg('loginMsg', data.error || 'Login failed.', 'error');
+        sessionStorage.setItem('sessionId', data.sessionId);
+        sessionStorage.setItem('userId', data.userId);
+        sessionStorage.setItem('email', data.email);
+        showMsg('loginMsg', 'Signed in! Redirecting…', 'success');
+        setTimeout(() => { window.location.href = '/dashboard.html'; }, 800);
+      } catch {
+        showMsg('loginMsg', 'Network error. Please try again.', 'error');
+      }
+    }
+
+    async function doRegister() {
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const confirm = document.getElementById('regConfirm').value;
+      if (!email || !password) return showMsg('registerMsg', 'Please fill in all fields.', 'error');
+      if (password !== confirm) return showMsg('registerMsg', 'Passwords do not match.', 'error');
+      if (password.length < 6) return showMsg('registerMsg', 'Password must be at least 6 characters.', 'error');
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return showMsg('registerMsg', data.error || 'Registration failed.', 'error');
+        sessionStorage.setItem('sessionId', data.sessionId);
+        sessionStorage.setItem('userId', data.userId);
+        sessionStorage.setItem('email', data.email);
+        showMsg('registerMsg', 'Account created! Redirecting…', 'success');
+        setTimeout(() => { window.location.href = '/dashboard.html'; }, 800);
+      } catch {
+        showMsg('registerMsg', 'Network error. Please try again.', 'error');
+      }
+    }
+
+    // If already logged in, redirect to dashboard
+    if (sessionStorage.getItem('sessionId')) {
+      window.location.href = '/dashboard.html';
+    }
+  </script>
+</body>
+</html>

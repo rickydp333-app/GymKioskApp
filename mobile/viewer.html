@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout – RDP's Gym</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    header {
+      background: #1a1e28;
+      border-bottom: 1px solid #3d4a5c;
+      padding: 14px 20px;
+    }
+    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
+    .header-sub { color: #a0aec0; font-size: 0.8rem; margin-top: 2px; }
+    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
+    .meta-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .meta-label { font-size: 0.75rem; color: #a0aec0; }
+    .meta-value { font-weight: bold; font-size: 1rem; color: #d4af37; }
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a0aec0;
+      margin-bottom: 10px;
+    }
+    .exercise-card {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .exercise-num {
+      width: 32px;
+      height: 32px;
+      background: rgba(212,175,55,0.12);
+      border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #d4af37;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .exercise-name { font-weight: bold; font-size: 1rem; }
+    .exercise-details { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
+    .detail-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      background: #252d3a;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+    .complete-btn {
+      width: 100%;
+      padding: 14px;
+      background: #d4af37;
+      color: #0a0e14;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .complete-btn:hover { background: #f0c454; }
+    .complete-btn:disabled { background: #3d4a5c; color: #a0aec0; cursor: default; }
+    .notes-box {
+      background: #1a1e28;
+      border: 1px solid #3d4a5c;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 0.9rem;
+      color: #a0aec0;
+      margin-bottom: 16px;
+    }
+    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
+    .error-box {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 20px;
+      color: #f87171;
+      text-align: center;
+    }
+    .done-banner {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: 8px;
+      padding: 14px;
+      color: #34d399;
+      text-align: center;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+    .empty { color: #a0aec0; text-align: center; padding: 24px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title" id="workoutName">💪 Workout</div>
+    <div class="header-sub" id="workoutDate">Loading…</div>
+  </header>
+
+  <div id="mainContent" class="content">
+    <div class="spinner">Loading workout…</div>
+  </div>
+
+  <script>
+    const workoutId = location.pathname.split('/').pop();
+
+    async function loadWorkout() {
+      const content = document.getElementById('mainContent');
+      try {
+        const res = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`);
+        if (!res.ok) {
+          const d = await res.json();
+          content.innerHTML = `<div class="error-box">${d.error || 'Workout not found.'}</div>`;
+          return;
+        }
+        const { data, created } = await res.json();
+        const name = data?.name || 'Workout';
+        document.getElementById('workoutName').textContent = `💪 ${name}`;
+        document.getElementById('workoutDate').textContent = new Date(created).toLocaleString();
+        document.title = `${name} – RDP's Gym`;
+
+        const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
+
+        content.innerHTML = '';
+
+        // Meta
+        const meta = document.createElement('div');
+        meta.className = 'meta-card';
+        meta.innerHTML = `
+          <div><div class="meta-label">Created</div><div class="meta-value">${new Date(created).toLocaleDateString()}</div></div>
+          <div><div class="meta-label">Exercises</div><div class="meta-value">${exercises.length}</div></div>
+          ${data?.source ? `<div><div class="meta-label">Source</div><div class="meta-value">${data.source}</div></div>` : ''}
+        `;
+        content.appendChild(meta);
+
+        // Notes
+        if (data?.notes) {
+          const notes = document.createElement('div');
+          notes.className = 'notes-box';
+          notes.textContent = data.notes;
+          content.appendChild(notes);
+        }
+
+        // Exercises
+        const titleEl = document.createElement('div');
+        titleEl.className = 'section-title';
+        titleEl.textContent = 'Exercises';
+        content.appendChild(titleEl);
+
+        if (!exercises.length) {
+          const empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.textContent = 'No exercises in this workout.';
+          content.appendChild(empty);
+        } else {
+          exercises.forEach((ex, i) => {
+            const name = ex.name || ex.exercise || ex.title || ex;
+            const sets = ex.sets ? `${ex.sets} sets` : '';
+            const reps = ex.reps ? `${ex.reps} reps` : '';
+            const weight = ex.weight ? `${ex.weight}` : '';
+            const muscleGroup = ex.muscleGroup || ex.muscle || '';
+
+            const card = document.createElement('div');
+            card.className = 'exercise-card';
+            card.innerHTML = `
+              <div class="exercise-num">${i + 1}</div>
+              <div>
+                <div class="exercise-name">${name}</div>
+                <div class="exercise-details">
+                  ${sets ? `<span class="detail-pill">${sets}</span>` : ''}
+                  ${reps ? `<span class="detail-pill">${reps}</span>` : ''}
+                  ${weight ? `<span class="detail-pill">${weight}</span>` : ''}
+                  ${muscleGroup ? `<span class="detail-pill">${muscleGroup}</span>` : ''}
+                </div>
+              </div>
+            `;
+            content.appendChild(card);
+          });
+        }
+
+        // Mark complete
+        const completeBtn = document.createElement('button');
+        completeBtn.className = 'complete-btn';
+        completeBtn.id = 'completeBtn';
+        completeBtn.textContent = '✓ Mark as Complete';
+        completeBtn.onclick = () => markComplete();
+        content.appendChild(completeBtn);
+
+        const doneBanner = document.createElement('div');
+        doneBanner.className = 'done-banner';
+        doneBanner.id = 'doneBanner';
+        doneBanner.style.display = 'none';
+        doneBanner.textContent = '🎉 Workout marked as complete!';
+        content.appendChild(doneBanner);
+
+      } catch (err) {
+        content.innerHTML = `<div class="error-box">Failed to load workout. ${err.message}</div>`;
+      }
+    }
+
+    async function markComplete() {
+      const btn = document.getElementById('completeBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      try {
+        const res = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: true })
+        });
+        if (res.ok) {
+          btn.style.display = 'none';
+          document.getElementById('doneBanner').style.display = 'block';
+        } else {
+          btn.disabled = false;
+          btn.textContent = '✓ Mark as Complete';
+        }
+      } catch {
+        btn.disabled = false;
+        btn.textContent = '✓ Mark as Complete';
+      }
+    }
+
+    loadWorkout();
+  </script>
+</body>
+</html>
