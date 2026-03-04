@@ -1,252 +1,583 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Workout – RDP's Gym</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Workout - RDPs STRENGTH & CONDITIONING</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
     header {
-      background: #1a1e28;
-      border-bottom: 1px solid #3d4a5c;
-      padding: 14px 20px;
+      text-align: center;
+      padding: 24px 0;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 24px;
     }
-    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
-    .header-sub { color: #a0aec0; font-size: 0.8rem; margin-top: 2px; }
-    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
-    .meta-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
+
+    .brand-logo {
+      width: 330px;
+      height: auto;
+      margin: 0 auto 12px;
+      display: block;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
     }
-    .meta-label { font-size: 0.75rem; color: #a0aec0; }
-    .meta-value { font-weight: bold; font-size: 1rem; color: #d4af37; }
-    .section-title {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #a0aec0;
-      margin-bottom: 10px;
+
+    h1 {
+      font-size: 28px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-    .exercise-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 10px;
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
     }
-    .exercise-num {
-      width: 32px;
-      height: 32px;
-      background: rgba(212,175,55,0.12);
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.85rem;
-      font-weight: bold;
-      color: #d4af37;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .exercise-name { font-weight: bold; font-size: 1rem; }
-    .exercise-details { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
-    .detail-pill {
+
+    .spinner {
       display: inline-block;
-      padding: 3px 10px;
-      background: #252d3a;
-      border-radius: 20px;
-      font-size: 0.78rem;
-      margin-right: 6px;
-      margin-top: 4px;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
     }
-    .complete-btn {
-      width: 100%;
-      padding: 14px;
-      background: #d4af37;
-      color: #0a0e14;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .workout-header {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .workout-header strong {
+      color: var(--color-blue);
+      display: block;
       margin-top: 8px;
     }
-    .complete-btn:hover { background: #f0c454; }
-    .complete-btn:disabled { background: #3d4a5c; color: #a0aec0; cursor: default; }
-    .notes-box {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
+
+    .exercise-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .exercise-item {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .exercise-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
+      border-color: rgba(212, 175, 55, 0.25);
+    }
+
+    .exercise-item.completed {
+      opacity: 0.7;
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    .exercise-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .exercise-checkbox {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--color-blue);
+    }
+
+    .exercise-name {
+      flex: 1;
+    }
+
+    .exercise-name h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .exercise-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .exercise-details {
+      display: none;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-top: 8px;
+      border-top: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    .exercise-item.expanded .exercise-details {
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(0, 212, 255, 0.1);
+      border-radius: 3px;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--color-blue) 0%, var(--color-gold) 100%);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
       border-radius: 10px;
-      padding: 14px;
-      font-size: 0.9rem;
-      color: #a0aec0;
-      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
-    .error-box {
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
-      padding: 20px;
-      color: #f87171;
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+      color: white;
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(45, 55, 72, 0.6);
+      color: var(--text-primary);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(45, 55, 72, 0.8);
+      border-color: rgba(212, 175, 55, 0.3);
+    }
+
+
+
+    .error-message {
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      color: #ff6b6b;
+      padding: 16px;
+      border-radius: 10px;
+      margin: 20px 0;
       text-align: center;
     }
-    .done-banner {
-      background: rgba(16,185,129,0.12);
-      border: 1px solid rgba(16,185,129,0.3);
-      border-radius: 8px;
-      padding: 14px;
-      color: #34d399;
+
+    .success-message {
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: var(--color-blue);
+      padding: 16px;
+      border-radius: 10px;
+      margin: 20px 0;
       text-align: center;
-      margin-top: 12px;
-      font-weight: bold;
     }
-    .empty { color: #a0aec0; text-align: center; padding: 24px; font-size: 0.9rem; }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+
+      .exercise-header {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .action-buttons {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="header-title" id="workoutName">💪 Workout</div>
-    <div class="header-sub" id="workoutDate">Loading…</div>
-  </header>
+  <div class="container">
+    <header>
+      <img
+        src="/assets/branding/logo.png"
+        alt="RDPs STRENGTH & CONDITIONING"
+        class="brand-logo"
+      />
+      <h1>💪 My Workout</h1>
+    </header>
 
-  <div id="mainContent" class="content">
-    <div class="spinner">Loading workout…</div>
+    <div id="loadingState" class="loading">
+      <div class="spinner"></div>
+      <p>Loading your workout...</p>
+    </div>
+
+    <div id="errorState" style="display: none;">
+      <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <div id="workoutState" style="display: none;">
+      <div class="workout-header">
+        Workout ID: <strong id="workoutIdentifier"></strong>
+        Created: <strong id="workoutDate"></strong>
+      </div>
+
+      <ul class="exercise-list" id="exerciseList"></ul>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-text" id="progressText">0% Complete</div>
+
+      <div class="action-buttons">
+        <button class="btn-secondary" onclick="shareWorkout()">📤 Share</button>
+        <button class="btn-primary" onclick="syncToKiosk()">⬆️ Save Progress</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    const workoutId = location.pathname.split('/').pop();
+    let workoutData = null;
+    const workoutPathSegments = window.location.pathname.split('/').filter(Boolean);
+    const workoutId = workoutPathSegments[workoutPathSegments.length - 1] || '';
+
+    function toDisplayText(value, fallback = '—') {
+      if (value === null || value === undefined || value === '') return fallback;
+
+      if (Array.isArray(value)) {
+        const joined = value
+          .map(item => toDisplayText(item, ''))
+          .filter(Boolean)
+          .join(', ');
+        return joined || fallback;
+      }
+
+      if (typeof value === 'object') {
+        if (typeof value.name === 'string' && value.name.trim()) return value.name;
+        if (typeof value.title === 'string' && value.title.trim()) return value.title;
+        if (typeof value.label === 'string' && value.label.trim()) return value.label;
+        return fallback;
+      }
+
+      return String(value);
+    }
+
+    function toHowToStep(step) {
+      if (typeof step === 'string') return step;
+      if (step && typeof step === 'object') {
+        return toDisplayText(step.text || step.description || step.name || step.label, '');
+      }
+      return '';
+    }
 
     async function loadWorkout() {
-      const content = document.getElementById('mainContent');
       try {
-        const res = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`);
-        if (!res.ok) {
-          const d = await res.json();
-          content.innerHTML = `<div class="error-box">${d.error || 'Workout not found.'}</div>`;
-          return;
-        }
-        const { data, created } = await res.json();
-        const name = data?.name || 'Workout';
-        document.getElementById('workoutName').textContent = `💪 ${name}`;
-        document.getElementById('workoutDate').textContent = new Date(created).toLocaleString();
-        document.title = `${name} – RDP's Gym`;
-
-        const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
-
-        content.innerHTML = '';
-
-        // Meta
-        const meta = document.createElement('div');
-        meta.className = 'meta-card';
-        meta.innerHTML = `
-          <div><div class="meta-label">Created</div><div class="meta-value">${new Date(created).toLocaleDateString()}</div></div>
-          <div><div class="meta-label">Exercises</div><div class="meta-value">${exercises.length}</div></div>
-          ${data?.source ? `<div><div class="meta-label">Source</div><div class="meta-value">${data.source}</div></div>` : ''}
-        `;
-        content.appendChild(meta);
-
-        // Notes
-        if (data?.notes) {
-          const notes = document.createElement('div');
-          notes.className = 'notes-box';
-          notes.textContent = data.notes;
-          content.appendChild(notes);
+        if (!workoutId) {
+          throw new Error('Missing workout ID in URL');
         }
 
-        // Exercises
-        const titleEl = document.createElement('div');
-        titleEl.className = 'section-title';
-        titleEl.textContent = 'Exercises';
-        content.appendChild(titleEl);
+        const response = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Workout not found');
 
-        if (!exercises.length) {
-          const empty = document.createElement('div');
-          empty.className = 'empty';
-          empty.textContent = 'No exercises in this workout.';
-          content.appendChild(empty);
-        } else {
-          exercises.forEach((ex, i) => {
-            const name = ex.name || ex.exercise || ex.title || ex;
-            const sets = ex.sets ? `${ex.sets} sets` : '';
-            const reps = ex.reps ? `${ex.reps} reps` : '';
-            const weight = ex.weight ? `${ex.weight}` : '';
-            const muscleGroup = ex.muscleGroup || ex.muscle || '';
+        const result = await response.json();
+        workoutData = result.data;
 
-            const card = document.createElement('div');
-            card.className = 'exercise-card';
-            card.innerHTML = `
-              <div class="exercise-num">${i + 1}</div>
-              <div>
-                <div class="exercise-name">${name}</div>
-                <div class="exercise-details">
-                  ${sets ? `<span class="detail-pill">${sets}</span>` : ''}
-                  ${reps ? `<span class="detail-pill">${reps}</span>` : ''}
-                  ${weight ? `<span class="detail-pill">${weight}</span>` : ''}
-                  ${muscleGroup ? `<span class="detail-pill">${muscleGroup}</span>` : ''}
+        displayWorkout(result);
+        restoreProgress();
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function displayWorkout(result) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('workoutState').style.display = 'block';
+      document.getElementById('workoutIdentifier').textContent = result.workoutId || workoutId;
+
+      const dateStr = new Date(result.created).toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      document.getElementById('workoutDate').textContent = dateStr;
+
+      const exerciseList = document.getElementById('exerciseList');
+      exerciseList.innerHTML = '';
+
+      workoutData.exercises.forEach((ex, idx) => {
+        // Check if this is a weekly plan (has dayExercises property)
+        if (ex.dayExercises && Array.isArray(ex.dayExercises)) {
+          // Render a day section for weekly plans
+          const dayHeader = document.createElement('div');
+          dayHeader.style.cssText = 'margin: 20px 0 12px 0; padding: 12px; background: rgba(0, 212, 255, 0.1); border-left: 4px solid var(--color-blue); border-radius: 8px;';
+          dayHeader.innerHTML = `<h3 style="margin: 0; color: var(--color-blue); font-size: 1.2rem;">${toDisplayText(ex.day, 'Workout')}</h3>`;
+          exerciseList.appendChild(dayHeader);
+
+          // Render each exercise in this day
+          ex.dayExercises.forEach((dayEx, dayIdx) => {
+            if (!dayEx || !dayEx.name) return; // Skip if exercise is malformed
+            
+            const li = document.createElement('li');
+            li.className = 'exercise-item';
+            
+            const dayExerciseName = toDisplayText(dayEx.name, 'Exercise');
+            const primaryMuscles = toDisplayText(dayEx.primary, 'Primary');
+            const secondaryMuscles = dayEx.secondary
+              ? `Secondary: ${toDisplayText(dayEx.secondary, '')}`
+              : '';
+            
+            let howToSteps = '';
+            if (dayEx.howTo && Array.isArray(dayEx.howTo)) {
+              howToSteps = '<p><strong>How to perform:</strong></p><ol style="margin: 8px 0; padding-left: 20px;">';
+              dayEx.howTo.forEach(step => {
+                const safeStep = toHowToStep(step);
+                if (safeStep) {
+                  howToSteps += `<li style="margin-bottom: 6px;">${safeStep}</li>`;
+                }
+              });
+              howToSteps += '</ol>';
+            }
+
+            li.innerHTML = `
+              <div class="exercise-header">
+                <input 
+                  type="checkbox" 
+                  class="exercise-checkbox" 
+                  data-index="${idx}-${dayIdx}"
+                  onchange="updateProgress()"
+                >
+                <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
+                  <h3>${dayExerciseName}</h3>
+                  <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(dayEx.sets, '3')} sets</p>
                 </div>
               </div>
+              <div class="exercise-details">
+                ${howToSteps}
+                ${secondaryMuscles ? `<p><strong>Muscles:</strong> ${secondaryMuscles}</p>` : ''}
+                ${dayEx.description ? `<p><strong>Additional Notes:</strong> ${dayEx.description}</p>` : ''}
+              </div>
             `;
-            content.appendChild(card);
+            exerciseList.appendChild(li);
           });
+        } else if (ex && ex.name) {
+          // Render single workout exercise
+          const li = document.createElement('li');
+          li.className = 'exercise-item';
+          
+          const exerciseName = toDisplayText(ex.name, 'Exercise');
+          const primaryMuscles = toDisplayText(ex.primary, 'Primary');
+          const secondaryMuscles = ex.secondary
+            ? `Secondary: ${toDisplayText(ex.secondary, '')}`
+            : '';
+          
+          // Format howTo steps
+          let howToSteps = '';
+          if (ex.howTo && Array.isArray(ex.howTo)) {
+            howToSteps = '<p><strong>How to perform:</strong></p><ol style="margin: 8px 0; padding-left: 20px;">';
+            ex.howTo.forEach(step => {
+              const safeStep = toHowToStep(step);
+              if (safeStep) {
+                howToSteps += `<li style="margin-bottom: 6px;">${safeStep}</li>`;
+              }
+            });
+            howToSteps += '</ol>';
+          }
+
+          li.innerHTML = `
+            <div class="exercise-header">
+              <input 
+                type="checkbox" 
+                class="exercise-checkbox" 
+                data-index="${idx}"
+                onchange="updateProgress()"
+              >
+              <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
+                <h3>${exerciseName}</h3>
+                <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(ex.sets, '3')} sets</p>
+              </div>
+            </div>
+            <div class="exercise-details">
+              ${howToSteps}
+              ${secondaryMuscles ? `<p><strong>Muscles:</strong> ${secondaryMuscles}</p>` : ''}
+              ${ex.description ? `<p><strong>Additional Notes:</strong> ${ex.description}</p>` : ''}
+            </div>
+          `;
+          exerciseList.appendChild(li);
         }
+      });
 
-        // Mark complete
-        const completeBtn = document.createElement('button');
-        completeBtn.className = 'complete-btn';
-        completeBtn.id = 'completeBtn';
-        completeBtn.textContent = '✓ Mark as Complete';
-        completeBtn.onclick = () => markComplete();
-        content.appendChild(completeBtn);
+      updateProgress();
+    }
 
-        const doneBanner = document.createElement('div');
-        doneBanner.className = 'done-banner';
-        doneBanner.id = 'doneBanner';
-        doneBanner.style.display = 'none';
-        doneBanner.textContent = '🎉 Workout marked as complete!';
-        content.appendChild(doneBanner);
+    function toggleExpanded(element) {
+      element.classList.toggle('expanded');
+    }
 
-      } catch (err) {
-        content.innerHTML = `<div class="error-box">Failed to load workout. ${err.message}</div>`;
+    function updateProgress() {
+      const checkboxes = document.querySelectorAll('.exercise-checkbox');
+      const checked = document.querySelectorAll('.exercise-checkbox:checked').length;
+      const total = checkboxes.length;
+      const percentage = Math.round((checked / total) * 100);
+
+      document.getElementById('progressFill').style.width = percentage + '%';
+      document.getElementById('progressText').textContent = `${percentage}% Complete (${checked}/${total})`;
+
+      // Update local storage
+      const progress = Array.from(checkboxes).map(cb => cb.checked);
+      localStorage.setItem(`workout_${workoutId}_progress`, JSON.stringify(progress));
+
+      // Mark items as completed
+      document.querySelectorAll('.exercise-item').forEach((item, idx) => {
+        if (checkboxes[idx].checked) {
+          item.classList.add('completed');
+        } else {
+          item.classList.remove('completed');
+        }
+      });
+    }
+
+    function restoreProgress() {
+      const savedProgress = localStorage.getItem(`workout_${workoutId}_progress`);
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress);
+        const checkboxes = document.querySelectorAll('.exercise-checkbox');
+        progress.forEach((checked, idx) => {
+          if (checkboxes[idx]) {
+            checkboxes[idx].checked = checked;
+          }
+        });
+        updateProgress();
       }
     }
 
-    async function markComplete() {
-      const btn = document.getElementById('completeBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
+    function showError(message) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorMessage').textContent = `Error: ${message}`;
+    }
+
+    function shareWorkout() {
+      const url = window.location.href;
+      if (navigator.share) {
+        navigator.share({
+          title: 'My Workout',
+          url: url
+        });
+      } else {
+        alert(`Share this link:\n\n${url}`);
+      }
+    }
+
+    async function syncToKiosk() {
       try {
-        const res = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, {
+        const checkboxes = document.querySelectorAll('.exercise-checkbox');
+        const progress = Array.from(checkboxes).map(cb => cb.checked);
+
+        const response = await fetch(`/api/workouts/${workoutId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ completed: true })
+          body: JSON.stringify({
+            completed: document.querySelectorAll('.exercise-checkbox:checked').length > 0,
+            progress: progress
+          })
         });
-        if (res.ok) {
-          btn.style.display = 'none';
-          document.getElementById('doneBanner').style.display = 'block';
-        } else {
-          btn.disabled = false;
-          btn.textContent = '✓ Mark as Complete';
-        }
-      } catch {
-        btn.disabled = false;
-        btn.textContent = '✓ Mark as Complete';
+
+        if (!response.ok) throw new Error('Failed to save');
+
+        // Show success message
+        const message = document.createElement('div');
+        message.className = 'success-message';
+        message.textContent = '✅ Progress saved! Your workout data will appear on the kiosk.';
+        document.getElementById('workoutState').insertAdjacentElement('beforeend', message);
+        setTimeout(() => message.remove(), 3000);
+      } catch (error) {
+        alert(`Error saving: ${error.message}`);
       }
     }
 
+    // Load workout on page load
     loadWorkout();
   </script>
 </body>

@@ -785,23 +785,23 @@ app.get('/api/diagnostics', (req, res) => {
 // ========================================
 
 app.get('/workout/:workoutId', (req, res) => {
-  sendMobileFile(res, 'viewer.html', ['index.html']);
+  sendMobileFile(res, 'viewer.html');
 });
 
 app.get('/meal/:mealPlanId', (req, res) => {
-  sendMobileFile(res, 'viewer-meal.html', ['viewer.html', 'index.html']);
+  sendMobileFile(res, 'viewer-meal.html', ['viewer.html']);
 });
 
 app.get('/favorites/:favoritesId', (req, res) => {
-  sendMobileFile(res, 'favorites.html', ['viewer.html', 'index.html']);
+  sendMobileFile(res, 'favorites.html', ['viewer.html']);
 });
 
 app.get('/diagnostics', (req, res) => {
-  sendMobileFile(res, 'diagnostics.html', ['index.html']);
+  sendMobileFile(res, 'diagnostics.html');
 });
 
 app.get('/calendar/:calendarId', (req, res) => {
-  sendMobileFile(res, 'calendar.html', ['index.html']);
+  sendMobileFile(res, 'calendar.html');
 });
 
 app.get('/', (req, res) => {

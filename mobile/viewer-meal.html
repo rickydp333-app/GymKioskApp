@@ -1,248 +1,517 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Meal Plan – RDP's Gym</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Meal Plan</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
-    header {
-      background: #1a1e28;
-      border-bottom: 1px solid #3d4a5c;
-      padding: 14px 20px;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
-    .header-sub { color: #a0aec0; font-size: 0.8rem; margin-top: 2px; }
-    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
-    .meta-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a1f2e 0%, #14172a 100%);
+      color: #f5f7fa;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-top: 20px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c4cfe0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: #8b95a8;
+      font-size: 14px;
+    }
+
+    .plan-id {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #8b95a8;
+      word-break: break-all;
+    }
+
+    .plan-id code {
+      background: rgba(45, 55, 72, 0.4);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: #d4af37;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+    }
+
+    .goal-badge {
+      display: inline-block;
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      color: #d4af37;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #8b95a8;
+    }
+
+    .error {
+      background: rgba(220, 53, 69, 0.15);
+      border: 1px solid rgba(220, 53, 69, 0.3);
+      color: #f8919e;
+      padding: 16px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .day-section {
+      background: linear-gradient(135deg, rgba(26, 31, 46, 0.6) 0%, rgba(20, 23, 32, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .day-header {
+      font-size: 18px;
+      font-weight: 600;
+      color: #d4af37;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .meal-category {
+      margin-bottom: 16px;
+    }
+
+    .meal-category-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #00d4ff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meal-items {
+      background: rgba(45, 55, 72, 0.4);
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    .meal-item {
+      padding: 8px 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #c4cfe0;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.05);
+    }
+
+    .meal-item:last-child {
+      border-bottom: none;
+    }
+
+    .meal-item strong {
+      color: #f5f7fa;
+      font-weight: 600;
+    }
+
+    .nutrition-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .nutrition-stat {
+      background: rgba(45, 55, 72, 0.6);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    .nutrition-stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+
+    .nutrition-stat-label {
+      font-size: 12px;
+      color: #8b95a8;
+      margin-top: 4px;
+    }
+
+    .disclaimer {
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid rgba(212, 175, 55, 0.3);
       border-radius: 12px;
       padding: 16px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .meta-label { font-size: 0.75rem; color: #a0aec0; }
-    .meta-value { font-weight: bold; font-size: 1rem; color: #d4af37; }
-    .section-title {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #a0aec0;
-      margin: 16px 0 8px;
-    }
-    .meal-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 10px;
-    }
-    .meal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .meal-name { font-weight: bold; font-size: 1rem; }
-    .meal-time {
-      font-size: 0.78rem;
-      padding: 3px 10px;
-      background: rgba(212,175,55,0.12);
-      border: 1px solid rgba(212,175,55,0.3);
-      border-radius: 20px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      line-height: 1.6;
       color: #d4af37;
     }
-    .food-item {
-      display: flex;
-      justify-content: space-between;
+
+    .back-link {
+      text-align: center;
+      margin-top: 30px;
+      padding-bottom: 30px;
+    }
+
+    .back-link a {
+      color: #00d4ff;
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-flex;
       align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #2a3040;
-      font-size: 0.9rem;
-    }
-    .food-item:last-child { border-bottom: none; }
-    .food-name { color: #f5f7fa; }
-    .food-macros { font-size: 0.78rem; color: #a0aec0; }
-    .macro-pill {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      margin-left: 4px;
-    }
-    .macro-cal { background: rgba(239,68,68,0.12); color: #f87171; }
-    .macro-pro { background: rgba(0,212,255,0.12); color: #00d4ff; }
-    .macro-carb { background: rgba(212,175,55,0.12); color: #d4af37; }
-    .macro-fat { background: rgba(167,139,250,0.12); color: #a78bfa; }
-    .totals-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 10px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      text-align: center;
-    }
-    .total-label { font-size: 0.7rem; color: #a0aec0; margin-bottom: 4px; }
-    .total-value { font-size: 1.1rem; font-weight: bold; }
-    .notes-box {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 14px;
-      font-size: 0.9rem;
-      color: #a0aec0;
-      margin-bottom: 16px;
-    }
-    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
-    .error-box {
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
+      padding: 10px 20px;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.2);
       border-radius: 8px;
-      padding: 20px;
-      color: #f87171;
-      text-align: center;
+      transition: all 0.3s ease;
     }
-    .empty { color: #a0aec0; text-align: center; padding: 24px; font-size: 0.9rem; }
+
+    .back-link a:hover {
+      background: rgba(0, 212, 255, 0.15);
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .day-section {
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .nutrition-info {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="header-title" id="planName">🥗 Meal Plan</div>
-    <div class="header-sub" id="planDate">Loading…</div>
-  </header>
+  <div class="container">
+    <div class="header">
+      <h1>🍽️ Your Meal Plan</h1>
+      <p>Personalized nutrition guidance</p>
+      <div class="goal-badge" id="goalBadge">Loading...</div>
+      <div class="plan-id">Meal Plan ID: <code id="mealPlanIdDisplay">Loading...</code></div>
+    </div>
 
-  <div id="mainContent" class="content">
-    <div class="spinner">Loading meal plan…</div>
+    <div id="content" class="loading">
+      <div style="animation: spin 1s linear infinite;">⏳ Loading meal plan...</div>
+    </div>
+
+    <div class="disclaimer">
+      ⚠️ <strong>Disclaimer:</strong> This is general nutrition guidance, not medical advice. Consult a registered dietitian for personalized nutrition plans.
+    </div>
+
+    <div class="back-link">
+      <a href="javascript:history.back()">← Go Back</a>
+    </div>
   </div>
 
   <script>
-    const mealPlanId = location.pathname.split('/').pop();
+    const mealIcons = {
+      breakfast: '🌅',
+      lunch: '🍽️',
+      dinner: '🍴',
+      snacks: '🥜',
+      preWorkout: '⚡',
+      postWorkout: '💪',
+      hydration: '💧'
+    };
+
+    const mealLabels = {
+      breakfast: 'Breakfast',
+      lunch: 'Lunch',
+      dinner: 'Dinner',
+      snacks: 'Snacks',
+      preWorkout: 'Pre-Workout',
+      postWorkout: 'Post-Workout',
+      hydration: 'Hydration'
+    };
 
     async function loadMealPlan() {
-      const content = document.getElementById('mainContent');
       try {
-        const res = await fetch(`/api/workouts/${encodeURIComponent(mealPlanId)}`);
-        if (!res.ok) {
-          const d = await res.json();
-          content.innerHTML = `<div class="error-box">${d.error || 'Meal plan not found.'}</div>`;
-          return;
-        }
-        const { data, created } = await res.json();
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const mealPlanId = pathParts[pathParts.length - 1] || '';
 
-        const planName = data?.name || data?.title || 'Meal Plan';
-        document.getElementById('planName').textContent = `🥗 ${planName}`;
-        document.getElementById('planDate').textContent = new Date(created).toLocaleString();
-        document.title = `${planName} – RDP's Gym`;
+        console.log('Loading meal plan:', mealPlanId);
+        const idDisplay = document.getElementById('mealPlanIdDisplay');
+        if (idDisplay) idDisplay.textContent = mealPlanId || 'Missing ID';
 
-        const meals = Array.isArray(data?.meals) ? data.meals : [];
-        const totalCalories = data?.totalCalories || data?.calories || '';
-        const totalProtein = data?.totalProtein || data?.protein || '';
-        const totalCarbs = data?.totalCarbs || data?.carbs || '';
-        const totalFat = data?.totalFat || data?.fat || '';
-
-        content.innerHTML = '';
-
-        // Meta
-        const meta = document.createElement('div');
-        meta.className = 'meta-card';
-        meta.innerHTML = `
-          <div><div class="meta-label">Created</div><div class="meta-value">${new Date(created).toLocaleDateString()}</div></div>
-          <div><div class="meta-label">Meals</div><div class="meta-value">${meals.length}</div></div>
-          ${data?.goal ? `<div><div class="meta-label">Goal</div><div class="meta-value">${data.goal}</div></div>` : ''}
-        `;
-        content.appendChild(meta);
-
-        // Totals if available
-        if (totalCalories || totalProtein || totalCarbs || totalFat) {
-          const totalsTitle = document.createElement('div');
-          totalsTitle.className = 'section-title';
-          totalsTitle.textContent = 'Daily Totals';
-          content.appendChild(totalsTitle);
-
-          const totals = document.createElement('div');
-          totals.className = 'totals-card';
-          totals.innerHTML = `
-            <div><div class="total-label">Calories</div><div class="total-value" style="color:#f87171;">${totalCalories || '—'}</div></div>
-            <div><div class="total-label">Protein</div><div class="total-value" style="color:#00d4ff;">${totalProtein || '—'}</div></div>
-            <div><div class="total-label">Carbs</div><div class="total-value" style="color:#d4af37;">${totalCarbs || '—'}</div></div>
-            <div><div class="total-label">Fat</div><div class="total-value" style="color:#a78bfa;">${totalFat || '—'}</div></div>
-          `;
-          content.appendChild(totals);
-        }
-
-        // Notes
-        if (data?.notes || data?.description) {
-          const notes = document.createElement('div');
-          notes.className = 'notes-box';
-          notes.textContent = data.notes || data.description;
-          content.appendChild(notes);
-        }
-
-        // Meals
-        const mealsTitle = document.createElement('div');
-        mealsTitle.className = 'section-title';
-        mealsTitle.textContent = 'Meals';
-        content.appendChild(mealsTitle);
-
-        if (!meals.length) {
-          const empty = document.createElement('div');
-          empty.className = 'empty';
-          empty.textContent = 'No meals in this plan.';
-          content.appendChild(empty);
+        if (!mealPlanId) {
+          showError('No meal plan ID provided');
           return;
         }
 
-        meals.forEach(meal => {
-          const mealName = meal.name || meal.meal || 'Meal';
-          const mealTime = meal.time || meal.timing || '';
-          const foods = Array.isArray(meal.foods) ? meal.foods
-            : Array.isArray(meal.items) ? meal.items : [];
-
-          const card = document.createElement('div');
-          card.className = 'meal-card';
-          card.innerHTML = `
-            <div class="meal-header">
-              <div class="meal-name">${mealName}</div>
-              ${mealTime ? `<div class="meal-time">${mealTime}</div>` : ''}
-            </div>
-            ${foods.length ? foods.map(f => {
-              const fname = f.name || f.food || f.item || f;
-              const cal = f.calories || f.cal || '';
-              const pro = f.protein || f.pro || '';
-              const carb = f.carbs || f.carb || '';
-              const fat = f.fat || '';
-              const qty = f.quantity || f.amount || f.serving || '';
-              return `
-                <div class="food-item">
-                  <span class="food-name">${fname}${qty ? ` <span style="color:#a0aec0;font-size:0.8rem;">(${qty})</span>` : ''}</span>
-                  <span class="food-macros">
-                    ${cal ? `<span class="macro-pill macro-cal">${cal}cal</span>` : ''}
-                    ${pro ? `<span class="macro-pill macro-pro">${pro}g P</span>` : ''}
-                    ${carb ? `<span class="macro-pill macro-carb">${carb}g C</span>` : ''}
-                    ${fat ? `<span class="macro-pill macro-fat">${fat}g F</span>` : ''}
-                  </span>
-                </div>
-              `;
-            }).join('') : '<div style="color:#a0aec0;font-size:0.85rem;padding:4px 0;">No items listed.</div>'}
-          `;
-          content.appendChild(card);
+        // Fetch meal plan data from server
+        const response = await fetch(`/api/workouts/${encodeURIComponent(mealPlanId)}?share=${Date.now()}`, {
+          cache: 'no-store'
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      } catch (err) {
-        content.innerHTML = `<div class="error-box">Failed to load meal plan. ${err.message}</div>`;
+        const result = await response.json();
+        
+        if (!result.success || !result.data) {
+          throw new Error('Invalid meal plan data received');
+        }
+
+        const mealPlan = result.data;
+        console.log('Meal plan data:', mealPlan);
+
+        // Render the meal plan
+        renderMealPlan(mealPlan);
+      } catch (error) {
+        console.error('Error loading meal plan:', error);
+        showError('Failed to load meal plan: ' + error.message);
       }
     }
 
-    loadMealPlan();
+    function renderMealPlan(mealPlan) {
+      const content = document.getElementById('content');
+      const goalBadge = document.getElementById('goalBadge');
+
+      content.innerHTML = '';
+
+      // Set goal badge
+      if (mealPlan.goal) {
+        goalBadge.textContent = '🎯 ' + mealPlan.goal.charAt(0).toUpperCase() + mealPlan.goal.slice(1);
+      }
+
+      const meals = mealPlan.meals;
+
+      if (!meals) {
+        content.innerHTML = '<div class="error">No meal data found</div>';
+        return;
+      }
+
+      // Check if it's a weekly plan (has day properties) or single day
+      const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const isWeeklyPlan = dayKeys.some(day => meals && meals[day]);
+
+      if (isWeeklyPlan) {
+        // Render weekly plan
+        renderWeeklyMealPlan(meals, content);
+      } else if (Array.isArray(meals)) {
+        // Render single day plan (array format)
+        renderSingleDayMealPlan(meals, content);
+      } else if (typeof meals === 'object') {
+        // Render single day plan (object format with meal categories)
+        renderSingleDayMealPlanObject(meals, content);
+      } else {
+        content.innerHTML = '<div class="error">Invalid meal plan format</div>';
+      }
+    }
+
+    function renderWeeklyMealPlan(weeklyPlan, container) {
+      const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
+      dayKeys.forEach(day => {
+        if (!weeklyPlan[day]) return;
+
+        const dayPlan = weeklyPlan[day];
+        const daySection = document.createElement('div');
+        daySection.className = 'day-section';
+
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header';
+        dayHeader.textContent = '📅 ' + day;
+        daySection.appendChild(dayHeader);
+
+        // Render meals for this day
+        renderMealCategories(dayPlan, daySection);
+
+        container.appendChild(daySection);
+      });
+    }
+
+    function renderSingleDayMealPlan(mealsArray, container) {
+      if (!Array.isArray(mealsArray) || mealsArray.length === 0) {
+        container.innerHTML = '<div class="error">No meals found</div>';
+        return;
+      }
+
+      const daySection = document.createElement('div');
+      daySection.className = 'day-section';
+
+      const dayHeader = document.createElement('div');
+      dayHeader.className = 'day-header';
+      dayHeader.textContent = '📅 Today\'s Plan';
+      daySection.appendChild(dayHeader);
+
+      // For array format, just display items
+      mealsArray.forEach(meal => {
+        if (!meal) return;
+
+        const mealCategory = document.createElement('div');
+        mealCategory.className = 'meal-category';
+
+        const label = document.createElement('div');
+        label.className = 'meal-category-label';
+        label.textContent = typeof meal === 'string' ? meal : (meal.name || 'Meal');
+        mealCategory.appendChild(label);
+
+        daySection.appendChild(mealCategory);
+      });
+
+      container.appendChild(daySection);
+    }
+
+    function renderSingleDayMealPlanObject(mealObj, container) {
+      const daySection = document.createElement('div');
+      daySection.className = 'day-section';
+
+      const dayHeader = document.createElement('div');
+      dayHeader.className = 'day-header';
+      dayHeader.textContent = '📅 Today\'s Plan';
+      daySection.appendChild(dayHeader);
+
+      renderMealCategories(mealObj, daySection);
+
+      container.appendChild(daySection);
+    }
+
+    function renderMealCategories(mealData, container) {
+      const mealCategoryKeys = ['breakfast', 'lunch', 'dinner', 'snacks', 'preWorkout', 'postWorkout', 'hydration'];
+
+      mealCategoryKeys.forEach(category => {
+        const hasCategory = Object.prototype.hasOwnProperty.call(mealData, category);
+        if (!hasCategory) return;
+
+        const meals = mealData[category];
+
+        const mealCategory = document.createElement('div');
+        mealCategory.className = 'meal-category';
+
+        const label = document.createElement('div');
+        label.className = 'meal-category-label';
+        label.textContent = (mealIcons[category] || '🍽️') + ' ' + (mealLabels[category] || category);
+        mealCategory.appendChild(label);
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = 'meal-items';
+        let hasAnyContent = false;
+
+        if (Array.isArray(meals)) {
+          meals.forEach(meal => {
+            if (!meal) return;
+
+            const mealItem = document.createElement('div');
+            mealItem.className = 'meal-item';
+            
+            if (typeof meal === 'string') {
+              mealItem.textContent = meal;
+            } else if (typeof meal === 'object') {
+              if (meal.name) {
+                let html = `<strong>${meal.name}</strong>`;
+                if (meal.calories) html += ` • ${meal.calories} cal`;
+                if (meal.protein) html += ` • ${meal.protein}g protein`;
+                if (meal.description) html += `<br><span style="color: #8b95a8; font-size: 12px;">${meal.description}</span>`;
+                mealItem.innerHTML = html;
+              }
+            }
+
+            itemsContainer.appendChild(mealItem);
+            hasAnyContent = true;
+          });
+        } else if (typeof meals === 'object') {
+          const mealItem = document.createElement('div');
+          mealItem.className = 'meal-item';
+
+          if (meals.name) {
+            let html = `<strong>${meals.name}</strong>`;
+            if (meals.calories) html += ` • ${meals.calories} cal`;
+            if (meals.protein) html += ` • ${meals.protein}g protein`;
+            if (meals.focus) html += `<br><span style="color: #8b95a8; font-size: 12px;">${meals.focus}</span>`;
+            if (meals.description) html += `<br><span style="color: #8b95a8; font-size: 12px;">${meals.description}</span>`;
+            mealItem.innerHTML = html;
+          } else {
+            mealItem.textContent = JSON.stringify(meals);
+          }
+
+          itemsContainer.appendChild(mealItem);
+          hasAnyContent = true;
+        } else if (typeof meals === 'string') {
+          const mealItem = document.createElement('div');
+          mealItem.className = 'meal-item';
+          mealItem.textContent = meals;
+          itemsContainer.appendChild(mealItem);
+          hasAnyContent = true;
+        }
+
+        if (!hasAnyContent) {
+          const emptyItem = document.createElement('div');
+          emptyItem.className = 'meal-item';
+          emptyItem.style.color = '#8b95a8';
+          emptyItem.textContent = 'No meal set';
+          itemsContainer.appendChild(emptyItem);
+        }
+
+        mealCategory.appendChild(itemsContainer);
+        container.appendChild(mealCategory);
+      });
+    }
+
+    function showError(message) {
+      const content = document.getElementById('content');
+      content.innerHTML = `<div class="error">${message}</div>`;
+      content.classList.remove('loading');
+    }
+
+    // Load meal plan when page loads
+    window.addEventListener('load', loadMealPlan);
   </script>
+
+  <style>
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </body>
 </html>

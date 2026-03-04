@@ -6,8 +6,16 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+try {
+  const sessionDataPath = path.join(app.getPath('temp'), 'GymKioskApp', 'session-kiosk');
+  fs.mkdirSync(sessionDataPath, { recursive: true });
+  app.setPath('sessionData', sessionDataPath);
+} catch (_error) {
+}
+
 let mainWindow;
 const isDev = process.env.NODE_ENV !== 'production' || process.env.GYMKIOSK_DEVTOOLS === '1';
+const autoOpenDevTools = isDev && process.env.GYMKIOSK_DEVTOOLS_AUTO_OPEN !== '0';
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
@@ -39,7 +47,8 @@ function createWindow() {
     }
   });
   mainWindow.loadFile('index.html');
-  if (isDev) {
+
+  if (autoOpenDevTools) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
