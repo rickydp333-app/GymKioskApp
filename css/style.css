@@ -325,9 +325,9 @@ button:focus-visible {
 }
 
 #topControlsBar .control-btn {
-  min-width: 118px;
-  padding: 10px 14px;
-  font-size: 0.88rem;
+  min-width: 177px;
+  padding: 15px 21px;
+  font-size: 1.32rem;
 }
 
 @media (max-width: 1500px) {
@@ -337,9 +337,9 @@ button:focus-visible {
   }
 
   #topControlsBar .control-btn {
-    min-width: 104px;
-    padding: 9px 12px;
-    font-size: 0.82rem;
+    min-width: 156px;
+    padding: 14px 18px;
+    font-size: 1.23rem;
   }
 }
 
