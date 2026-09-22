@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const os = require('os');
 
 const ROOT = path.resolve(__dirname, '..');
 const BASE_URL = 'http://127.0.0.1:3001';
@@ -33,23 +34,26 @@ async function testExitIpcContract() {
   const preloadCode = fs.readFileSync(path.join(ROOT, 'preload.js'), 'utf8');
 
   const mainUsesHandle = mainCode.includes("ipcMain.handle('exit-app'");
-  const preloadUsesInvoke = preloadCode.includes("invoke('exit-app')");
+  const preloadUsesInvoke = /invoke\('exit-app',\s*token\)/.test(preloadCode);
 
   if (mainUsesHandle) {
     assert.ok(
       preloadUsesInvoke,
-      'preload.js must use ipcRenderer.invoke for exit-app because main.js uses ipcMain.handle'
+      'preload.js must invoke exit-app with an administrator session token'
     );
   }
 }
 
 async function testLauncherServerReadiness() {
+  const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gymkiosk-ops-'));
   const launcher = spawn(process.execPath, [path.join(ROOT, 'scripts', 'start.cjs')], {
     cwd: ROOT,
     env: {
       ...process.env,
       GYMKIOSK_TEST_MODE: '1',
-      GYMKIOSK_SKIP_ELECTRON: '1'
+      GYMKIOSK_SKIP_ELECTRON: '1',
+      GYMKIOSK_DATA_DIR: testDataDir,
+      ALERT_EMAIL_ENABLED: '0'
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -72,6 +76,7 @@ async function testLauncherServerReadiness() {
     if (!launcher.killed) {
       launcher.kill('SIGINT');
     }
+    setTimeout(() => fs.rmSync(testDataDir, { recursive: true, force: true }), 500).unref();
   }
 }
 

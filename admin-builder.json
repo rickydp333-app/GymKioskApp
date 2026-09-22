@@ -18,6 +18,11 @@
     "index.html",
     "package.json",
     "server.js"
+    ,"lib/**/*"
+    ,"!assets/face-models/**/*"
+    ,"!**/*-Rick’s MacBook Pro.js"
+    ,"!**/*.bak"
+    ,"!**/*.log"
   ],
   "extraMetadata": {
     "main": "main-admin.js"

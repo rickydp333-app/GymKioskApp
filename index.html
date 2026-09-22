@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 https://gymkioskapp.onrender.com https://www.rdpsstrengthandconditioning.ca; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta charset="UTF-8" />
   <title>RDPs STRENGTH & CONDITIONING</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -616,21 +617,26 @@
     </div>
 
     <div class="admin-face-threshold-row">
-      <label for="adminAudioOutputSelect" class="admin-face-threshold-label">🔊 Preferred Speaker Output</label>
+      <label class="admin-face-threshold-label">🔐 Change Administrator PIN</label>
       <div class="admin-face-threshold-controls">
-        <select id="adminAudioOutputSelect" class="admin-face-threshold-input">
-          <option value="default">Default system speaker</option>
-        </select>
-        <button id="adminSaveAudioOutput" class="control-btn">Save Speaker Output</button>
+        <input id="adminCurrentPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="Current PIN">
+        <input id="adminNewPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN (4–8 digits)">
+        <input id="adminConfirmPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm new PIN">
+        <button id="adminChangePin" class="control-btn">Save New PIN</button>
       </div>
-      <button id="adminRefreshAudioOutputs" class="control-btn">Refresh Speaker List</button>
-      <div id="adminAudioOutputStatus" class="admin-auto-logout-status">Current output: default system speaker.</div>
+      <div id="adminChangePinStatus" class="admin-auto-logout-status">The initial PIN remains 3333 until changed here.</div>
     </div>
 
     <div class="admin-face-threshold-row">
       <label for="adminRunDiagnostics" class="admin-face-threshold-label">🩺 Device Diagnostics</label>
       <button id="adminRunDiagnostics" class="control-btn">Run Device Diagnostics</button>
       <div id="adminDiagnosticsStatus" class="admin-auto-logout-status">No diagnostics run yet.</div>
+    </div>
+
+    <div class="admin-face-threshold-row">
+      <label for="adminCheckWebsiteSync" class="admin-face-threshold-label">🌐 Website Synchronization</label>
+      <button id="adminCheckWebsiteSync" class="control-btn">Check Sync Status</button>
+      <div id="adminWebsiteSyncStatus" class="admin-auto-logout-status">Saved locally first; web updates retry automatically.</div>
     </div>
 
     <button id="adminResetDisclaimer" class="control-btn">

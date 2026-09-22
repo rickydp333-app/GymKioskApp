@@ -5,7 +5,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
-  exitApp: () => ipcRenderer.invoke('exit-app'),
+  validateAdminPin: (pin) => ipcRenderer.invoke('admin-validate-pin', pin),
+  changeAdminPin: (payload) => ipcRenderer.invoke('admin-change-pin', payload),
+  exitApp: (token) => ipcRenderer.invoke('exit-app', token),
   logAdminAction: (payload) => ipcRenderer.invoke('log-admin-action', payload)
 });
 

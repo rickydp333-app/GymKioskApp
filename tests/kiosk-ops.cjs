@@ -20,10 +20,18 @@ function testDevtoolsGatedForProduction() {
   const mainCode = read('main.js');
 
   const hasDevtoolsFlag = /devTools\s*:\s*isDev/.test(mainCode);
-  const hasOpenDevtoolsGate = /if\s*\(\s*isDev\s*\)\s*\{[\s\S]*openDevTools\(/.test(mainCode);
+  const hasOpenDevtoolsGate = /if\s*\(\s*autoOpenDevTools\s*\)\s*\{[\s\S]*openDevTools\(/.test(mainCode);
 
   assert.ok(hasDevtoolsFlag, 'main.js should gate BrowserWindow devTools by isDev');
-  assert.ok(hasOpenDevtoolsGate, 'main.js should only open DevTools when isDev');
+  assert.ok(hasOpenDevtoolsGate, 'main.js should only auto-open DevTools when explicitly requested');
+}
+
+function testElectronSandboxAndAdminAuthorization() {
+  const mainCode = read('main.js');
+  const preloadCode = read('preload.js');
+  assert.ok(/sandbox\s*:\s*true/.test(mainCode), 'main.js should enable the renderer sandbox');
+  assert.ok(mainCode.includes("ipcMain.handle('admin-validate-pin'"), 'admin PIN must be validated in the main process');
+  assert.ok(/invoke\('exit-app',\s*token\)/.test(preloadCode), 'exit must require an admin session token');
 }
 
 function testStartupLauncherSafetyFlags() {
@@ -43,6 +51,7 @@ function run() {
   try {
     testSingleInstanceLock();
     testDevtoolsGatedForProduction();
+    testElectronSandboxAndAdminAuthorization();
     testStartupLauncherSafetyFlags();
     console.log('✅ Kiosk operational policy tests passed');
   } catch (error) {

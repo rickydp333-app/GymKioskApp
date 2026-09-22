@@ -4744,6 +4744,55 @@ function saveUsers(users) {
   localStorage.setItem('users', JSON.stringify(users));
 }
 
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashUserPin(pin, saltHex = null) {
+  const encoder = new TextEncoder();
+  const salt = saltHex
+    ? new Uint8Array(saltHex.match(/.{1,2}/g).map((value) => parseInt(value, 16)))
+    : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', encoder.encode(String(pin)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 150000 },
+    key,
+    256
+  );
+  return { pinHash: bytesToHex(new Uint8Array(bits)), pinSalt: bytesToHex(salt) };
+}
+
+async function verifyUserPin(user, pin) {
+  if (user?.pinHash && user?.pinSalt) {
+    const result = await hashUserPin(pin, user.pinSalt);
+    return result.pinHash === user.pinHash;
+  }
+  return !!user?.pin && String(user.pin) === String(pin);
+}
+
+function removeDeprecatedBiometricData() {
+  const users = getUsers();
+  let changed = false;
+  const cleaned = users.map((user) => {
+    const next = { ...user };
+    ['faceLoginEnabled', 'faceSignature', 'faceEnrolledAt', 'voiceProfile', 'voiceSignature'].forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(next, field)) {
+        delete next[field];
+        changed = true;
+      }
+    });
+    return next;
+  });
+  if (changed) saveUsers(cleaned);
+
+  [
+    'gymKiosk_faceCheckIns',
+    'gymKiosk_faceGreetingDaily',
+    'gymKiosk_faceDetectionStableFrames',
+    'gymKiosk_nativeVoiceName'
+  ].forEach((key) => localStorage.removeItem(key));
+}
+
 // Save completed exercise for today
 function saveCompletedExercise(muscle, exerciseName) {
   if (!window.currentUser) return;
@@ -6028,6 +6077,7 @@ function populateAdminUserList() {
     window.adminModule.populateAdminUserList({
       getUsers,
       saveUsers,
+      hashUserPin,
       showAlert,
       showConfirmDialog,
       getSelectedAdminUser: () => selectedAdminUser,
@@ -6851,12 +6901,16 @@ function loadStretchesForBodyPart(bodyPart) {
 ================================ */
 function initializeApp() {
 
+  removeDeprecatedBiometricData();
+
     // Add Exit Kiosk App button handler (admin panel)
     const exitKioskAppBtn = document.getElementById('exitKioskApp');
     if (exitKioskAppBtn && window.electron && window.electron.exitApp) {
       exitKioskAppBtn.addEventListener('click', () => {
         if (confirm('Are you sure you want to exit the Kiosk App?')) {
-          window.electron.exitApp();
+          window.electron.exitApp(window.getAdminSessionToken?.()).then((result) => {
+            if (result?.success === false) showAlert('Authorization Required', result.error || 'Please sign in as administrator again.');
+          });
         }
       });
     }
@@ -7537,7 +7591,7 @@ function initializeApp() {
   document
     .querySelectorAll('#userPinModal button[data-key]')
     .forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const key = btn.dataset.key;
 
         if (key === 'clear') {
@@ -7553,7 +7607,7 @@ function initializeApp() {
           }
 
           try {
-            if (!pendingUser.pin) {
+            if (!pendingUser.pin && !pendingUser.pinHash) {
               if (enteredUserPin.length !== 4) {
                 showAlert('Invalid PIN', 'PIN must be 4 digits');
                 return;
@@ -7562,14 +7616,24 @@ function initializeApp() {
               const users = getUsers();
               const currentUser = users.find(u => u.username === pendingUser.username);
               if (currentUser) {
-                currentUser.pin = enteredUserPin;
+                Object.assign(currentUser, await hashUserPin(enteredUserPin));
+                delete currentUser.pin;
                 saveUsers(users);
                 console.log('💾 PIN saved for user:', pendingUser.username);
               }
-              pendingUser.pin = enteredUserPin; // Also update local reference
+              Object.assign(pendingUser, await hashUserPin(enteredUserPin));
             }
 
-            if (enteredUserPin === pendingUser.pin) {
+            if (await verifyUserPin(pendingUser, enteredUserPin)) {
+              if (pendingUser.pin && !pendingUser.pinHash) {
+                const users = getUsers();
+                const currentUser = users.find(u => u.username === pendingUser.username);
+                if (currentUser) {
+                  Object.assign(currentUser, await hashUserPin(enteredUserPin));
+                  delete currentUser.pin;
+                  saveUsers(users);
+                }
+              }
               console.log('✅ PIN correct for user:', pendingUser.username);
               console.log('🔐 Setting window.currentUser to:', pendingUser.username);
               window.currentUser = pendingUser.username;
@@ -7700,6 +7764,54 @@ function initializeApp() {
       handleResetUserStats
     });
   }
+
+  document.getElementById('adminChangePin')?.addEventListener('click', async () => {
+    const currentPin = document.getElementById('adminCurrentPin')?.value || '';
+    const newPin = document.getElementById('adminNewPin')?.value || '';
+    const confirmPin = document.getElementById('adminConfirmPin')?.value || '';
+    const status = document.getElementById('adminChangePinStatus');
+
+    if (!/^\d{4,8}$/.test(newPin)) {
+      if (status) status.textContent = 'The new PIN must contain 4 to 8 digits.';
+      return;
+    }
+    if (newPin !== confirmPin) {
+      if (status) status.textContent = 'The new PIN entries do not match.';
+      return;
+    }
+
+    const result = await window.electron?.changeAdminPin?.({
+      token: window.getAdminSessionToken?.(),
+      currentPin,
+      newPin
+    });
+    if (status) status.textContent = result?.success ? 'Administrator PIN updated successfully.' : (result?.error || 'Unable to update PIN.');
+    if (result?.success) {
+      ['adminCurrentPin', 'adminNewPin', 'adminConfirmPin'].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+      });
+      await auditAdminAction('admin_pin_changed', 'Administrator PIN changed securely');
+    }
+  });
+
+  document.getElementById('adminCheckWebsiteSync')?.addEventListener('click', async () => {
+    const status = document.getElementById('adminWebsiteSyncStatus');
+    if (status) status.textContent = 'Checking website synchronization…';
+    try {
+      const response = await fetch('http://127.0.0.1:3001/api/sync-status');
+      const result = await response.json();
+      const sync = result.sync || {};
+      const message = sync.status === 'online'
+        ? `Online — ${sync.synced || 0} recent update(s) synchronized.`
+        : sync.status === 'idle'
+          ? 'Online — all local updates are synchronized.'
+          : `Offline queue active — ${sync.pending || 0} update(s) waiting. ${sync.error || ''}`.trim();
+      if (status) status.textContent = message;
+    } catch (error) {
+      if (status) status.textContent = `Local synchronization service unavailable: ${error.message}`;
+    }
+  });
 
   document.getElementById('adminTestScreensaverBtn')?.addEventListener('click', async () => {
     if (typeof window.triggerScreensaverTest === 'function') {
@@ -7864,6 +7976,13 @@ if (confirmBtn) {
       return;
     }
 
+    if (username.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} '\-]*$/u.test(username)) {
+      await showAlert('Invalid Username', 'Use 1–40 letters, numbers, spaces, apostrophes, or hyphens.');
+      input.focus();
+      input.select();
+      return;
+    }
+
     if (hasBlockedUsernameTerms(username)) {
       console.warn('⚠️ Username blocked by content policy:', username);
       await showAlert('Username Not Allowed', 'Please choose a different username.');
@@ -7900,17 +8019,14 @@ if (confirmBtn) {
       pinInput.select();
       return;
     }
-    const userPin = pinValue;
+    const userPin = await hashUserPin(pinValue);
 
     users.push({
       username,
-      pin: userPin,
+      ...userPin,
       favorites: { exercises: [], muscles: [] },
       icon: selectedIcon,
-      color: selectedColor,
-      faceLoginEnabled: false,
-      faceSignature: null,
-      faceEnrolledAt: null
+      color: selectedColor
     });
 
     saveUsers(users);

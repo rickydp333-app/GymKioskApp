@@ -11,19 +11,26 @@ console.log('AUTH.JS LOADED');
    ADMIN CONFIG
 ====================================================== */
 
-// Change this to any secure code you want
-const ADMIN_CODE = '3333';
+let adminSessionToken = null;
 
 /* ======================================================
    ADMIN CODE VALIDATION (CALLED FROM UI IF NEEDED)
 ====================================================== */
 
-function validateAdminCode(input) {
-  return input === ADMIN_CODE;
+async function validateAdminCode(input) {
+  if (!window.electron?.validateAdminPin) return false;
+  const result = await window.electron.validateAdminPin(input);
+  if (result?.success && result.token) {
+    adminSessionToken = result.token;
+    return true;
+  }
+  return false;
 }
 
 // Expose safely if needed later
 window.validateAdminCode = validateAdminCode;
+window.getAdminSessionToken = () => adminSessionToken;
+window.clearAdminSessionToken = () => { adminSessionToken = null; };
 
 /* ======================================================
    USER HELPERS (NON-NAVIGATIONAL)

@@ -2,8 +2,22 @@
   "appId": "com.rdp.gymkiosk.kiosk",
   "productName": "RDP-GYM",
   "files": [
-    "**/*",
-    "!admin/**"
+    "main.js",
+    "preload.js",
+    "server.js",
+    "index.html",
+    "screensaver-tutorial.html",
+    "package.json",
+    "lib/**/*",
+    "css/**/*",
+    "js/**/*",
+    "mobile/**/*",
+    "data/**/*",
+    "assets/**/*",
+    "!assets/face-models/**/*",
+    "!**/*-Rick’s MacBook Pro.js",
+    "!**/*.bak",
+    "!**/*.log"
   ],
   "directories": {
     "output": "../installs/dist-kiosk-installer",

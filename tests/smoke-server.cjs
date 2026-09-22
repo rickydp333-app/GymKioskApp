@@ -1,6 +1,8 @@
 const { spawn } = require('child_process');
 const assert = require('assert');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const BASE_URL = 'http://localhost:3001';
 
@@ -33,11 +35,19 @@ async function isServerHealthy() {
 
 async function run() {
   const root = path.resolve(__dirname, '..');
+  const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gymkiosk-smoke-'));
   const hadServerAlready = await isServerHealthy();
   const serverProcess = hadServerAlready
     ? null
     : spawn(process.execPath, ['server.js'], {
       cwd: root,
+      env: {
+        ...process.env,
+        GYMKIOSK_DATA_DIR: testDataDir,
+        GYMKIOSK_SYNC_KEY: 'smoke-sync-key-1234567890',
+        GYMKIOSK_SYNC_URL: `${BASE_URL}/api/kiosk-sync`,
+        ALERT_EMAIL_ENABLED: '0'
+      },
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
@@ -92,6 +102,23 @@ async function run() {
     });
     assert.strictEqual(loginRes.status, 200, 'login should return 200');
 
+    const rejectedSync = await fetch(`${BASE_URL}/api/kiosk-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong-key' },
+      body: JSON.stringify({ kioskId: 'smoke-kiosk', events: [] })
+    });
+    assert.strictEqual(rejectedSync.status, 401, 'website sync should reject an invalid credential');
+
+    const acceptedSync = await fetch(`${BASE_URL}/api/kiosk-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer smoke-sync-key-1234567890' },
+      body: JSON.stringify({
+        kioskId: 'smoke-kiosk',
+        events: [{ id: 1, event_type: 'workout.created', payload: { workoutId } }]
+      })
+    });
+    assert.strictEqual(acceptedSync.status, 200, 'website sync should accept a valid signed batch');
+
     console.log('✅ Smoke test passed');
   } catch (error) {
     console.error('❌ Smoke test failed:', error.message);
@@ -103,6 +130,7 @@ async function run() {
     if (serverProcess && !serverProcess.killed) {
       serverProcess.kill('SIGINT');
     }
+    setTimeout(() => fs.rmSync(testDataDir, { recursive: true, force: true }), 500).unref();
   }
 }
 

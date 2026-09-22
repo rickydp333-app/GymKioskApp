@@ -2,13 +2,17 @@
    MAIN.JS – WINDOWS KIOSK SAFE
 ========================================= */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const crypto = require('crypto');
+const http = require('http');
+const { createAdminSettings } = require('./lib/admin-settings');
+const { resolveDataDirectory } = require('./lib/persistent-store');
 
 const ROOT_DIR = __dirname;
-const DATA_DIR = path.join(ROOT_DIR, 'data');
+const DATA_DIR = resolveDataDirectory();
 const KIOSK_SETTINGS_PATH = path.join(DATA_DIR, 'kiosk-settings.json');
 
 try {
@@ -20,6 +24,11 @@ try {
 }
 
 let mainWindow;
+let serverProcess = null;
+let adminSettings = null;
+const adminSessions = new Map();
+const failedPinAttempts = new Map();
+const ADMIN_SESSION_TTL_MS = 15 * 60 * 1000;
 const isDev = process.env.NODE_ENV !== 'production' || process.env.GYMKIOSK_DEVTOOLS === '1';
 // Only open DevTools if GYMKIOSK_DEVTOOLS_AUTO_OPEN is '1'
 const autoOpenDevTools = process.env.GYMKIOSK_DEVTOOLS_AUTO_OPEN === '1';
@@ -86,10 +95,22 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       devTools: isDev || process.env.GYMKIOSK_DEVTOOLS === '1'
     }
   });
   mainWindow.loadFile('index.html');
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== mainWindow.webContents.getURL()) event.preventDefault();
+  });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'notifications');
+  });
 
   // Only auto-open DevTools if explicitly requested
   if (autoOpenDevTools) {
@@ -106,9 +127,51 @@ function createWindow() {
 
 /* ========= EXIT KIOSK (ADMIN ONLY) ========= */
 
-ipcMain.handle('exit-app', () => {
+function isValidAdminSession(token) {
+  const normalized = String(token || '');
+  const expiresAt = adminSessions.get(normalized);
+  if (!expiresAt || expiresAt < Date.now()) {
+    adminSessions.delete(normalized);
+    return false;
+  }
+  return true;
+}
+
+ipcMain.handle('admin-validate-pin', (event, pin) => {
+  const senderKey = event.sender.id;
+  const failure = failedPinAttempts.get(senderKey) || { count: 0, lockedUntil: 0 };
+  if (failure.lockedUntil > Date.now()) {
+    return { success: false, lockedUntil: failure.lockedUntil };
+  }
+
+  if (!adminSettings.validate(String(pin || ''))) {
+    failure.count += 1;
+    failure.lockedUntil = failure.count >= 5 ? Date.now() + 60_000 : 0;
+    if (failure.lockedUntil) failure.count = 0;
+    failedPinAttempts.set(senderKey, failure);
+    return { success: false, lockedUntil: failure.lockedUntil || null };
+  }
+
+  failedPinAttempts.delete(senderKey);
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL_MS);
+  return { success: true, token, expiresInMs: ADMIN_SESSION_TTL_MS };
+});
+
+ipcMain.handle('admin-change-pin', (_event, payload = {}) => {
+  if (!isValidAdminSession(payload.token)) {
+    return { success: false, error: 'Administrator session expired.' };
+  }
+  return adminSettings.change(payload.currentPin, payload.newPin);
+});
+
+ipcMain.handle('exit-app', (_event, token) => {
+  if (!isValidAdminSession(token)) {
+    return { success: false, error: 'Administrator authorization required.' };
+  }
   console.log('EXIT APP RECEIVED FROM ADMIN');
-  app.quit();
+  setImmediate(() => app.quit());
+  return { success: true };
 });
 
 ipcMain.handle('log-admin-action', (_event, payload = {}) => {
@@ -136,7 +199,41 @@ ipcMain.handle('log-admin-action', (_event, payload = {}) => {
 
 /* ========= APP LIFECYCLE ========= */
 
+function isLocalServerAvailable() {
+  return new Promise((resolve) => {
+    const request = http.get('http://127.0.0.1:3001/api/health', (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+    request.setTimeout(1500, () => { request.destroy(); resolve(false); });
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function startLocalServer() {
+  if (await isLocalServerAvailable()) return;
+  const syncEnvironment = adminSettings.getSyncEnvironment();
+  serverProcess = spawn(process.execPath, [path.join(ROOT_DIR, 'server.js')], {
+    cwd: ROOT_DIR,
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      GYMKIOSK_DATA_DIR: resolveDataDirectory(),
+      ...syncEnvironment
+    },
+    windowsHide: true,
+    stdio: 'ignore'
+  });
+  serverProcess.on('error', (error) => console.error('Local server failed to start:', error.message));
+  serverProcess.on('exit', (code) => {
+    if (code && !app.isQuitting) console.error(`Local server exited with code ${code}`);
+    serverProcess = null;
+  });
+}
+
 app.whenReady().then(() => {
+  adminSettings = createAdminSettings(path.dirname(resolveDataDirectory()));
+  startLocalServer().catch((error) => console.error('Unable to start local server:', error.message));
   const autoStartEnabled = getKioskAutoStartSetting();
   applyKioskAutoStartOnBoot(autoStartEnabled);
   createWindow();
@@ -151,4 +248,9 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+app.on('before-quit', () => {
+  app.isQuitting = true;
+  if (serverProcess && !serverProcess.killed) serverProcess.kill();
 });

@@ -75,7 +75,10 @@ console.log('ADMIN-MODULE.JS LOADED');
         const target = allUsers.find(u => u.username === user.username);
         if (!target) return;
 
-        target.pin = newPin ? newPin : null;
+        delete target.pin;
+        delete target.pinHash;
+        delete target.pinSalt;
+        if (newPin) Object.assign(target, await deps.hashUserPin(newPin));
         deps.saveUsers(allUsers);
         deps.populateAdminUserList();
         await deps.showAlert('Success', `PIN updated for ${user.username}`);
@@ -134,10 +137,9 @@ console.log('ADMIN-MODULE.JS LOADED');
 
     if (confirmed) {
       resetUserStats(username);
-      console.log(`Removed localStorage key: ${key}`);
-    });
-
-    console.log(`Stats reset for user: ${username}`);
+      console.log(`Stats reset for user: ${username}`);
+      await showAlert('Success', `Stats reset for ${username}`);
+    }
   }
 
   function resetAllUserStats({ getUsers, resetUserStats }) {
@@ -149,11 +151,59 @@ console.log('ADMIN-MODULE.JS LOADED');
     return targetUsers.length;
   }
 
+  function removeLocalStorageKeysByPrefixes(prefixes = []) {
+    const keys = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && prefixes.some((prefix) => key.startsWith(prefix))) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+    return keys.length;
+  }
+
+  function clearCalendarDataForAllUsers(calendarKey = 'gymKiosk_workoutCalendar') {
+    return removeLocalStorageKeysByPrefixes([
+      calendarKey,
+      'calendar_workouts_',
+      'calendar_meals_',
+      'workout_calendar_'
+    ]);
+  }
+
+  function clearChallengeDataForAllUsers() {
+    return removeLocalStorageKeysByPrefixes([
+      'challenge_',
+      'dailyChallenge_',
+      'friendChallenge_',
+      'gymKiosk_activity'
+    ]);
+  }
+
+  function resetUserStats(username, { getUsers, saveUsers }) {
+    const normalized = String(username || '');
+    removeLocalStorageKeysByPrefixes([
+      `completedExercises_${normalized}_`,
+      `challenge_completions_${normalized}`,
+      `challenge_accepted_${normalized}`,
+      `favorites_${normalized}`,
+      `workoutHistory_${normalized}`
+    ]);
+    const users = getUsers();
+    const user = users.find((entry) => entry.username === normalized);
+    if (user) {
+      user.personalRecords = {};
+      user.exerciseHistory = {};
+      user.badges = [];
+      user.points = 0;
+      saveUsers(users);
+    }
+  }
+
   function setupAdminPinHandlers(deps) {
     document
       .querySelectorAll('#adminPinModal button[data-key]')
       .forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
           const key = btn.dataset.key;
 
           if (key === 'clear') {
@@ -165,8 +215,8 @@ console.log('ADMIN-MODULE.JS LOADED');
           if (key === 'ok') {
             const enteredAdminPin = deps.getEnteredAdminPin();
             const isValidAdminPin = typeof deps.validateAdminCode === 'function'
-              ? deps.validateAdminCode(enteredAdminPin)
-              : enteredAdminPin === '3333';
+              ? await deps.validateAdminCode(enteredAdminPin)
+              : false;
 
             if (isValidAdminPin) {
               deps.setEnteredAdminPin('');
