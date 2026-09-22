@@ -1179,6 +1179,28 @@ app.post('/api/kiosk-sync', (req, res) => {
   if (validEvents.length !== events.length) return res.status(400).json({ error: 'Invalid synchronization event' });
 
   const accepted = persistentStore.receiveSync(kioskId, validEvents);
+
+  // The sync inbox is an audit/deduplication record. Apply incoming workout
+  // events to the public collection as well so QR links resolve on the hosted
+  // server. Replaying a batch is safe because the workout ID is the map key.
+  let workoutsChanged = false;
+  validEvents.forEach((event) => {
+    if (event.event_type !== 'workout.created' && event.event_type !== 'workout.updated') return;
+
+    const { workoutId, data, userId, created } = event.payload;
+    if (!isValidIdentifier(workoutId) || !isPlainObject(data)) return;
+
+    const existing = workouts.get(workoutId);
+    workouts.set(workoutId, {
+      userId: userId || existing?.userId || null,
+      data,
+      created: created || existing?.created || new Date().toISOString(),
+      completed: existing?.completed || false
+    });
+    workoutsChanged = true;
+  });
+
+  if (workoutsChanged) saveWorkouts();
   return res.json({ success: true, accepted, received: validEvents.length });
 });
 
@@ -1342,5 +1364,4 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 });
-
 
