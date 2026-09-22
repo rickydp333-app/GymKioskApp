@@ -1,6 +1,6 @@
 // QR Code generation for sharing workouts
 console.log('QR.JS LOADED');
-const DEFAULT_SERVER_BASE_URL = 'https://gymkioskapp.onrender.com';
+const DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
 const SHARE_BASE_CACHE_MS = 30000;
 let cachedResolvedShareBaseUrl = null;
