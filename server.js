@@ -5,6 +5,19 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const crypto = require('crypto');
+const { createPersistentStore } = require('./lib/persistent-store');
+const { createWebsiteSync } = require('./lib/website-sync');
+
+try {
+  require('dotenv').config({ path: path.join(__dirname, '.env') });
+} catch (_error) {
+}
+
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch (_error) {
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +41,205 @@ const SESSION_RETENTION_MS = 35 * 24 * 60 * 60 * 1000;
 const WORKOUT_RETENTION_DAYS = 120;
 const CHALLENGE_RETENTION_DAYS = 60;
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
+const SERVER_LOG_FILE = path.join(__dirname, 'server-log.txt');
+const ALERT_EMAIL_TO = process.env.ALERT_EMAIL_TO || 'rickyp3@me.com';
+const ALERT_EMAIL_FROM = process.env.ALERT_EMAIL_FROM || process.env.ALERT_SMTP_USER || '';
+const ALERT_EMAIL_COOLDOWN_MS = Math.max(60_000, Number(process.env.ALERT_EMAIL_COOLDOWN_MS || 10 * 60 * 1000));
+const ALERT_EMAIL_ENABLED = String(process.env.ALERT_EMAIL_ENABLED || '1') !== '0';
+const API_RATE_LIMIT_WINDOW_MS = Math.max(10_000, Number(process.env.API_RATE_LIMIT_WINDOW_MS || 60_000));
+const API_RATE_LIMIT_MAX = Math.max(30, Number(process.env.API_RATE_LIMIT_MAX || 240));
+const KIOSK_DEVICE_KEY = String(process.env.GYMKIOSK_DEVICE_KEY || '');
+const WEBSITE_SYNC_KEY = String(process.env.GYMKIOSK_SYNC_KEY || '');
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+
+ALLOWED_ORIGINS.add('http://localhost:3001');
+ALLOWED_ORIGINS.add('http://127.0.0.1:3001');
+ALLOWED_ORIGINS.add('https://gymkioskapp.onrender.com');
+ALLOWED_ORIGINS.add('https://www.rdpsstrengthandconditioning.ca');
+
+const criticalAlertState = {
+  started: false,
+  logReadPosition: 0,
+  lastSentByFingerprint: new Map(),
+  sending: false
+};
+
+function createAlertTransporter() {
+  if (!nodemailer || !ALERT_EMAIL_ENABLED) return null;
+
+  const smtpHost = process.env.ALERT_SMTP_HOST;
+  const smtpPort = Number(process.env.ALERT_SMTP_PORT || 587);
+  const smtpSecure = String(process.env.ALERT_SMTP_SECURE || '0') === '1';
+  const smtpService = process.env.ALERT_SMTP_SERVICE;
+  const smtpUser = process.env.ALERT_SMTP_USER;
+  const smtpPass = process.env.ALERT_SMTP_PASS;
+
+  if (!smtpUser || !smtpPass) {
+    return null;
+  }
+
+  if (smtpService) {
+    return nodemailer.createTransport({
+      service: smtpService,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+  }
+
+  if (smtpHost) {
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
+      auth: { user: smtpUser, pass: smtpPass }
+    });
+  }
+
+  return null;
+}
+
+const alertTransporter = createAlertTransporter();
+
+function isCriticalLogLine(line) {
+  const text = String(line || '').toLowerCase();
+  if (!text) return false;
+  if (text.includes('incorrect admin pin')) return false;
+  if (text.includes('login failed')) return false;
+  return /(fatal|uncaught|unhandledrejection|exception|critical|\berror\b|eaddrinuse|emfile|enospc|out of memory|heap out of memory|segmentation fault)/i.test(text);
+}
+
+function fingerprintForAlert(source, message) {
+  return crypto
+    .createHash('sha256')
+    .update(`${source}:${String(message || '').slice(0, 800)}`)
+    .digest('hex');
+}
+
+function getLastLogLines(limit = 40) {
+  try {
+    if (!fs.existsSync(SERVER_LOG_FILE)) return '';
+    const content = fs.readFileSync(SERVER_LOG_FILE, 'utf8');
+    const lines = content.split(/\r?\n/).filter(Boolean);
+    return lines.slice(-limit).join('\n');
+  } catch (_error) {
+    return '';
+  }
+}
+
+async function maybeSendCriticalEmail({ source, message }) {
+  if (!alertTransporter || !ALERT_EMAIL_FROM || !ALERT_EMAIL_TO || !ALERT_EMAIL_ENABLED) return;
+  if (!isCriticalLogLine(message)) return;
+
+  const now = Date.now();
+  const fingerprint = fingerprintForAlert(source, message);
+  const lastSentAt = criticalAlertState.lastSentByFingerprint.get(fingerprint) || 0;
+  if (now - lastSentAt < ALERT_EMAIL_COOLDOWN_MS) return;
+  if (criticalAlertState.sending) return;
+
+  criticalAlertState.sending = true;
+  criticalAlertState.lastSentByFingerprint.set(fingerprint, now);
+
+  try {
+    const recentLogs = getLastLogLines(50);
+    await alertTransporter.sendMail({
+      from: ALERT_EMAIL_FROM,
+      to: ALERT_EMAIL_TO,
+      subject: `[GymKiosk][CRITICAL] ${source}`,
+      text: [
+        `Timestamp: ${new Date().toISOString()}`,
+        `Source: ${source}`,
+        '',
+        'Critical message:',
+        String(message || ''),
+        '',
+        'Recent log lines:',
+        recentLogs || '(No server-log.txt content available)'
+      ].join('\n')
+    });
+    console.log(`📧 Critical alert email sent to ${ALERT_EMAIL_TO} (${source})`);
+  } catch (error) {
+    process.stderr.write(`Critical email alert failed: ${error.message}\n`);
+    console.error(`Critical email alert failed (${source}):`, error.message);
+  } finally {
+    criticalAlertState.sending = false;
+  }
+}
+
+function monitorServerLogFileForCriticalErrors() {
+  if (criticalAlertState.started) return;
+  criticalAlertState.started = true;
+
+  try {
+    if (fs.existsSync(SERVER_LOG_FILE)) {
+      criticalAlertState.logReadPosition = fs.statSync(SERVER_LOG_FILE).size;
+    }
+  } catch (_error) {
+    criticalAlertState.logReadPosition = 0;
+  }
+
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    originalConsoleError(...args);
+    const message = args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ');
+    maybeSendCriticalEmail({ source: 'console.error', message }).catch(() => {});
+  };
+
+  process.on('uncaughtException', (error) => {
+    const message = error?.stack || error?.message || String(error);
+    maybeSendCriticalEmail({ source: 'uncaughtException', message }).catch(() => {});
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    const message = reason?.stack || reason?.message || String(reason);
+    maybeSendCriticalEmail({ source: 'unhandledRejection', message }).catch(() => {});
+  });
+
+  fs.watchFile(SERVER_LOG_FILE, { interval: 2000 }, (curr, prev) => {
+    if (curr.size <= 0) {
+      criticalAlertState.logReadPosition = 0;
+      return;
+    }
+
+    if (curr.size < criticalAlertState.logReadPosition) {
+      criticalAlertState.logReadPosition = 0;
+    }
+
+    if (curr.size === prev.size || curr.size === criticalAlertState.logReadPosition) {
+      return;
+    }
+
+    const start = criticalAlertState.logReadPosition;
+    const length = curr.size - start;
+    const fd = fs.openSync(SERVER_LOG_FILE, 'r');
+
+    try {
+      const buffer = Buffer.alloc(length);
+      fs.readSync(fd, buffer, 0, length, start);
+      const chunk = buffer.toString('utf8');
+      const lines = chunk.split(/\r?\n/).filter(Boolean);
+      lines.forEach((line) => {
+        if (isCriticalLogLine(line)) {
+          maybeSendCriticalEmail({ source: 'server-log.txt', message: line }).catch(() => {});
+        }
+      });
+      criticalAlertState.logReadPosition = curr.size;
+    } finally {
+      fs.closeSync(fd);
+    }
+  });
+
+  if (ALERT_EMAIL_ENABLED) {
+    if (alertTransporter && ALERT_EMAIL_FROM && ALERT_EMAIL_TO) {
+      console.log(`📧 Critical email alerts enabled for ${ALERT_EMAIL_TO}`);
+    } else {
+      console.warn('⚠ Critical email alerts are configured off or missing SMTP env vars (ALERT_SMTP_USER/PASS + host/service).');
+    }
+  }
+}
 
 function isDirectory(dirPath) {
   try {
@@ -39,10 +251,85 @@ function isDirectory(dirPath) {
 
 const STATIC_MOBILE_DIR = STATIC_MOBILE_DIR_CANDIDATES.find(isDirectory) || null;
 const MOBILE_FILE_DIRS = MOBILE_FILE_DIR_CANDIDATES.filter(isDirectory);
+monitorServerLogFileForCriticalErrors();
+
+const apiRateLimiterState = new Map();
+
+function getRequestClientKey(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  return ALLOWED_ORIGINS.has(origin);
+}
+
+function apiRateLimit(req, res, next) {
+  const now = Date.now();
+  const key = getRequestClientKey(req);
+  const bucket = apiRateLimiterState.get(key);
+
+  if (!bucket || bucket.resetAt <= now) {
+    apiRateLimiterState.set(key, { count: 1, resetAt: now + API_RATE_LIMIT_WINDOW_MS });
+    next();
+    return;
+  }
+
+  bucket.count += 1;
+  if (bucket.count > API_RATE_LIMIT_MAX) {
+    const retryAfterSec = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    res.setHeader('Retry-After', String(retryAfterSec));
+    res.status(429).json({ error: 'Too many requests' });
+    return;
+  }
+
+  next();
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of apiRateLimiterState.entries()) {
+    if (!entry || entry.resetAt <= now) {
+      apiRateLimiterState.delete(key);
+    }
+  }
+}, API_RATE_LIMIT_WINDOW_MS).unref();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(cors({
+  origin(origin, callback) {
+    if (isAllowedCorsOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(null, false);
+  }
+}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && !isAllowedCorsOrigin(origin)) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+
+  next();
+});
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 https://gymkioskapp.onrender.com https://www.rdpsstrengthandconditioning.ca");
+  next();
+});
+app.use(express.json({ limit: '256kb', strict: true }));
+app.use('/api', apiRateLimit);
 if (STATIC_MOBILE_DIR) {
   app.use(express.static(STATIC_MOBILE_DIR));
 } else {
@@ -54,6 +341,29 @@ if (isDirectory(KIOSK_CSS_DIR)) {
 if (isDirectory(KIOSK_JS_DIR)) {
   app.use('/js', express.static(KIOSK_JS_DIR));
 }
+app.get('/assets/branding/logo.png', (req, res) => {
+  const logoFileCandidates = [
+    path.join(__dirname, 'assets', 'branding', 'logo.png'),
+    path.join(process.cwd(), 'assets', 'branding', 'logo.png')
+  ];
+
+  for (const logoPath of logoFileCandidates) {
+    if (logoPath && fs.existsSync(logoPath)) {
+      return res.sendFile(logoPath);
+    }
+  }
+
+  const fallbackLogoSvg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="180" viewBox="0 0 900 180">',
+    '<rect width="100%" height="100%" rx="20" fill="#0f172a"/>',
+    '<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="Arial,sans-serif" font-size="52" font-weight="700" fill="#d4af37">RDPs STRENGTH &amp; CONDITIONING</text>',
+    '</svg>'
+  ].join('');
+
+  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.status(200).send(fallbackLogoSvg);
+});
 app.use('/assets', express.static(path.join(__dirname, 'assets'))); // Serve exercise videos and images
 
 function sendMobileFile(res, preferredFile, fallbackFiles = []) {
@@ -84,26 +394,20 @@ function sendFirstExistingFile(res, absolutePaths = []) {
 // ========================================
 // FILE STORAGE SETUP
 // ========================================
-const DATA_DIR = path.join(__dirname, 'data');
-const WORKOUTS_FILE = path.join(DATA_DIR, 'workouts.json');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const CALENDARS_FILE = path.join(DATA_DIR, 'calendars.json');
-const FRIEND_CHALLENGES_FILE = path.join(DATA_DIR, 'friend-challenges.json');
-
-// Create data directory if it doesn't exist
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+const persistentStore = createPersistentStore({ sourceDataDir: path.join(__dirname, 'data') });
+const websiteSync = createWebsiteSync({ store: persistentStore });
+const DATA_DIR = persistentStore.dataDir;
+const WORKOUTS_FILE = persistentStore.databasePath;
+const USERS_FILE = persistentStore.databasePath;
+const CALENDARS_FILE = persistentStore.databasePath;
+const FRIEND_CHALLENGES_FILE = persistentStore.databasePath;
 
 // Load workouts from file or initialize empty
 function loadWorkouts() {
   try {
-    if (fs.existsSync(WORKOUTS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(WORKOUTS_FILE, 'utf8'));
-      const map = new Map(data);
-      console.log(`✓ Loaded ${map.size} workouts from file`);
-      return map;
-    }
+    const map = persistentStore.readMap('workouts');
+    console.log(`✓ Loaded ${map.size} workouts from SQLite`);
+    return map;
   } catch (err) {
     console.warn('⚠ Error loading workouts file:', err.message);
   }
@@ -113,12 +417,9 @@ function loadWorkouts() {
 // Load users from file or initialize empty
 function loadUsers() {
   try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-      const map = new Map(data);
-      console.log(`✓ Loaded ${map.size} users from file`);
-      return map;
-    }
+    const map = persistentStore.readMap('users');
+    console.log(`✓ Loaded ${map.size} users from SQLite`);
+    return map;
   } catch (err) {
     console.warn('⚠ Error loading users file:', err.message);
   }
@@ -128,12 +429,9 @@ function loadUsers() {
 // Load calendars from file or initialize empty
 function loadCalendars() {
   try {
-    if (fs.existsSync(CALENDARS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(CALENDARS_FILE, 'utf8'));
-      const map = new Map(data);
-      console.log(`✓ Loaded ${map.size} calendars from file`);
-      return map;
-    }
+    const map = persistentStore.readMap('calendars');
+    console.log(`✓ Loaded ${map.size} calendars from SQLite`);
+    return map;
   } catch (err) {
     console.warn('⚠ Error loading calendars file:', err.message);
   }
@@ -143,12 +441,9 @@ function loadCalendars() {
 // Load friend challenges from file or initialize empty
 function loadFriendChallenges() {
   try {
-    if (fs.existsSync(FRIEND_CHALLENGES_FILE)) {
-      const data = JSON.parse(fs.readFileSync(FRIEND_CHALLENGES_FILE, 'utf8'));
-      const list = Array.isArray(data) ? data : [];
-      console.log(`✓ Loaded ${list.length} friend challenges from file`);
-      return list;
-    }
+    const list = persistentStore.readList('friend-challenges');
+    console.log(`✓ Loaded ${list.length} friend challenges from SQLite`);
+    return list;
   } catch (err) {
     console.warn('⚠ Error loading friend challenges file:', err.message);
   }
@@ -158,8 +453,7 @@ function loadFriendChallenges() {
 // Save workouts to file
 function saveWorkouts() {
   try {
-    const data = Array.from(workouts.entries());
-    writeJsonAtomic(WORKOUTS_FILE, data);
+    persistentStore.writeMap('workouts', workouts);
   } catch (err) {
     console.error('✗ Error saving workouts:', err.message);
   }
@@ -168,8 +462,7 @@ function saveWorkouts() {
 // Save users to file
 function saveUsers() {
   try {
-    const data = Array.from(users.entries());
-    writeJsonAtomic(USERS_FILE, data);
+    persistentStore.writeMap('users', users);
   } catch (err) {
     console.error('✗ Error saving users:', err.message);
   }
@@ -178,8 +471,7 @@ function saveUsers() {
 // Save calendars to file
 function saveCalendars() {
   try {
-    const data = Array.from(calendars.entries());
-    writeJsonAtomic(CALENDARS_FILE, data);
+    persistentStore.writeMap('calendars', calendars);
   } catch (err) {
     console.error('✗ Error saving calendars:', err.message);
   }
@@ -188,24 +480,10 @@ function saveCalendars() {
 // Save friend challenges to file
 function saveFriendChallenges() {
   try {
-    writeJsonAtomic(FRIEND_CHALLENGES_FILE, friendChallenges);
+    persistentStore.writeList('friend-challenges', friendChallenges);
   } catch (err) {
     console.error('✗ Error saving friend challenges:', err.message);
   }
-}
-
-function writeJsonAtomic(filePath, payload) {
-  const tempPath = `${filePath}.tmp`;
-  const backupPath = `${filePath}.bak`;
-  const content = JSON.stringify(payload, null, 2);
-
-  fs.writeFileSync(tempPath, content, 'utf8');
-
-  if (fs.existsSync(filePath)) {
-    fs.copyFileSync(filePath, backupPath);
-  }
-
-  fs.renameSync(tempPath, filePath);
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -301,6 +579,35 @@ function getAuthenticatedUser(req, res) {
   return { sessionId, userId: session.userId, user };
 }
 
+function isLoopbackRequest(req) {
+  const address = req.socket?.remoteAddress || req.ip || '';
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+}
+
+function requireKioskMutationAuth(req, res, next) {
+  if (isLoopbackRequest(req)) return next();
+  const supplied = String(req.headers['x-gymkiosk-key'] || '');
+  if (KIOSK_DEVICE_KEY && supplied.length === KIOSK_DEVICE_KEY.length) {
+    const valid = crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(KIOSK_DEVICE_KEY));
+    if (valid) return next();
+  }
+  return res.status(401).json({ error: 'Kiosk device authorization required' });
+}
+
+function isValidIdentifier(value, maxLength = 128) {
+  return typeof value === 'string' && value.length >= 8 && value.length <= maxLength && /^[a-zA-Z0-9_-]+$/.test(value);
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasValidWebsiteSyncKey(req) {
+  const supplied = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!WEBSITE_SYNC_KEY || supplied.length !== WEBSITE_SYNC_KEY.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(WEBSITE_SYNC_KEY));
+}
+
 function getExerciseCount(workoutData = {}) {
   const exercises = Array.isArray(workoutData.exercises) ? workoutData.exercises : [];
   if (!exercises.length) return 0;
@@ -353,10 +660,17 @@ app.post('/api/auth/register', (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
+    return res.status(400).json({ error: 'A valid email address is required' });
+  }
+  if (typeof password !== 'string' || password.length < 10 || password.length > 128) {
+    return res.status(400).json({ error: 'Password must contain 10 to 128 characters' });
+  }
 
   // Check if user exists
   for (let user of users.values()) {
-    if (user.email === email) {
+    if (String(user.email).toLowerCase() === normalizedEmail) {
       return res.status(409).json({ error: 'Email already registered' });
     }
   }
@@ -364,7 +678,7 @@ app.post('/api/auth/register', (req, res) => {
   const userId = uuidv4();
   const passwordInfo = hashPassword(password);
   users.set(userId, {
-    email,
+    email: normalizedEmail,
     passwordHash: passwordInfo.hash,
     passwordSalt: passwordInfo.salt,
     workouts: []
@@ -380,7 +694,7 @@ app.post('/api/auth/register', (req, res) => {
     success: true,
     sessionId,
     userId,
-    email
+    email: normalizedEmail
   });
 });
 
@@ -391,9 +705,10 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ error: 'Email and password required' });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
   let userId = null;
   for (let [id, user] of users.entries()) {
-    if (user.email !== email) {
+    if (String(user.email).toLowerCase() !== normalizedEmail) {
       continue;
     }
 
@@ -429,7 +744,7 @@ app.post('/api/auth/login', (req, res) => {
     success: true,
     sessionId,
     userId,
-    email
+    email: normalizedEmail
   });
 });
 
@@ -438,10 +753,10 @@ app.post('/api/auth/login', (req, res) => {
 // ========================================
 
 // Create workout from kiosk (no authentication required)
-app.post('/api/workouts/create', (req, res) => {
+app.post('/api/workouts/create', requireKioskMutationAuth, (req, res) => {
   const { workoutId, data } = req.body;
 
-  if (!workoutId || !data) {
+  if (!isValidIdentifier(workoutId) || !isPlainObject(data)) {
     return res.status(400).json({ error: 'Workout ID and data required' });
   }
 
@@ -455,6 +770,7 @@ app.post('/api/workouts/create', (req, res) => {
 
   // Save to file
   saveWorkouts();
+  websiteSync.enqueue('workout.created', { workoutId, data, created: new Date().toISOString() });
 
   res.json({
     success: true,
@@ -491,6 +807,7 @@ app.post('/api/workouts', (req, res) => {
 
   // Save to file
   saveWorkouts();
+  websiteSync.enqueue('workout.created', { workoutId, userId: session.userId, data: workoutData, created: new Date().toISOString() });
   saveUsers();
 
   res.json({
@@ -503,10 +820,10 @@ app.post('/api/workouts', (req, res) => {
 // Get workout by ID (shareable link)
 
 // Create favorites share
-app.post('/api/favorites/create', (req, res) => {
+app.post('/api/favorites/create', requireKioskMutationAuth, (req, res) => {
   const { favoritesId, data } = req.body;
 
-  if (!favoritesId || !data) {
+  if (!isValidIdentifier(favoritesId) || !isPlainObject(data)) {
     return res.status(400).json({
       success: false,
       message: 'Missing required fields'
@@ -522,6 +839,7 @@ app.post('/api/favorites/create', (req, res) => {
   });
 
   saveWorkouts();
+  websiteSync.enqueue('favorites.created', { favoritesId, data, created: new Date().toISOString() });
 
   res.json({
     success: true,
@@ -650,7 +968,14 @@ app.get('/api/user/stats', (req, res) => {
 
 // Endpoint for kiosk to retrieve completed workouts
 app.get('/api/sync/:userId', (req, res) => {
+  const auth = getAuthenticatedUser(req, res);
+  if (!auth) return;
+
   const { userId } = req.params;
+  if (auth.userId !== userId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const user = users.get(userId);
 
   if (!user) {
@@ -680,10 +1005,10 @@ app.get('/api/sync/:userId', (req, res) => {
 // ========================================
 
 // Create calendar share from kiosk (no authentication required)
-app.post('/api/calendar/create', (req, res) => {
+app.post('/api/calendar/create', requireKioskMutationAuth, (req, res) => {
   const { calendarId, data, userName } = req.body;
 
-  if (!calendarId || !data) {
+  if (!isValidIdentifier(calendarId) || !isPlainObject(data)) {
     return res.status(400).json({ error: 'Calendar ID and data required' });
   }
 
@@ -694,6 +1019,7 @@ app.post('/api/calendar/create', (req, res) => {
   });
 
   saveCalendars();
+  websiteSync.enqueue('calendar.created', { calendarId, userName: userName || 'User', data, created: new Date().toISOString() });
 
   res.json({
     success: true,
@@ -725,7 +1051,7 @@ app.get('/api/calendar/:calendarId', (req, res) => {
 // ========================================
 
 // Get pending challenges for a user (new daily challenge system)
-app.get('/api/friend-challenges/pending/:username', (req, res) => {
+app.get('/api/friend-challenges/pending/:username', requireKioskMutationAuth, (req, res) => {
   const { username } = req.params;
   
   // Get challenges where this user was challenged to today's daily challenge
@@ -754,7 +1080,7 @@ app.get('/api/friend-challenges/pending/:username', (req, res) => {
 });
 
 // Get all friend challenges (legacy - for history)
-app.get('/api/friend-challenges', (req, res) => {
+app.get('/api/friend-challenges', requireKioskMutationAuth, (req, res) => {
   res.json({
     success: true,
     challenges: friendChallenges
@@ -762,7 +1088,7 @@ app.get('/api/friend-challenges', (req, res) => {
 });
 
 // Create friend challenge (simplified - just tracks challenger and challenged user)
-app.post('/api/friend-challenges', (req, res) => {
+app.post('/api/friend-challenges', requireKioskMutationAuth, (req, res) => {
   const { challenge } = req.body;
 
   if (!challenge || !challenge.challenger || !challenge.challenged_user) {
@@ -783,6 +1109,7 @@ app.post('/api/friend-challenges', (req, res) => {
     friendChallenges.length = 500;
   }
   saveFriendChallenges();
+  websiteSync.enqueue('challenge.created', entry);
 
   res.json({
     success: true,
@@ -791,7 +1118,7 @@ app.post('/api/friend-challenges', (req, res) => {
 });
 
 // Decline/remove a friend challenge
-app.delete('/api/friend-challenges/:challengeId', (req, res) => {
+app.delete('/api/friend-challenges/:challengeId', requireKioskMutationAuth, (req, res) => {
   const { challengeId } = req.params;
   
   console.log(`\n🗑️ DELETE request for challenge ID: "${challengeId}"`);
@@ -810,6 +1137,7 @@ app.delete('/api/friend-challenges/:challengeId', (req, res) => {
   
   const removedChallenge = friendChallenges.splice(index, 1)[0];
   saveFriendChallenges();
+  websiteSync.enqueue('challenge.deleted', { id: removedChallenge.id, deletedAt: new Date().toISOString() });
   
   console.log(`✅ Declined and removed challenge: ${JSON.stringify(removedChallenge)}`);
   
@@ -825,6 +1153,35 @@ app.delete('/api/friend-challenges/:challengeId', (req, res) => {
 // SYSTEM INFO
 // ========================================
 
+app.post('/api/kiosk-sync', (req, res) => {
+  if (!WEBSITE_SYNC_KEY) return res.status(503).json({ error: 'Website synchronization is not configured' });
+  if (!hasValidWebsiteSyncKey(req)) return res.status(401).json({ error: 'Invalid synchronization credential' });
+
+  const kioskId = String(req.body?.kioskId || '');
+  const events = req.body?.events;
+  if (!/^[a-zA-Z0-9_-]{3,80}$/.test(kioskId) || !Array.isArray(events) || events.length > 100) {
+    return res.status(400).json({ error: 'Invalid synchronization batch' });
+  }
+
+  const allowedEventTypes = new Set([
+    'workout.created',
+    'workout.updated',
+    'favorites.created',
+    'calendar.created',
+    'challenge.created',
+    'challenge.deleted'
+  ]);
+  const validEvents = events.filter((event) => (
+    Number.isSafeInteger(Number(event?.id)) &&
+    allowedEventTypes.has(event?.event_type) &&
+    isPlainObject(event?.payload)
+  ));
+  if (validEvents.length !== events.length) return res.status(400).json({ error: 'Invalid synchronization event' });
+
+  const accepted = persistentStore.receiveSync(kioskId, validEvents);
+  return res.json({ success: true, accepted, received: validEvents.length });
+});
+
 app.get('/api/info', (req, res) => {
   const interfaces = os.networkInterfaces();
   const ipAddress = Object.values(interfaces)
@@ -833,7 +1190,7 @@ app.get('/api/info', (req, res) => {
 
   res.json({
     server: 'GymKiosk Mobile Server',
-    version: '1.0.0',
+    version: require('./package.json').version,
     port: PORT,
     ipAddress,
     workoutCount: workouts.size,
@@ -844,11 +1201,17 @@ app.get('/api/info', (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
+  res.json({ status: 'ok', uptime: process.uptime(), websiteSync: websiteSync.status() });
+});
+
+app.get('/api/sync-status', (req, res) => {
+  if (!isLoopbackRequest(req)) return res.status(403).json({ error: 'Sync status is available on the kiosk only' });
+  res.json({ success: true, sync: websiteSync.status() });
 });
 
 // Diagnostic endpoint for QR code troubleshooting
 app.get('/api/diagnostics', (req, res) => {
+  if (!isLoopbackRequest(req)) return res.status(403).json({ error: 'Diagnostics are available on the kiosk only' });
   const interfaces = os.networkInterfaces();
   const ipAddress = Object.values(interfaces)
     .flat()
@@ -959,6 +1322,7 @@ const server = app.listen(PORT, () => {
 });
 
 cleanupRuntimeData();
+websiteSync.start();
 const cleanupTimer = setInterval(cleanupRuntimeData, CLEANUP_INTERVAL_MS);
 cleanupTimer.unref();
 
@@ -971,9 +1335,12 @@ server.on('error', (err) => {
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
   clearInterval(cleanupTimer);
+  websiteSync.stop();
   server.close(() => {
+    persistentStore.close();
     console.log('Server closed');
     process.exit(0);
   });
 });
+
 
