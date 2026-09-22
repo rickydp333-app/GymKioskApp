@@ -1,0 +1,41 @@
+{
+	"name": "gym-kiosk-app",
+	"version": "1.0.3",
+	"description": "Gym kiosk and admin desktop application for workout selection and QR sharing.",
+	"author": "RDP Strength and Conditioning",
+	"main": "main.js",
+	"scripts": {
+		"start": "node scripts/start.cjs",
+		"admin-app": "electron main-admin.js",
+		"build:admin": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.win.signAndEditExecutable=false",
+		"build:admin:dir": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json",
+		"build:kiosk": "node ./node_modules/electron-builder/cli.js --win nsis --config kiosk-builder.json --config.win.signAndEditExecutable=false",
+		"release:install-set": "node scripts/release-install-set.cjs",
+		"hash:admin": "node scripts/release-admin.cjs --hash-only",
+		"release:admin": "node scripts/release-admin.cjs",
+		"server": "node server.js",
+		"kiosk": "electron .",
+		"kiosk:wait": "wait-on tcp:3001 && electron .",
+		"test:smoke": "node tests/smoke-server.cjs",
+		"test:ops": "node tests/ops-regression.cjs",
+		"test:kiosk-ops": "node tests/kiosk-ops.cjs"
+	},
+	"devDependencies": {
+		"app-builder-bin": "^4.2.0",
+		"concurrently": "^9.0.1",
+		"electron": "^30.0.0",
+		"electron-builder": "^24.13.3",
+		"wait-on": "^8.0.1"
+	},
+	"dependencies": {
+		"@tensorflow/tfjs": "^4.22.0",
+		"@tensorflow/tfjs-backend-webgl": "^4.22.0",
+		"@vladmandic/face-api": "^1.7.15",
+		"cors": "^2.8.6",
+		"dotenv": "^16.4.5",
+		"express": "^5.2.1",
+		"nodemailer": "^6.9.14",
+		"qrcode": "^1.5.4",
+		"uuid": "^13.0.0"
+	}
+}

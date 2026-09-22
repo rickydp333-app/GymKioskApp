@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <rect x="10" y="14" width="44" height="42" rx="4" fill="url(#calendar-gradient)" stroke="#00D4FF" stroke-width="2"/>
+  <rect x="10" y="14" width="44" height="12" rx="4" fill="#00D4FF"/>
+  <line x1="22" y1="10" x2="22" y2="18" stroke="#D4AF37" stroke-width="3" stroke-linecap="round"/>
+  <line x1="42" y1="10" x2="42" y2="18" stroke="#D4AF37" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="20" cy="34" r="2" fill="#00D4FF"/>
+  <circle cx="28" cy="34" r="2" fill="#00D4FF"/>
+  <circle cx="36" cy="34" r="2" fill="#00D4FF"/>
+  <circle cx="44" cy="34" r="2" fill="#00D4FF"/>
+  <circle cx="20" cy="42" r="2" fill="#00D4FF"/>
+  <circle cx="28" cy="42" r="2" fill="#D4AF37"/>
+  <circle cx="36" cy="42" r="2" fill="#00D4FF"/>
+  <circle cx="44" cy="42" r="2" fill="#00D4FF"/>
+  <circle cx="20" cy="50" r="2" fill="#00D4FF"/>
+  <circle cx="28" cy="50" r="2" fill="#00D4FF"/>
+  <defs>
+    <linearGradient id="calendar-gradient" x1="32" y1="14" x2="32" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a1f2e"/>
+      <stop offset="100%" stop-color="#2d3748"/>
+    </linearGradient>
+  </defs>
+</svg>

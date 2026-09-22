@@ -1,0 +1,860 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-admin-exe",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"admin-builder.json"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-exe",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-dir",
+			"type": "shell",
+			"command": "npm run build:admin:dir",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-dir",
+			"type": "shell",
+			"command": "npm run build:admin:dir",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-dir-direct",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-dir-direct-2",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-log",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json > admin-build-run.log 2>&1",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-fresh",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json --config.directories.output=dist-admin-fresh > admin-build-fresh.log 2>&1",
+			"isBackground": false
+		},
+		{
+			"label": "assemble-admin-portable",
+			"type": "shell",
+			"command": "$dest = Join-Path $PWD 'dist-admin\\win-unpacked\\resources\\app'; if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }; New-Item -ItemType Directory -Path $dest -Force | Out-Null; Copy-Item 'main-admin.js','preload-admin.js','preload.js','index.html','server.js' -Destination $dest -Force; Copy-Item 'admin','css','js','data','mobile','assets' -Destination $dest -Recurse -Force; $pkg = @{ name='gymkiosk-admin-portable'; version='1.0.0'; main='main-admin.js' } | ConvertTo-Json; Set-Content -Path (Join-Path $dest 'package.json') -Value $pkg -Encoding UTF8; Copy-Item (Join-Path $PWD 'dist-admin\\win-unpacked\\electron.exe') (Join-Path $PWD 'dist-admin\\win-unpacked\\GymKiosk Admin.exe') -Force; Write-Output 'PORTABLE_ADMIN_ASSEMBLED'",
+			"isBackground": false
+		},
+		{
+			"label": "copy-admin-exe",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Copy-Item -Path \"dist-admin/win-unpacked/electron.exe\" -Destination \"dist-admin/win-unpacked/GymKiosk Admin.exe\" -Force"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-fresh",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"admin-builder.json",
+				"--config.directories.output=dist-admin-installer"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "probe-write-file",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Content -Path \"task-probe.txt\" -Value \"ok\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-npx",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"electron-builder",
+				"--win",
+				"nsis",
+				"--config",
+				"admin-builder.json",
+				"--config.directories.output=dist-admin-installer"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "install-electron-builder",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install",
+				"--save-dev",
+				"electron-builder@24.13.3"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "npm-version-check",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"-v"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "stop-electron-processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process | Where-Object { $_.Name -match 'electron|GymKiosk' } | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Output 'STOPPED'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "stop-electron-procs-2",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/IM",
+				"electron.exe",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "flush-output-1",
+			"type": "shell",
+			"command": "echo",
+			"args": [
+				"done"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-fresh2",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"admin-builder.json",
+				"--config.directories.output=dist-admin-installer"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "flush-output-2",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"-v"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-default",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build:admin"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "npm-install-full",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "flush-output-3",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"-v"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-final",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build:admin"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-dir-direct",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win dir --config admin-builder.json",
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-portable",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win portable --config kiosk-builder.json",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-1.0.1-fresh-output",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.directories.output=dist-admin-installer-1.0.1 --config.win.signAndEditExecutable=false",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-1.0.1-log",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.directories.output=dist-admin-installer-1.0.1 --config.win.signAndEditExecutable=false > admin-build-1.0.1.log 2>&1; Write-Output BUILD_DONE",
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-1.0.1-r2",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.directories.output=dist-admin-installer-1.0.1-r2 --config.win.signAndEditExecutable=false > admin-build-1.0.1-r2.log 2>&1; Write-Output BUILD_DONE",
+			"isBackground": false
+		},
+		{
+			"label": "camera-access-check-electron",
+			"type": "shell",
+			"command": "node ./node_modules/electron/cli.js ./scripts/camera-check.cjs",
+			"isBackground": false
+		},
+		{
+			"label": "camera-access-check-electron-secure",
+			"type": "shell",
+			"command": "node ./node_modules/electron/cli.js ./scripts/camera-check.cjs",
+			"isBackground": false
+		},
+		{
+			"label": "build-install-set-now",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"release:install-set"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "cleanup-install-set-locks",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process | Where-Object { $_.Name -match 'electron|GymKiosk|node' } | Stop-Process -Force -ErrorAction SilentlyContinue; Remove-Item 'C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-admin-installer\\win-unpacked' -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item 'C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\\win-unpacked' -Recurse -Force -ErrorAction SilentlyContinue; Write-Output 'CLEANED_OK'"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "cleanup-install-set-locks-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$procs = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -match \"electron|node|GymKiosk\" }; if ($procs) { $procs | Stop-Process -Force -ErrorAction SilentlyContinue }; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-admin-installer\\win-unpacked\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\\win-unpacked\" -Recurse -Force -ErrorAction SilentlyContinue; Write-Output \"CLEANED_OK\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "cleanup-install-set-locks-3",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$procs = Get-Process electron,node,GymKiosk -ErrorAction SilentlyContinue; if ($procs) { $procs | Stop-Process -Force -ErrorAction SilentlyContinue }; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-admin-installer\\win-unpacked\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\\win-unpacked\" -Recurse -Force -ErrorAction SilentlyContinue; Write-Output \"CLEANED_OK\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-install-set-now-2",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"release:install-set"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-install-set-with-log",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"npm.cmd run release:install-set *> release-install-set.log; $code=$LASTEXITCODE; Write-Output \"EXITCODE:$code\"; Get-Content release-install-set.log -Tail 120"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-v1.0.3-freshpath",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"admin-builder.json",
+				"--config.directories.output=C:/Users/RDP-KIOSK/OneDrive/Desktop/installs/dist-admin-installer-v1.0.3-fresh",
+				"--config.win.signAndEditExecutable=false"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-installer-v1.0.3-freshpath-log",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"node ./node_modules/electron-builder/cli.js --win nsis --config admin-builder.json --config.directories.output=C:/Users/RDP-KIOSK/OneDrive/Desktop/installs/dist-admin-installer-v1.0.3-fresh2 --config.win.signAndEditExecutable=false *> admin-v103-fresh2.log; $code=$LASTEXITCODE; Write-Output \"EXITCODE:$code\"; Get-Content admin-v103-fresh2.log -Tail 80"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-installer-v1.0.3-freshpath-log",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"node ./node_modules/electron-builder/cli.js --win nsis --config kiosk-builder.json --config.directories.output=C:/Users/RDP-KIOSK/OneDrive/Desktop/installs/dist-kiosk-installer-v1.0.3-fresh --config.win.signAndEditExecutable=false > kiosk-v103-fresh.log 2>&1 & echo EXITCODE:%errorlevel% & type kiosk-v103-fresh.log"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-installer-v1.0.3-r3-logdone",
+			"type": "shell",
+			"command": "node ./node_modules/electron-builder/cli.js --win nsis --config kiosk-builder.json --config.directories.output=dist-kiosk-installer-v1.0.3-r3 --config.win.signAndEditExecutable=false > kiosk-build-v103-r3.log 2>&1; Write-Output BUILD_DONE",
+			"isBackground": false
+		},
+		{
+			"label": "check-builder-processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,electron,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-builder-processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,electron,makensis,app-builder -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Write-Output \"PROCESSES_KILLED\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "remove-build-output-folders",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-admin-installer\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.3\" -Recurse -Force -ErrorAction SilentlyContinue; Write-Output \"OUTPUT_CLEANED\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-install-set-clean-retry",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"release:install-set"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-nsis-process",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process makensis,node -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-nsis-process-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process makensis,node -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Sort-Object Id | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "inspect-node-commandlines",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' } | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "inspect-node-commandlines-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-CimInstance Win32_Process | Where-Object { $_.Name -like \"node*\" } | Select-Object ProcessId,ParentProcessId,CommandLine | Format-List"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "inspect-node-commandlines-3",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node -ErrorAction SilentlyContinue | ForEach-Object { Get-CimInstance Win32_Process -Filter \"ProcessId = $($_.Id)\" | Select-Object ProcessId,ParentProcessId,CommandLine } | Format-List"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "hard-stop-node-electron",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/IM",
+				"node.exe",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-admin-v103-standard",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"build:admin"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-node-after-admin-build",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-node-after-admin-build-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "clone-latest-complete-install-set",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$src='C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2'; $dst='C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2-r1'; if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }; Copy-Item $src $dst -Recurse -Force; Write-Output \"CREATED:$dst\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "clone-latest-complete-install-set-cmd",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"if exist \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2-r1\" rmdir /s /q \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2-r1\" & xcopy \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2\" \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\gymkiosk-install-set-v1.0.2-r1\\\" /E /I /Y & echo CREATED"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run-clone-install-set-script",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/clone-install-set.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-node-electron-for-kiosk-build",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/IM",
+				"node.exe",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-electron-for-kiosk-build",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/IM",
+				"electron.exe",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "clean-kiosk-output-folders",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer-v1.0.3-fresh\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\GymKioskApp\\dist-kiosk-installer-v1.0.3-r3\" -Recurse -Force -ErrorAction SilentlyContinue; Write-Output \"KIOSK_OUTPUT_CLEANED\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-v103-official",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"build:kiosk"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-builder-proc-after-kiosk-start",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-builder-proc-after-kiosk-start-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-kiosk-build-progress-1",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime | Sort-Object Id | Format-Table -AutoSize; Get-ChildItem \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\" -ErrorAction SilentlyContinue | Select-Object Name,LastWriteTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-kiosk-build-progress-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,CPU,StartTime | Sort-Object Id | Format-Table -AutoSize; Get-ChildItem \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\" -ErrorAction SilentlyContinue | Select-Object Name,LastWriteTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-stuck-node-6688",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/PID",
+				"6688",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-stuck-node-8144",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/PID",
+				"8144",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-v103-r4-fresh-output",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"kiosk-builder.json",
+				"--config.directories.output=C:/Users/RDP-KIOSK/OneDrive/Desktop/installs/dist-kiosk-installer-v1.0.3-r4",
+				"--config.win.signAndEditExecutable=false"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-r4-builder-process",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-r4-progress-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize; Get-ChildItem \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer-v1.0.3-r4\" -ErrorAction SilentlyContinue | Select-Object Name,LastWriteTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "inspect-node-2536-cmdline",
+			"type": "shell",
+			"command": "wmic",
+			"args": [
+				"process",
+				"where",
+				"processid=2536",
+				"get",
+				"CommandLine,ProcessId",
+				"/format:list"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-kiosk-process-now",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check-kiosk-process-now-2",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Get-Process node,makensis -ErrorAction SilentlyContinue | Select-Object Name,Id,CPU,StartTime | Format-Table -AutoSize; Get-ChildItem \"C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-kiosk-installer\" -ErrorAction SilentlyContinue | Select-Object Name,Length,LastWriteTime | Format-Table -AutoSize"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-stuck-kiosk-node-4860",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/PID",
+				"4860",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "kill-stuck-kiosk-node-16372",
+			"type": "shell",
+			"command": "taskkill",
+			"args": [
+				"/F",
+				"/PID",
+				"16372",
+				"/T"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "build-kiosk-v103-localdisk-output",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/electron-builder/cli.js",
+				"--win",
+				"nsis",
+				"--config",
+				"kiosk-builder.json",
+				"--config.directories.output=C:/GymBuildTemp/dist-kiosk-installer-v1.0.3",
+				"--config.win.signAndEditExecutable=false"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assemble-install-set-v1.0.3-true",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$version='1.0.3'; $root='C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs'; $out=Join-Path $root \"gymkiosk-install-set-v$version\"; $adminSrc='C:\\Users\\RDP-KIOSK\\OneDrive\\Desktop\\installs\\dist-admin-installer\\GymKiosk-Admin-v1.0.3-Setup.exe'; $kioskSrc='C:\\GymBuildTemp\\dist-kiosk-installer-v1.0.3\\RDP-GYM-v1.0.3-Setup.exe'; if (!(Test-Path $adminSrc)) { throw \"Missing admin installer: $adminSrc\" }; if (!(Test-Path $kioskSrc)) { throw \"Missing kiosk installer: $kioskSrc\" }; Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Path (Join-Path $out 'admin') -Force | Out-Null; New-Item -ItemType Directory -Path (Join-Path $out 'kiosk') -Force | Out-Null; $adminDst=Join-Path $out ('admin\\' + [System.IO.Path]::GetFileName($adminSrc)); $kioskDst=Join-Path $out ('kiosk\\' + [System.IO.Path]::GetFileName($kioskSrc)); Copy-Item $adminSrc $adminDst -Force; Copy-Item $kioskSrc $kioskDst -Force; $adminHash=(Get-FileHash $adminDst -Algorithm SHA256).Hash.ToLower(); $kioskHash=(Get-FileHash $kioskDst -Algorithm SHA256).Hash.ToLower(); Set-Content -Path ($adminDst + '.sha256.txt') -Value \"$adminHash  $([System.IO.Path]::GetFileName($adminDst))\" -Encoding utf8; Set-Content -Path ($kioskDst + '.sha256.txt') -Value \"$kioskHash  $([System.IO.Path]::GetFileName($kioskDst))\" -Encoding utf8; $created=(Get-Date).ToString('o'); $readme=@('GymKiosk Install Set',\"Version: $version\",(\"Created: \" + $created),'','This folder contains the Windows installers for both parts of the app:','- GymKiosk Admin: admin/' + [System.IO.Path]::GetFileName($adminDst),'- RDP-GYM Kiosk: kiosk/' + [System.IO.Path]::GetFileName($kioskDst),'','Install whichever apps you need on the target machine. For a full deployment, install both.'); Set-Content -Path (Join-Path $out 'INSTALL_SET_README.txt') -Value $readme -Encoding utf8; $manifest=[ordered]@{version=$version; createdAt=$created; entries=@(@{target='admin'; label='GymKiosk Admin'; installerName=[System.IO.Path]::GetFileName($adminDst); installerPath=$adminDst; hash=$adminHash; hashFilePath=$adminDst+'.sha256.txt'}, @{target='kiosk'; label='RDP-GYM Kiosk'; installerName=[System.IO.Path]::GetFileName($kioskDst); installerPath=$kioskDst; hash=$kioskHash; hashFilePath=$kioskDst+'.sha256.txt'})}; $manifest | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $out 'install-set-manifest.json') -Encoding utf8; Write-Output \"INSTALL_SET_READY:$out\""
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run-assemble-install-set-v103",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"scripts/assemble-install-set-v103.ps1"
+			],
+			"isBackground": false
+		}
+	]
+}

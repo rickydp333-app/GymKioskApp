@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Favorites - RDPs STRENGTH & CONDITIONING</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    header {
+      text-align: center;
+      padding: 24px 0;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 24px;
+    }
+
+    .brand-logo {
+      width: 330px;
+      height: auto;
+      margin: 0 auto 12px;
+      display: block;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .favorites-header {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .favorites-header strong {
+      color: var(--color-blue);
+      display: block;
+      margin-top: 8px;
+    }
+
+    .exercise-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .exercise-item {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .exercise-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
+      border-color: rgba(212, 175, 55, 0.25);
+    }
+
+    .exercise-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+
+    .exercise-name {
+      flex: 1;
+    }
+
+    .exercise-name h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .exercise-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .exercise-details {
+      display: none;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding-top: 8px;
+      border-top: 1px solid rgba(212, 175, 55, 0.1);
+    }
+
+    .exercise-item.expanded .exercise-details {
+      display: block;
+    }
+
+    .error-message {
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      color: #ff6b6b;
+      padding: 16px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    ol {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+
+      .exercise-header {
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>RDP's STRENGTH and CONDITIONING</h1>
+    </header>
+
+    <div id="loadingState" class="loading">
+      <div class="spinner"></div>
+      <p>Loading your favorites...</p>
+    </div>
+
+    <div id="errorState" style="display: none;">
+      <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <div id="favoritesState" style="display: none;">
+      <div class="favorites-header">
+        <strong id="username"></strong>
+      </div>
+
+      <ul class="exercise-list" id="exerciseList"></ul>
+    </div>
+  </div>
+
+  <script>
+    let favoritesData = null;
+    const favoritesId = window.location.pathname.split('/').pop();
+
+    async function loadFavorites() {
+      try {
+        const response = await fetch(`/api/favorites/${favoritesId}`);
+        if (!response.ok) throw new Error('Favorites not found');
+
+        const result = await response.json();
+        favoritesData = result.data;
+
+        displayFavorites(result);
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function displayFavorites(result) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('favoritesState').style.display = 'block';
+
+      if (result.username) {
+        document.getElementById('username').textContent = `${result.username}'s Favorite Exercises`;
+      }
+
+      const exerciseList = document.getElementById('exerciseList');
+      exerciseList.innerHTML = '';
+
+      if (!favoritesData.exercises || favoritesData.exercises.length === 0) {
+        exerciseList.innerHTML = '<li style="text-align: center; color: var(--text-muted); padding: 20px;">No favorite exercises yet.</li>';
+        return;
+      }
+
+      favoritesData.exercises.forEach((ex, idx) => {
+        const li = document.createElement('li');
+        li.className = 'exercise-item';
+        
+        // Format primary and secondary muscles
+        const primaryMuscles = Array.isArray(ex.primary) ? ex.primary.join(', ') : (ex.primary || 'Primary');
+        const secondaryMuscles = Array.isArray(ex.secondary) && ex.secondary.length > 0 
+          ? `Secondary: ${ex.secondary.join(', ')}` 
+          : '';
+        
+        // Format howTo steps
+        let howToSteps = '';
+        if (ex.howTo && Array.isArray(ex.howTo)) {
+          howToSteps = '<p><strong>How to perform:</strong></p><ol style="margin: 8px 0; padding-left: 20px;">';
+          ex.howTo.forEach(step => {
+            howToSteps += `<li style="margin-bottom: 6px;">${step}</li>`;
+          });
+          howToSteps += '</ol>';
+        }
+        
+        li.innerHTML = `
+          <div class="exercise-header" onclick="toggleExpanded(this.parentElement)">
+            <div class="exercise-name">
+              <h3>${ex.name}</h3>
+              <p class="exercise-meta">${primaryMuscles}</p>
+            </div>
+          </div>
+          <div class="exercise-details">
+            ${howToSteps}
+            ${secondaryMuscles ? `<p><strong>Muscles:</strong> ${secondaryMuscles}</p>` : ''}
+            ${ex.description ? `<p><strong>Additional Notes:</strong> ${ex.description}</p>` : ''}
+          </div>
+        `;
+        exerciseList.appendChild(li);
+      });
+    }
+
+    function toggleExpanded(element) {
+      element.classList.toggle('expanded');
+    }
+
+    function showError(message) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'block';
+      document.getElementById('errorMessage').textContent = `Error: ${message}`;
+    }
+
+    // Load favorites on page load
+    loadFavorites();
+  </script>
+</body>
+</html>

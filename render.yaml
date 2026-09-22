@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: gymkiosk-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run server
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production

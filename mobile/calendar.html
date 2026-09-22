@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Calendar - RDPs STRENGTH & CONDITIONING</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    header {
+      text-align: center;
+      padding: 24px 0;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 24px;
+    }
+    .brand-logo {
+      width: 300px;
+      height: auto;
+      margin: 0 auto 12px;
+      display: block;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
+    }
+    h1 {
+      font-size: 26px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: var(--text-secondary);
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .date-card {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+    .date-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-gold);
+      margin: 0 0 10px 0;
+    }
+    .section-title {
+      font-size: 14px;
+      color: var(--color-blue);
+      margin: 12px 0 6px 0;
+      font-weight: 600;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-right: 6px;
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--text-secondary);
+    }
+    ul {
+      margin: 6px 0 0 16px;
+      padding: 0;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .meal-item {
+      padding: 10px 12px;
+      background: rgba(212, 175, 55, 0.1);
+      border-left: 3px solid var(--color-gold);
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+    .meal-name { font-weight: 600; color: var(--text-primary); }
+    .meal-focus { font-size: 12px; color: var(--text-muted); }
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 20px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>RDP's STRENGTH and CONDITIONING</h1>
+      <div class="subtitle" id="calendarSubtitle">Loading schedule…</div>
+    </header>
+
+    <div id="calendarContent" class="loading">
+      <div class="spinner"></div>
+      <div style="margin-top: 12px;">Fetching your calendar…</div>
+    </div>
+  </div>
+
+  <script>
+    const calendarContent = document.getElementById('calendarContent');
+    const calendarSubtitle = document.getElementById('calendarSubtitle');
+    const calendarId = window.location.pathname.split('/').pop();
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    function renderCalendar(data) {
+      const workouts = data.workouts || {};
+      const meals = data.meals || {};
+      const dates = Array.from(new Set([...Object.keys(workouts), ...Object.keys(meals)])).sort();
+
+      if (!dates.length) {
+        calendarContent.innerHTML = '<div class="empty-state">No saved workouts or meal plans yet.</div>';
+        return;
+      }
+
+      const cards = dates.map(dateStr => {
+        const workout = workouts[dateStr];
+        const mealPlan = meals[dateStr];
+
+        let workoutHtml = '';
+        if (workout) {
+          const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
+          const exerciseItems = exercises.map(ex => `<li>${ex.name || ex}</li>`).join('');
+          const metaTags = [workout.difficulty, workout.focusMuscle].filter(Boolean).map(tag => `<span class="tag">${tag}</span>`).join('');
+          workoutHtml = `
+            <div class="section-title">💪 Workout</div>
+            ${metaTags}
+            ${exerciseItems ? `<ul>${exerciseItems}</ul>` : '<div class="empty-state">No exercises listed.</div>'}
+          `;
+        }
+
+        let mealsHtml = '';
+        if (mealPlan && mealPlan.meals) {
+          const mealLabels = {
+            breakfast: '🌅 Breakfast',
+            lunch: '🍽️ Lunch',
+            dinner: '🍴 Dinner',
+            snacks: '🥜 Snacks',
+            preWorkout: '⚡ Pre-Workout',
+            postWorkout: '💪 Post-Workout'
+          };
+          const mealItems = Object.keys(mealPlan.meals).map(key => {
+            const meal = mealPlan.meals[key];
+            if (!meal || !meal.name) return '';
+            return `
+              <div class="meal-item">
+                <div class="meal-name">${mealLabels[key] || key} — ${meal.name}</div>
+                ${meal.focus ? `<div class="meal-focus">${meal.focus}</div>` : ''}
+              </div>
+            `;
+          }).join('');
+
+          mealsHtml = `
+            <div class="section-title">🍽️ Meal Plan</div>
+            ${mealItems || '<div class="empty-state">No meals listed.</div>'}
+          `;
+        }
+
+        return `
+          <div class="date-card">
+            <div class="date-title">${formatDate(dateStr)}</div>
+            ${workoutHtml || ''}
+            ${mealsHtml || ''}
+          </div>
+        `;
+      }).join('');
+
+      calendarContent.innerHTML = cards;
+    }
+
+    async function loadCalendar() {
+      try {
+        const response = await fetch(`/api/calendar/${calendarId}`);
+        if (!response.ok) {
+          throw new Error('Calendar not found');
+        }
+        const payload = await response.json();
+        calendarSubtitle.textContent = `${payload.userName || 'Your'} schedule`;
+        renderCalendar(payload.data || {});
+      } catch (error) {
+        calendarSubtitle.textContent = 'Unable to load calendar';
+        calendarContent.innerHTML = `<div class="empty-state">${error.message}</div>`;
+      }
+    }
+
+    loadCalendar();
+  </script>
+</body>
+</html>

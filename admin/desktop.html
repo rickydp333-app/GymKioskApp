@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gym Kiosk Admin Desktop</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="./desktop.css" />
+</head>
+<body>
+  <div id="adminDesktopApp" class="admin-desktop-shell">
+    <header class="admin-desktop-header">
+      <h1 class="title">Gym Kiosk Admin Desktop</h1>
+      <p class="admin-desktop-subtitle">Operational Control Center</p>
+    </header>
+
+    <section class="admin-desktop-controls glass-card">
+      <h2 class="title">Controls</h2>
+      <div class="admin-desktop-actions-organized">
+        <div class="admin-group">
+          <div class="admin-group-label">Kiosk Controls</div>
+          <button id="startKioskBtn" class="primary-btn">▶ Start / Focus Kiosk App</button>
+          <button id="openKioskAdminBtn" class="primary-btn">🛠 Open Kiosk Admin Panel</button>
+          <button id="exitKioskBtn" class="primary-btn">🛑 Exit App</button>
+          <button id="shutdownKioskBtn" class="primary-btn">⏻ Shutdown Kiosk App</button>
+        </div>
+        <div class="admin-group">
+          <div class="admin-group-label">Server & QR</div>
+          <button id="serverQrStatusBtn" class="primary-btn">📶 Server/QR Status</button>
+          <button id="openReportsBtn" class="primary-btn">📊 Open Reports Panel</button>
+        </div>
+        <div class="admin-group">
+          <div class="admin-group-label">App Settings</div>
+          <button id="toggleStartupBtn" class="primary-btn">🚀 Startup: ON</button>
+        </div>
+      </div>
+      <p id="adminDesktopStatus" class="admin-desktop-status">Ready.</p>
+    </section>
+
+    <section id="reportsPanel" class="glass-card hidden">
+      <h2 class="title">Reports</h2>
+      <div class="report-button-grid">
+        <button class="back-btn report-btn" data-report="error-logs">⚠ Error Logs</button>
+        <button class="back-btn report-btn" data-report="admin-audit">🧾 Admin Audit Log</button>
+        <button class="back-btn report-btn" data-report="workout-usage">💪 Workout Usage</button>
+        <button class="back-btn report-btn" data-report="user-activity">👥 User Activity</button>
+        <button class="back-btn report-btn" data-report="system-health">🖥 System Health</button>
+      </div>
+      <div class="report-export-actions">
+        <button id="exportJsonBtn" class="primary-btn">📤 Export Current Report (JSON)</button>
+        <button id="exportCsvBtn" class="primary-btn">📤 Export Current Report (CSV)</button>
+      </div>
+      <pre id="reportOutput" class="report-output">Select a report button to load data.</pre>
+    </section>
+
+    <section class="glass-card">
+      <h2 class="title">Suggested Next Buttons</h2>
+      <ul class="suggestion-list">
+        <li>🧰 Backup Data Now</li>
+        <li>📤 Export Reports (CSV/JSON)</li>
+        <li>🔄 Restart Server Only</li>
+        <li>🛑 Stop Kiosk App</li>
+        <li>🧪 Run Operational Test Suite</li>
+      </ul>
+    </section>
+  </div>
+
+  <div id="adminPinModalDesktop" class="modal">
+    <div class="modal-card">
+      <h3>Admin Access</h3>
+      <div id="adminPinDisplayDesktop" class="pin-display">••••</div>
+      <div class="keypad">
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+        <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+        <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+        <button data-key="clear">C</button><button data-key="0">0</button><button data-key="ok">OK</button>
+      </div>
+      <p class="admin-desktop-help">Enter the same Admin PIN used in kiosk mode.</p>
+    </div>
+  </div>
+
+  <script src="./desktop.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "appId": "com.rdp.gymkiosk.kiosk",
+  "productName": "RDP-GYM",
+  "files": [
+    "**/*",
+    "!admin/**"
+  ],
+  "directories": {
+    "output": "../installs/dist-kiosk-installer",
+    "buildResources": "assets"
+  },
+  "extraMetadata": {
+    "main": "main.js"
+  },
+  "win": {
+    "icon": "assets/branding/logo.png",
+    "target": [
+      "nsis"
+    ],
+    "artifactName": "RDP-GYM-v${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "RDP-GYM"
+  }
+}

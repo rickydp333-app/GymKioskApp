@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Exercises</title>
+</head>
+<body>
+  <h1>Testing Exercise Data Load</h1>
+  <div id="result"></div>
+
+  <script src="js/data/exercises.js"></script>
+  <script>
+    console.log('window.LOCAL_EXERCISES:', window.LOCAL_EXERCISES);
+    const result = document.getElementById('result');
+    
+    if (!window.LOCAL_EXERCISES) {
+      result.innerHTML = '<p style="color: red;">❌ LOCAL_EXERCISES not defined</p>';
+    } else {
+      const keys = Object.keys(window.LOCAL_EXERCISES);
+      const counts = keys.map(k => `${k}: ${window.LOCAL_EXERCISES[k]?.length || 0} exercises`);
+      result.innerHTML = '<pre>' + counts.join('\n') + '</pre>';
+    }
+  </script>
+</body>
+</html>

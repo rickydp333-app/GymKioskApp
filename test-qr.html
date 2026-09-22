@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: #f5f7fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      background: rgba(26, 31, 46, 0.8);
+      padding: 40px;
+      border-radius: 20px;
+      border: 2px solid rgba(212, 175, 55, 0.3);
+    }
+    h1 {
+      color: #00d4ff;
+      margin-bottom: 20px;
+    }
+    button {
+      background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0, 212, 255, 0.3);
+    }
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      background: rgba(45, 55, 72, 0.6);
+      border-radius: 10px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 QR Code Generator Test</h1>
+    <p>This tests the QR code generation functionality</p>
+    
+    <button onclick="testQRGeneration()">Generate Test QR Code</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // Copy the generateUUID and QR functions from js/qr.js
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    async function generateQRCode(workoutId, kioskIP) {
+      const workoutUrl = `http://${kioskIP}:3001/workout/${workoutId}`;
+      
+      // Use QR server API for simple QR generation
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workoutUrl)}&color=f5f7fa&bgcolor=1a1f2e`;
+      
+      return { qrCode: qrUrl, workoutUrl };
+    }
+
+    async function testQRGeneration() {
+      try {
+        const workoutId = generateUUID();
+        const kioskIP = window.location.hostname || 'localhost';
+        
+        console.log('Generating QR for workout:', workoutId);
+        console.log('Kiosk IP:', kioskIP);
+        
+        const { qrCode, workoutUrl } = await generateQRCode(workoutId, kioskIP);
+        
+        console.log('QR Code URL:', qrCode);
+        console.log('Workout URL:', workoutUrl);
+        
+        const result = document.getElementById('result');
+        result.innerHTML = `
+          <h2>✅ QR Code Generated!</h2>
+          <p><strong>Workout ID:</strong> ${workoutId}</p>
+          <p><strong>Kiosk IP:</strong> ${kioskIP}</p>
+          <p><strong>Workout URL:</strong> <code>${workoutUrl}</code></p>
+          <div style="margin: 20px 0; padding: 20px; background: rgba(45, 55, 72, 0.4); border-radius: 10px;">
+            <img src="${qrCode}" alt="QR Code" style="width: 300px; height: 300px; border-radius: 10px;">
+          </div>
+          <button onclick="openWorkoutURL('${workoutUrl}')">📱 Test URL in New Tab</button>
+        `;
+        result.style.display = 'block';
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('result').innerHTML = `<h2>❌ Error: ${error.message}</h2>`;
+        document.getElementById('result').style.display = 'block';
+      }
+    }
+
+    function openWorkoutURL(url) {
+      window.open(url, '_blank');
+    }
+  </script>
+</body>
+</html>

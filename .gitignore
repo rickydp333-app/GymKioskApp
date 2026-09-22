@@ -1,0 +1,24 @@
+node_modules/
+.env
+*.log
+data/*.json
+data/*.bak
+data/*.tmp
+*.zip
+*-Rick’s MacBook Pro.js
+tmp_*
+.tmp_*
+.tool_probe.txt
+task-probe.txt
+bgprobe.txt
+npm-install-exit.txt
+dist-admin/
+dist-admin-fresh/
+dist-admin-installer/
+dist-kiosk/
+assets/videos/
+assets/demo/
+assets/idle/
+dist-*/
+release/
+coverage/

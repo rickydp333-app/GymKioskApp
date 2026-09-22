@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - RDPs STRENGTH & CONDITIONING</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logout-btn {
+      background: rgba(45, 55, 72, 0.6);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      color: var(--text-secondary);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .logout-btn:hover {
+      background: rgba(45, 55, 72, 0.8);
+      border-color: rgba(212, 175, 55, 0.3);
+    }
+
+    .brand-logo {
+      width: 288px;
+      height: auto;
+      margin-right: 12px;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
+    }
+
+    .welcome {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin: 0 0 20px 0;
+    }
+
+    .workout-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .workout-item {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      text-decoration: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .workout-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
+      border-color: rgba(212, 175, 55, 0.25);
+    }
+
+    .workout-info h3 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      color: var(--text-primary);
+    }
+
+    .workout-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .workout-badge {
+      background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .info-box {
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
+
+      header {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img
+          src="/assets/branding/logo.png?v=20260528"
+          onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22900%22 height=%22180%22 viewBox=%220 0 900 180%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 rx=%2220%22 fill=%22%230f172a%22/%3E%3Ctext x=%2250%25%22 y=%2254%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial,sans-serif%22 font-size=%2252%22 font-weight=%22700%22 fill=%22%23d4af37%22%3ERDPs STRENGTH %26 CONDITIONING%3C/text%3E%3C/svg%3E';"
+          alt="RDPs STRENGTH & CONDITIONING"
+          class="brand-logo"
+        />
+        <h1>💪 My Workouts</h1>
+      </div>
+      <a class="logout-btn" onclick="logout()">Logout</a>
+    </header>
+
+    <p class="welcome" id="welcome"></p>
+
+    <div id="loadingState" class="loading">
+      <div class="spinner"></div>
+      <p>Loading your workouts...</p>
+    </div>
+
+    <div id="contentState" style="display: none;">
+
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img
+          src="/assets/branding/logo.png?v=20260528"
+          onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22900%22 height=%22180%22 viewBox=%220 0 900 180%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 rx=%2220%22 fill=%22%230f172a%22/%3E%3Ctext x=%2250%25%22 y=%2254%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial,sans-serif%22 font-size=%2252%22 font-weight=%22700%22 fill=%22%23d4af37%22%3ERDPs STRENGTH %26 CONDITIONING%3C/text%3E%3C/svg%3E';"
+          alt="RDPs STRENGTH & CONDITIONING"
+          class="brand-logo"
+        />
+        <h1>💪 My Workouts</h1>
+      </div>
+      <div class="info-box">
+        📱 Create a workout on the kiosk and scan the QR code with your phone to track progress!
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+        <a href="/builder.html" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%); color: #0a0e14; text-align: center; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.3s; border: none; cursor: pointer;">🧠 Build Workout</a>
+        <a href="/stats" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #d4af37 0%, #b8901f 100%); color: #0a0e14; text-align: center; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 14px; transition: all 0.3s; border: none; cursor: pointer;">📊 View Stats</a>
+      </div>
+
+      <ul class="workout-list" id="workoutList"></ul>
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-text">
+          <strong>No workouts yet</strong><br>
+          Generate a workout on the kiosk to get started!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessionId = localStorage.getItem('sessionId');
+    const email = localStorage.getItem('email');
+
+    if (!sessionId) {
+      window.location.href = '/index.html';
+    }
+
+    document.getElementById('welcome').textContent = `Welcome, ${email}!`;
+
+    async function loadWorkouts() {
+      try {
+        const response = await fetch('/api/user/workouts', {
+          headers: { 'Authorization': `Bearer ${sessionId}` }
+        });
+
+        const result = await response.json();
+
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('contentState').style.display = 'block';
+
+        if (!result.workouts || result.workouts.length === 0) {
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        const workoutList = document.getElementById('workoutList');
+        workoutList.innerHTML = '';
+
+        result.workouts.forEach(workout => {
+          const li = document.createElement('li');
+          const date = new Date(workout.created).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          li.innerHTML = `
+            <a class="workout-item" href="/workout/${workout.id}">
+              <div class="workout-info">
+                <h3>Workout</h3>
+                <p class="workout-meta">${date} • ${workout.exercises} exercises</p>
+              </div>
+              <div class="workout-badge">
+                ${workout.completed ? '✓ Done' : 'In Progress'}
+              </div>
+            </a>
+          `;
+          workoutList.appendChild(li.firstElementChild);
+        });
+
+        document.getElementById('emptyState').style.display = result.workouts.length === 0 ? 'block' : 'none';
+      } catch (error) {
+        console.error('Error loading workouts:', error);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('email');
+      window.location.href = '/index.html';
+    }
+
+    loadWorkouts();
+  </script>
+</body>
+</html>

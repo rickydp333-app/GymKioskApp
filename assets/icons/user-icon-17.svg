@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#ff7043" />
+  <path d="M30 36c12 8 66 8 78 0" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" />
+  <text x="64" y="110" font-size="10" fill="#fff" text-anchor="middle">JumpRope</text>
+</svg>

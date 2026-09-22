@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymKioskApp - Feature Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1e28;
+      color: #f5f7fa;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .test-section {
+      background: #252d3a;
+      border: 1px solid #3d4a5c;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .test-section h2 {
+      margin-top: 0;
+      color: #d4af37;
+    }
+    .test-result {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .test-result.success {
+      background: #10b981;
+      color: white;
+    }
+    .test-result.error {
+      background: #ef4444;
+      color: white;
+    }
+    button {
+      background: #d4af37;
+      color: #0a0e14;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 10px 5px 10px 0;
+    }
+    button:hover {
+      background: #f0c454;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏋️ GymKioskApp - Feature Test</h1>
+
+  <!-- Analytics Module Test -->
+  <div class="test-section">
+    <h2>📊 Analytics Module</h2>
+    <button onclick="testAnalytics()">Test Analytics Functions</button>
+    <div id="analyticsTest"></div>
+  </div>
+
+  <!-- Gamification Module Test -->
+  <div class="test-section">
+    <h2>🏆 Gamification Module</h2>
+    <button onclick="testGamification()">Test Gamification Functions</button>
+    <div id="gamificationTest"></div>
+  </div>
+
+  <!-- Exercise Difficulty Test -->
+  <div class="test-section">
+    <h2>💪 Exercise Difficulty Filtering</h2>
+    <button onclick="testDifficultyFilter()">Test Difficulty Filter</button>
+    <div id="difficultyTest"></div>
+  </div>
+
+  <!-- UI Integration Test -->
+  <div class="test-section">
+    <h2>🎨 UI Integration</h2>
+    <button onclick="testUIIntegration()">Test UI Functions</button>
+    <div id="uiTest"></div>
+  </div>
+
+  <script src="js/data/exercises.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/gamification.js"></script>
+
+  <script>
+    // Mock required functions for testing
+    function getUsers() {
+      return [
+        {
+          username: 'testuser',
+          pin: '1234',
+          workoutHistory: [
+            {
+              date: new Date(Date.now() - 2*24*60*60*1000).toISOString(),
+              duration: 45,
+              muscleGroups: ['chest', 'back'],
+              exercises: ['Push-Up', 'Pull-Up'],
+              completed: true
+            },
+            {
+              date: new Date(Date.now() - 1*24*60*60*1000).toISOString(),
+              duration: 30,
+              muscleGroups: ['legs'],
+              exercises: ['Squat', 'Deadlift'],
+              completed: true
+            }
+          ],
+          currentStreak: 2,
+          badges: [{ id: 'firstWorkout', earnedDate: new Date().toISOString() }]
+        }
+      ];
+    }
+
+    function saveUsers(users) {
+      console.log('Users saved:', users);
+    }
+
+    function addTestResult(containerId, test, result, error = null) {
+      const container = document.getElementById(containerId);
+      const resultDiv = document.createElement('div');
+      resultDiv.className = `test-result ${result ? 'success' : 'error'}`;
+      resultDiv.textContent = `${result ? '✓' : '✗'} ${test}${error ? ': ' + error : ''}`;
+      container.appendChild(resultDiv);
+    }
+
+    function testAnalytics() {
+      const container = 'analyticsTest';
+      document.getElementById(container).innerHTML = '';
+
+      try {
+        window.currentUser = 'testuser';
+        
+        const summary = getAnalyticsSummary('testuser');
+        addTestResult(container, 'getAnalyticsSummary', !!summary);
+        addTestResult(container, 'Total Workouts', summary.totalWorkouts === 2);
+        addTestResult(container, 'Average Duration', summary.averageDuration === 38 || summary.averageDuration === 37);
+        addTestResult(container, 'Current Streak', summary.currentStreak >= 0);
+        addTestResult(container, 'Favorite Muscles', Array.isArray(summary.favoriteGroups));
+
+        const history = getWorkoutHistory('testuser');
+        addTestResult(container, 'getWorkoutHistory', history.length === 2);
+
+        const monthWorkouts = getMonthWorkouts('testuser');
+        addTestResult(container, 'getMonthWorkouts', monthWorkouts >= 0);
+      } catch (error) {
+        addTestResult(container, 'Analytics Module', false, error.message);
+      }
+    }
+
+    function testGamification() {
+      const container = 'gamificationTest';
+      document.getElementById(container).innerHTML = '';
+
+      try {
+        window.currentUser = 'testuser';
+        
+        const badges = getBadges('testuser');
+        addTestResult(container, 'getBadges', Array.isArray(badges));
+
+        const badgeConfig = Object.values(BADGES)[0];
+        addTestResult(container, 'BADGES defined', !!badgeConfig);
+        addTestResult(container, 'Badge has icon', !!badgeConfig.icon);
+        addTestResult(container, 'Badge has condition', typeof badgeConfig.condition === 'function');
+
+        const progress = getAllBadgeProgress('testuser');
+        addTestResult(container, 'getAllBadgeProgress', Array.isArray(progress));
+
+        const motivated = getMotivationalMessage('testuser');
+        addTestResult(container, 'getMotivationalMessage', typeof motivated === 'string' && motivated.length > 0);
+      } catch (error) {
+        addTestResult(container, 'Gamification Module', false, error.message);
+      }
+    }
+
+    function testDifficultyFilter() {
+      const container = 'difficultyTest';
+      document.getElementById(container).innerHTML = '';
+
+      try {
+        if (!window.LOCAL_EXERCISES) {
+          addTestResult(container, 'LOCAL_EXERCISES loaded', false);
+          return;
+        }
+
+        const chestExercises = window.LOCAL_EXERCISES['chest'];
+        addTestResult(container, 'Chest exercises exist', Array.isArray(chestExercises) && chestExercises.length > 0);
+
+        // Check if exercises have difficulty field
+        const hasBeginners = chestExercises.some(e => e.difficulty === 'beginner');
+        const hasIntermediate = chestExercises.some(e => e.difficulty === 'intermediate');
+        const hasAdvanced = chestExercises.some(e => e.difficulty === 'advanced');
+
+        addTestResult(container, 'Has beginner exercises', hasBeginners);
+        addTestResult(container, 'Has intermediate exercises', hasIntermediate);
+        addTestResult(container, 'Has advanced exercises', hasAdvanced);
+
+        // Test filtering function
+        if (typeof filterExercisesByDifficulty === 'function') {
+          const beginners = filterExercisesByDifficulty(chestExercises, 'beginner');
+          const all = filterExercisesByDifficulty(chestExercises, 'all');
+          
+          addTestResult(container, 'filterExercisesByDifficulty works', beginners.length <= all.length);
+          addTestResult(container, 'Beginner filter', beginners.every(e => e.difficulty === 'beginner'));
+        }
+      } catch (error) {
+        addTestResult(container, 'Difficulty Filter', false, error.message);
+      }
+    }
+
+    function testUIIntegration() {
+      const container = 'uiTest';
+      document.getElementById(container).innerHTML = '';
+
+      try {
+        // Check if analytics functions exist
+        addTestResult(container, 'renderAnalyticsScreen exists', typeof renderAnalyticsScreen === 'function');
+        addTestResult(container, 'setupDifficultyFilter exists', typeof setupDifficultyFilter === 'function');
+        addTestResult(container, 'filterExercisesByDifficulty exists', typeof filterExercisesByDifficulty === 'function');
+        
+        // Check HTML elements
+        const analyticsBtn = document.querySelector('[id="analyticsBtn"]');
+        addTestResult(container, 'Analytics button exists in DOM', !!analyticsBtn);
+
+        const analyticsScreen = document.querySelector('[id="analyticsScreen"]');
+        addTestResult(container, 'Analytics screen exists in DOM', !!analyticsScreen);
+
+        const difficultyFilter = document.querySelector('[id="difficultyFilterContainer"]');
+        addTestResult(container, 'Difficulty filter container exists', !!difficultyFilter);
+      } catch (error) {
+        addTestResult(container, 'UI Integration', false, error.message);
+      }
+    }
+
+    // Run tests on load
+    window.addEventListener('load', () => {
+      console.log('Test page loaded');
+      console.log('LOCAL_EXERCISES:', typeof window.LOCAL_EXERCISES);
+      console.log('BADGES:', typeof BADGES);
+    });
+  </script>
+</body>
+</html>

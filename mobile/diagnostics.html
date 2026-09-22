@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Diagnostic Test</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%);
+      color: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: #d4af37;
+      margin-bottom: 30px;
+    }
+
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 900px) {
+      .diagnostic-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(45, 55, 72, 0.6);
+      border: 2px solid rgba(212, 175, 55, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      color: #00d4ff;
+      border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+      padding-bottom: 10px;
+    }
+
+    .status-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .status-good {
+      border-left: 4px solid #00d400;
+      color: #90ee90;
+    }
+
+    .status-bad {
+      border-left: 4px solid #ff6b6b;
+      color: #ff9999;
+    }
+
+    .status-neutral {
+      border-left: 4px solid #ffa500;
+      color: #ffcc99;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 212, 255, 0.3);
+    }
+
+    button.secondary {
+      background: rgba(45, 55, 72, 0.8);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      color: #f5f7fa;
+    }
+
+    .log-section {
+      background: rgba(20, 30, 50, 0.8);
+      border: 2px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      color: #00d4ff;
+    }
+
+    .log-item {
+      margin: 5px 0;
+      padding: 5px;
+    }
+
+    .log-error {
+      color: #ff9999;
+    }
+
+    .log-success {
+      color: #90ee90;
+    }
+
+    .log-info {
+      color: #ffcc99;
+    }
+
+    .workout-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .workout-item {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .workout-item:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-left: 3px solid #00d4ff;
+    }
+
+    .section-title {
+      color: #d4af37;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 GymKiosk QR Code Diagnostics</h1>
+
+    <div class="diagnostic-grid">
+      <!-- Server Status -->
+      <div class="card">
+        <h2>📡 Server Status</h2>
+        <div id="serverStatus"></div>
+        <div class="button-group">
+          <button onclick="checkServerHealth()">Check Server</button>
+          <button onclick="checkDiagnostics()" class="secondary">Full Diagnostics</button>
+        </div>
+      </div>
+
+      <!-- Network Info -->
+      <div class="card">
+        <h2>🌐 Network Configuration</h2>
+        <div id="networkStatus"></div>
+        <div class="button-group">
+          <button onclick="getNetworkIP()">Get Network IP</button>
+          <button onclick="getLocalIP()" class="secondary">Local IP</button>
+        </div>
+      </div>
+
+      <!-- Saved Workouts -->
+      <div class="card">
+        <h2>💾 Saved Workouts</h2>
+        <div id="workoutsList"></div>
+        <div class="button-group">
+          <button onclick="loadWorkouts()">Refresh</button>
+        </div>
+      </div>
+
+      <!-- URL Test -->
+      <div class="card">
+        <h2>🔗 URL Testing</h2>
+        <div id="urlTest"></div>
+        <div class="button-group">
+          <button onclick="testURLs()">Test URLs</button>
+          <button onclick="openDiagnosticsAPI()" class="secondary">Open /api/diagnostics</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">📋 Event Log</div>
+    <div class="log-section" id="eventLog">
+      <div class="log-item log-info">System ready. Click buttons above to run diagnostics.</div>
+    </div>
+  </div>
+
+  <script>
+    let eventLog = [];
+
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = `[${timestamp}] ${message}`;
+      eventLog.push({ time: timestamp, message, type });
+      
+      const logElement = document.getElementById('eventLog');
+      const div = document.createElement('div');
+      div.className = `log-item log-${type}`;
+      div.textContent = logEntry;
+      logElement.appendChild(div);
+      logElement.scrollTop = logElement.scrollHeight;
+
+      // Limit log entries
+      while (eventLog.length > 100) eventLog.shift();
+    }
+
+    async function checkServerHealth() {
+      addLog('Checking server health...');
+      try {
+        const response = await fetch('http://localhost:3001/api/health');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Server is running. Uptime: ${(data.uptime / 60).toFixed(1)} minutes`, 'success');
+          document.getElementById('serverStatus').innerHTML = `
+            <div class="status-item status-good">✓ Server Running</div>
+            <div class="status-item status-good">✓ Port 3001 Active</div>
+            <div class="status-item status-good">Uptime: ${(data.uptime / 60).toFixed(1)} min</div>
+          `;
+        }
+      } catch (error) {
+        addLog(`✗ Server not responding: ${error.message}`, 'error');
+        document.getElementById('serverStatus').innerHTML = `
+          <div class="status-item status-bad">✗ Server Not Running</div>
+          <div class="status-item status-bad">Cannot connect to port 3001</div>
+          <div class="status-item status-neutral">Run: npm run server</div>
+        `;
+      }
+    }
+
+    async function checkDiagnostics() {
+      addLog('Fetching full diagnostics...');
+      try {
+        const response = await fetch('http://localhost:3001/api/diagnostics');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Diagnostics retrieved`, 'success');
+          
+          const serverInfo = `
+            <div class="status-item status-good">✓ Network IP: ${data.server.ipAddress}</div>
+            <div class="status-item status-good">Port: ${data.server.port}</div>
+            <div class="status-item status-good">Workouts Stored: ${data.storage.workoutCount}</div>
+            <div class="status-item status-good">Users: ${data.storage.userCount}</div>
+          `;
+          document.getElementById('serverStatus').innerHTML = serverInfo;
+
+          const networkInfo = `
+            <div class="status-item status-good">Hostname: ${data.networkInfo.hostname}</div>
+            <div class="status-item status-good">Platform: ${data.networkInfo.platform}</div>
+            <div class="status-item status-good">Server IP: ${data.server.ipAddress}</div>
+          `;
+          document.getElementById('networkStatus').innerHTML = networkInfo;
+        }
+      } catch (error) {
+        addLog(`✗ Failed to get diagnostics: ${error.message}`, 'error');
+      }
+    }
+
+    async function getNetworkIP() {
+      addLog('Requesting network IP from server...');
+      try {
+        const response = await fetch('http://localhost:3001/api/info');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Network IP: ${data.ipAddress}`, 'success');
+          document.getElementById('networkStatus').innerHTML = `
+            <div class="status-item status-good">✓ Network IP: ${data.ipAddress}</div>
+            <div class="status-item status-good">Use in QR codes: http://${data.ipAddress}:3001</div>
+          `;
+        }
+      } catch (error) {
+        addLog(`✗ Could not get network IP: ${error.message}`, 'error');
+        document.getElementById('networkStatus').innerHTML = `
+          <div class="status-item status-bad">✗ Server not accessible</div>
+        `;
+      }
+    }
+
+    function getLocalIP() {
+      const ip = window.location.hostname;
+      addLog(`Local IP (browser): ${ip}`);
+      document.getElementById('networkStatus').innerHTML += `
+        <div class="status-item status-neutral">Browser hostname: ${ip}</div>
+      `;
+    }
+
+    async function loadWorkouts() {
+      addLog('Loading saved workouts...');
+      try {
+        const response = await fetch('http://localhost:3001/api/diagnostics');
+        if (response.ok) {
+          const data = await response.json();
+          const workoutsList = document.getElementById('workoutsList');
+          
+          if (data.storage.recentWorkouts.length === 0) {
+            workoutsList.innerHTML = '<div class="status-item status-neutral">No workouts saved yet</div>';
+            addLog('No workouts found');
+          } else {
+            let html = `<div class="workout-list">`;
+            data.storage.recentWorkouts.forEach(w => {
+              html += `
+                <div class="workout-item" onClick="testWorkoutAccess('${w.id}')">
+                  📋 ID: ${w.id.substring(0, 8)}...
+                  <br>Exercises: ${w.exerciseCount}
+                  <br>Created: ${new Date(w.created).toLocaleString()}
+                </div>
+              `;
+            });
+            html += '</div>';
+            workoutsList.innerHTML = html;
+            addLog(`✓ Found ${data.storage.recentWorkouts.length} recent workouts`, 'success');
+          }
+        }
+      } catch (error) {
+        addLog(`✗ Failed to load workouts: ${error.message}`, 'error');
+      }
+    }
+
+    async function testWorkoutAccess(workoutId) {
+      addLog(`Testing access to workout: ${workoutId}...`);
+      try {
+        const response = await fetch(`http://localhost:3001/api/workouts/${workoutId}`);
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Workout accessible! Exercises: ${data.data.exercises.length}`, 'success');
+          addLog(`  QR URL would be: http://[IP]:3001/workout/${workoutId}`, 'info');
+        } else {
+          addLog(`✗ Workout not found (${response.status})`, 'error');
+        }
+      } catch (error) {
+        addLog(`✗ Failed to access workout: ${error.message}`, 'error');
+      }
+    }
+
+    async function testURLs() {
+      addLog('Testing key URLs...');
+      
+      const urls = [
+        { name: 'Server Health', url: 'http://localhost:3001/api/health' },
+        { name: 'Server Info', url: 'http://localhost:3001/api/info' },
+        { name: 'Diagnostics', url: 'http://localhost:3001/api/diagnostics' },
+        { name: 'Home Page', url: 'http://localhost:3001/' }
+      ];
+
+      let results = '';
+      for (const test of urls) {
+        try {
+          const response = await fetch(test.url);
+          results += `<div class="status-item status-good">✓ ${test.name}: ${response.status}</div>`;
+          addLog(`✓ ${test.name}: ${response.status}`, 'success');
+        } catch (error) {
+          results += `<div class="status-item status-bad">✗ ${test.name}: Connection failed</div>`;
+          addLog(`✗ ${test.name}: ${error.message}`, 'error');
+        }
+      }
+
+      document.getElementById('urlTest').innerHTML = results;
+    }
+
+    function openDiagnosticsAPI() {
+      window.open('http://localhost:3001/api/diagnostics', '_blank');
+    }
+
+    // Run initial checks
+    window.addEventListener('load', () => {
+      addLog('Page loaded');
+      checkServerHealth();
+    });
+  </script>
+</body>
+</html>
