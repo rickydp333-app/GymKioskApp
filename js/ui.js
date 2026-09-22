@@ -15,7 +15,7 @@ const DISCLAIMER_ACCEPTANCE_KEY = 'gymKiosk_disclaimerAccepted_v1';
 const SCREENSAVER_AUTO_LOGOUT_KEY = 'gymKiosk_screensaverAutoLogout_v1';
 const SERVER_BASE_OVERRIDE_KEY = 'gymkiosk_server_base_url';
 const LAST_PUBLIC_SERVER_BASE_URL_KEY = 'gymkiosk_public_server_base_url';
-const UI_DEFAULT_SERVER_BASE_URL = 'https://gymkioskapp.onrender.com';
+const UI_DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const UI_DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
 
 // Activity tracking
