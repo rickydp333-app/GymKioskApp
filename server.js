@@ -1190,7 +1190,7 @@ app.get('/api/info', (req, res) => {
 
   res.json({
     server: 'GymKiosk Mobile Server',
-    version: '1.0.0',
+    version: require('./package.json').version,
     port: PORT,
     ipAddress,
     workoutCount: workouts.size,
