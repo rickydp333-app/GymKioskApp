@@ -6,6 +6,8 @@ services:
     buildCommand: npm install
     startCommand: npm run server
     autoDeploy: true
+    domains:
+      - app.rdpsplace.me
     envVars:
       - key: NODE_ENV
         value: production
