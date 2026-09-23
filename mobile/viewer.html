@@ -123,6 +123,16 @@
       border-color: rgba(0, 212, 255, 0.4);
     }
 
+    .exercise-media {
+      display: block;
+      width: 100%;
+      max-height: 280px;
+      object-fit: contain;
+      border-radius: 10px;
+      margin: 0 0 14px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
     .exercise-header {
       display: flex;
       align-items: flex-start;
@@ -429,7 +439,10 @@
               howToSteps += '</ol>';
             }
 
+            const dayExerciseImage = toExerciseImage(dayEx.image, dayExerciseName);
+
             li.innerHTML = `
+              ${dayExerciseImage}
               <div class="exercise-header">
                 <input 
                   type="checkbox" 
@@ -474,7 +487,10 @@
             howToSteps += '</ol>';
           }
 
+          const exerciseImage = toExerciseImage(ex.image, exerciseName);
+
           li.innerHTML = `
+            ${exerciseImage}
             <div class="exercise-header">
               <input 
                 type="checkbox" 
@@ -498,6 +514,16 @@
       });
 
       updateProgress();
+    }
+
+    function toExerciseImage(imagePath, exerciseName) {
+      const rawPath = String(imagePath || '').trim().replace(/\\/g, '/');
+      if (!rawPath || rawPath.includes('..') || !rawPath.startsWith('assets/')) return '';
+      const safeUrl = `/${rawPath.split('/').map(encodeURIComponent).join('/')}`;
+      const safeAlt = String(exerciseName || 'Exercise').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]);
+      return `<img class="exercise-media" src="${safeUrl}" alt="${safeAlt}" onerror="this.remove()">`;
     }
 
     function toggleExpanded(element) {
