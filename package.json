@@ -1,6 +1,6 @@
 {
 	"name": "gym-kiosk-app",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "Gym kiosk and admin desktop application for workout selection and QR sharing.",
 	"author": "RDP Strength and Conditioning",
 	"main": "main.js",
@@ -18,9 +18,9 @@
 		"kiosk:wait": "wait-on tcp:3001 && electron .",
 		"test:smoke": "node tests/smoke-server.cjs",
 		"test:ops": "node tests/ops-regression.cjs",
-		"test:kiosk-ops": "node tests/kiosk-ops.cjs"
-		,"test:security": "node tests/security-regression.cjs"
-		,"test:all": "npm run test:smoke && npm run test:ops && npm run test:kiosk-ops && npm run test:security"
+		"test:kiosk-ops": "node tests/kiosk-ops.cjs",
+		"test:security": "node tests/security-regression.cjs",
+		"test:all": "npm run test:smoke && npm run test:ops && npm run test:kiosk-ops && npm run test:security"
 	},
 	"devDependencies": {
 		"app-builder-bin": "^4.2.0",

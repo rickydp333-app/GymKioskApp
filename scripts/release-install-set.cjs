@@ -2,12 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const asar = require('@electron/asar');
 
 const repoRoot = path.resolve(__dirname, '..');
 const packageJson = require(path.join(repoRoot, 'package.json'));
 const version = packageJson.version || '0.0.0';
 const installsRoot = path.join(repoRoot, '..', 'installs');
 const outputDir = path.join(installsRoot, `gymkiosk-install-set-v${version}`);
+const zipPath = path.join(installsRoot, `gymkiosk-install-set-v${version}.zip`);
 
 const targets = [
   {
@@ -67,6 +69,53 @@ function findInstaller(target) {
   return candidates[0].fullPath;
 }
 
+function verifyPackagedApp(target) {
+  const asarPath = path.join(target.outputDir, 'win-unpacked', 'resources', 'app.asar');
+  if (!fs.existsSync(asarPath)) {
+    throw new Error(`Packaged app archive not found: ${asarPath}`);
+  }
+
+  const files = asar.listPackage(asarPath).map((value) => value.replace(/\\/g, '/'));
+  const required = [
+    '/server.js',
+    '/js/data/exercises.js',
+    '/mobile/viewer.html',
+    '/assets/branding/logo.png',
+    target.name === 'kiosk' ? '/main.js' : '/main-admin.js'
+  ];
+  const missing = required.filter((entry) => !files.includes(entry));
+  const stretchImages = files.filter((entry) => /^\/assets\/stretches\/.+\.png$/i.test(entry));
+
+  if (missing.length) {
+    throw new Error(`${target.label} package is missing: ${missing.join(', ')}`);
+  }
+  if (stretchImages.length < 97) {
+    throw new Error(`${target.label} package contains only ${stretchImages.length} stretch images`);
+  }
+
+  return { stretchImageCount: stretchImages.length, packagedFileCount: files.length };
+}
+
+function cleanTargetBuildArtifacts(target) {
+  if (!fs.existsSync(target.outputDir)) return;
+  const disposableDirectories = ['win-unpacked', 'win-unpacked-DESKTOP-PFRT1LA'];
+  for (const name of disposableDirectories) {
+    fs.rmSync(path.join(target.outputDir, name), { recursive: true, force: true });
+  }
+
+  for (const name of fs.readdirSync(target.outputDir)) {
+    const lowerName = name.toLowerCase();
+    const belongsToCurrentVersion = lowerName.includes(`v${version}`) || lowerName.includes(`-${version}-`);
+    if (belongsToCurrentVersion && (
+      lowerName.endsWith('.exe') ||
+      lowerName.endsWith('.exe.blockmap') ||
+      lowerName.endsWith('.nsis.7z')
+    )) {
+      fs.rmSync(path.join(target.outputDir, name), { force: true });
+    }
+  }
+}
+
 function computeSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
@@ -111,7 +160,17 @@ function writeBundleNotes(entries) {
     'This folder contains the Windows installers for both parts of the app:',
     ...entries.map((entry) => `- ${entry.label}: ${path.join(entry.target, entry.installerName)}`),
     '',
-    'Install whichever apps you need on the target machine. For a full deployment, install both.'
+    'Supported systems: 64-bit Windows 10 and Windows 11.',
+    '',
+    'FULL INSTALLATION',
+    '1. Run the RDP-GYM Kiosk installer from the kiosk folder.',
+    '2. Run the GymKiosk Admin installer from the admin folder.',
+    '3. Start RDP-GYM from the desktop or Start menu.',
+    '4. The app works offline. Connect the computer to the internet when website synchronization or phone QR access is required.',
+    '5. The initial administrator PIN is 3333 and can be changed later from Admin Settings.',
+    '',
+    'The installers include the complete exercise and stretch image library and all app functions.',
+    'The SHA-256 files can be used to confirm that an installer was copied without damage.'
   ];
 
   fs.writeFileSync(readmePath, `${readmeLines.join('\n')}\n`, 'utf8');
@@ -120,18 +179,44 @@ function writeBundleNotes(entries) {
   return { readmePath, manifestPath };
 }
 
+function createZipBundle() {
+  if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true });
+  const result = spawnSync('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    '& { param([string]$source, [string]$destination) Compress-Archive -LiteralPath $source -DestinationPath $destination -CompressionLevel Optimal -Force }',
+    outputDir,
+    zipPath
+  ], { cwd: installsRoot, stdio: 'inherit' });
+
+  if (result.status !== 0 || !fs.existsSync(zipPath)) {
+    throw new Error('Unable to create the complete install-set ZIP');
+  }
+
+  const hash = computeSha256(zipPath);
+  const hashPath = `${zipPath}.sha256.txt`;
+  fs.writeFileSync(hashPath, `${hash}  ${path.basename(zipPath)}\n`, 'utf8');
+  return { zipPath, hash, hashPath };
+}
+
 function main() {
   ensureCleanDirectory(outputDir);
+  targets.forEach(cleanTargetBuildArtifacts);
 
   const entries = [];
   for (const target of targets) {
     console.log(`Building ${target.label} installer...`);
+    cleanTargetBuildArtifacts(target);
     runBuild(target.config);
+    const packageVerification = verifyPackagedApp(target);
     const installerPath = findInstaller(target);
-    entries.push(copyInstaller(target, installerPath));
+    entries.push({ ...copyInstaller(target, installerPath), packageVerification });
+    cleanTargetBuildArtifacts(target);
   }
 
   const { readmePath, manifestPath } = writeBundleNotes(entries);
+  const zipBundle = createZipBundle();
 
   console.log('Install set ready:');
   console.log(`- folder: ${path.relative(repoRoot, outputDir)}`);
@@ -141,6 +226,8 @@ function main() {
   }
   console.log(`- readme: ${path.relative(repoRoot, readmePath)}`);
   console.log(`- manifest: ${path.relative(repoRoot, manifestPath)}`);
+  console.log(`- zip: ${path.relative(repoRoot, zipBundle.zipPath)}`);
+  console.log(`  sha256: ${zipBundle.hash}`);
 }
 
 try {
