@@ -85,6 +85,33 @@ async function run() {
     const getWorkoutRes = await fetch(`${BASE_URL}/api/workouts/${workoutId}`);
     assert.strictEqual(getWorkoutRes.status, 200, 'get workout should return 200');
 
+    const stretchId = `stretch-${Date.now()}`;
+    const createStretchRes = await fetch(`${BASE_URL}/api/workouts/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workoutId: stretchId,
+        data: {
+          type: 'stretch',
+          title: 'Back Stretch Routine',
+          bodyPart: 'back',
+          user: 'smoke-test',
+          created: new Date().toISOString(),
+          exercises: [{ name: 'Child’s Pose', howTo: ['Hold gently'], primary: ['Back'] }]
+        }
+      })
+    });
+    assert.strictEqual(createStretchRes.status, 200, 'create stretch routine should return 200');
+
+    const getStretchRes = await fetch(`${BASE_URL}/api/workouts/${stretchId}`);
+    assert.strictEqual(getStretchRes.status, 200, 'get stretch routine should return 200');
+    const stretchPayload = await getStretchRes.json();
+    assert.strictEqual(stretchPayload.data.type, 'stretch', 'stretch routine type should be preserved');
+
+    const stretchPageRes = await fetch(`${BASE_URL}/stretch/${stretchId}`);
+    assert.strictEqual(stretchPageRes.status, 200, 'stretch phone page should return 200');
+    assert.ok((await stretchPageRes.text()).includes('loadingText'), 'stretch route should serve the mobile viewer');
+
     const email = `smoke-${Date.now()}@example.com`;
     const password = 'SmokeTest123!';
 
@@ -109,15 +136,27 @@ async function run() {
     });
     assert.strictEqual(rejectedSync.status, 401, 'website sync should reject an invalid credential');
 
+    const syncedWorkoutId = `synced-${Date.now()}`;
     const acceptedSync = await fetch(`${BASE_URL}/api/kiosk-sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer smoke-sync-key-1234567890' },
       body: JSON.stringify({
         kioskId: 'smoke-kiosk',
-        events: [{ id: 1, event_type: 'workout.created', payload: { workoutId } }]
+        events: [{
+          id: 1,
+          event_type: 'workout.created',
+          payload: {
+            workoutId: syncedWorkoutId,
+            data: { user: 'sync-test', exercises: [{ name: 'Squat', reps: 5, sets: 5 }] },
+            created: new Date().toISOString()
+          }
+        }]
       })
     });
     assert.strictEqual(acceptedSync.status, 200, 'website sync should accept a valid signed batch');
+
+    const syncedWorkoutRes = await fetch(`${BASE_URL}/api/workouts/${syncedWorkoutId}`);
+    assert.strictEqual(syncedWorkoutRes.status, 200, 'synced workout should be available to QR links');
 
     console.log('✅ Smoke test passed');
   } catch (error) {

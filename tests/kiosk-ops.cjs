@@ -47,12 +47,44 @@ function testStartupLauncherSafetyFlags() {
   );
 }
 
+function testCreateUserKeyboardHandlers() {
+  const uiCode = read('js/ui.js');
+
+  assert.ok(
+    uiCode.includes("document.querySelectorAll('.keyboard-key').forEach"),
+    'Create User and search keyboard buttons should have click handlers'
+  );
+  assert.ok(
+    uiCode.includes("input.id === 'newUserPin'") && uiCode.includes("!/^\\d$/.test(key)"),
+    'Create User PIN keyboard input should accept digits only'
+  );
+  assert.ok(
+    uiCode.includes('document.activeKeyboardInput = input'),
+    'Create User keyboard should track the active username or PIN input'
+  );
+}
+
+function testStretchQrSharing() {
+  const uiCode = read('js/ui.js');
+  const qrCode = read('js/qr.js');
+  const serverCode = read('server.js');
+  const viewerCode = read('mobile/viewer.html');
+
+  assert.ok(uiCode.includes('Send Stretches to Phone with QR Code'), 'stretch screen should expose QR sharing');
+  assert.ok(uiCode.includes("displayQRCodeModal(stretchId, kioskIP, { type: 'stretch' })"), 'stretch sharing should open a stretch QR');
+  assert.ok(qrCode.includes("contentType === 'stretch' ? 'stretch' : 'workout'"), 'stretch QR should use the stretch URL');
+  assert.ok(serverCode.includes("app.get('/stretch/:workoutId'"), 'server should expose the stretch phone route');
+  assert.ok(viewerCode.includes("workoutData?.type === 'stretch'"), 'phone viewer should render stretch-specific labels');
+}
+
 function run() {
   try {
     testSingleInstanceLock();
     testDevtoolsGatedForProduction();
     testElectronSandboxAndAdminAuthorization();
     testStartupLauncherSafetyFlags();
+    testCreateUserKeyboardHandlers();
+    testStretchQrSharing();
     console.log('✅ Kiosk operational policy tests passed');
   } catch (error) {
     console.error('❌ Kiosk operational policy tests failed:', error.message);

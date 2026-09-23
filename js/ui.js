@@ -16,11 +16,12 @@ const SCREENSAVER_AUTO_LOGOUT_KEY = 'gymKiosk_screensaverAutoLogout_v1';
 const SERVER_BASE_OVERRIDE_KEY = 'gymkiosk_server_base_url';
 const LAST_PUBLIC_SERVER_BASE_URL_KEY = 'gymkiosk_public_server_base_url';
 const LEGACY_PUBLIC_SERVER_BASE_URL = 'https://api.rdpsstrengthandconditioning.ca';
-const UI_DEFAULT_SERVER_BASE_URL = 'https://gymkioskapp.onrender.com';
+const UI_DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const UI_DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
 const ALLOWED_PUBLIC_SERVER_HOSTS = new Set([
   'www.rdpsstrengthandconditioning.ca',
   'rdpsstrengthandconditioning.ca',
+  'app.rdpsplace.me',
   'gymkioskapp.onrender.com'
 ]);
 
@@ -3356,7 +3357,11 @@ async function saveWorkoutToServer(workoutId, workoutData) {
         data: {
           exercises: workoutData.exercises, // Pass full exercise objects with howTo, primary, secondary, etc
           created: workoutData.created,
-          user: workoutData.user
+          user: workoutData.user,
+          type: workoutData.type || 'workout',
+          title: workoutData.title || '',
+          muscle: workoutData.muscle || '',
+          bodyPart: workoutData.bodyPart || ''
         }
       })
     });
@@ -6467,6 +6472,7 @@ function loadExercisesForMuscle(muscle) {
   // Show share button and set up click handler
   if (shareBtn) {
     shareBtn.style.display = 'block';
+    shareBtn.textContent = '📱 Send to Phone with QR Code';
     shareBtn.onclick = async () => {
       // Create workout ID only when sharing
       const workoutId = generateUUID();
@@ -6770,6 +6776,8 @@ function setupAnimationFallback(exerciseName, canvasId) {
 function loadStretchesForBodyPart(bodyPart) {
   const title = document.getElementById('exerciseTitle');
   const grid = document.getElementById('exerciseGrid');
+  const img = document.getElementById('muscleHeaderImage');
+  const shareBtn = document.getElementById('shareWorkoutBtn');
 
   if (!title || !grid) return;
 
@@ -6785,8 +6793,11 @@ function loadStretchesForBodyPart(bodyPart) {
     'hips-pelvis': 'Hips & Pelvis',
     'spine-core': 'Spine & Core'
   };
-  title.textContent = titleMap[bodyPart] || bodyPart.toUpperCase();
+  const bodyPartTitle = titleMap[bodyPart] || bodyPart.toUpperCase();
+  title.textContent = bodyPartTitle;
   grid.innerHTML = '';
+
+  if (img) img.style.display = 'none';
 
   const allStretches = window.LOCAL_EXERCISES?.stretchesByBodyPart?.[bodyPart] || [];
   if (!allStretches || !allStretches.length) {
@@ -6821,7 +6832,28 @@ function loadStretchesForBodyPart(bodyPart) {
 
   if (!stretches.length) {
     grid.innerHTML = `<p>No ${currentDifficultyFilter} stretches available for this body part.</p>`;
+    if (shareBtn) shareBtn.style.display = 'none';
     return;
+  }
+
+  if (shareBtn) {
+    shareBtn.style.display = 'block';
+    shareBtn.textContent = '📱 Send Stretches to Phone with QR Code';
+    shareBtn.onclick = async () => {
+      const stretchId = generateUUID();
+      const stretchRoutine = {
+        id: stretchId,
+        type: 'stretch',
+        title: `${bodyPartTitle} Stretch Routine`,
+        bodyPart,
+        exercises: stretches,
+        created: new Date().toISOString(),
+        user: window.currentUser
+      };
+
+      await saveWorkoutToServer(stretchId, stretchRoutine);
+      displayQRCodeModal(stretchId, kioskIP, { type: 'stretch' });
+    };
   }
 
   stretches.forEach((stretch, idx) => {
@@ -7009,6 +7041,7 @@ function initializeApp() {
 
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     
     // Ensure input is focused and ready
     setTimeout(() => {
@@ -7072,6 +7105,7 @@ function initializeApp() {
     if (!modal || !input) return;
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     setTimeout(() => { input.focus(); input.click(); }, 50);
   });
 
@@ -7081,6 +7115,7 @@ function initializeApp() {
     if (!modal || !input) return;
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     setTimeout(() => { input.focus(); input.click(); }, 50);
   });
 
@@ -7225,6 +7260,63 @@ function initializeApp() {
   document.getElementById('backFromExercises')?.addEventListener('click', () => {
     console.log('🔙 Back from exercises clicked');
     goToPreviousScreen();
+  });
+
+  /* ON-SCREEN KEYBOARDS (CREATE USER AND USER SEARCH) */
+  document.querySelectorAll('.keyboard-key').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.preventDefault();
+
+      const keyboardModal = btn.closest('#createUserModal, #searchUserKeyboardModal');
+      let input = document.activeKeyboardInput;
+
+      if (keyboardModal?.id === 'createUserModal' && !keyboardModal.contains(input)) {
+        input = document.getElementById('newUsernameInput');
+      } else if (keyboardModal?.id === 'searchUserKeyboardModal') {
+        input = document.getElementById('userSearchInput');
+      }
+
+      if (!input) return;
+
+      const key = btn.dataset.key || '';
+      const isPinInput = input.id === 'newUserPin';
+      const selectionStart = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+      const selectionEnd = Number.isInteger(input.selectionEnd) ? input.selectionEnd : selectionStart;
+      let nextValue = input.value;
+      let nextCursor = selectionStart;
+
+      if (key === 'backspace') {
+        if (selectionStart !== selectionEnd) {
+          nextValue = input.value.slice(0, selectionStart) + input.value.slice(selectionEnd);
+        } else if (selectionStart > 0) {
+          nextValue = input.value.slice(0, selectionStart - 1) + input.value.slice(selectionEnd);
+          nextCursor = selectionStart - 1;
+        }
+      } else {
+        if (isPinInput && !/^\d$/.test(key)) return;
+        const maxLength = input.maxLength > 0 ? input.maxLength : 40;
+        const candidate = input.value.slice(0, selectionStart) + key + input.value.slice(selectionEnd);
+        if (candidate.length > maxLength) return;
+        nextValue = candidate;
+        nextCursor = selectionStart + key.length;
+      }
+
+      input.value = nextValue;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.setSelectionRange?.(nextCursor, nextCursor);
+      document.activeKeyboardInput = input;
+    });
+  });
+
+  ['newUsernameInput', 'newUserPin'].forEach(inputId => {
+    const input = document.getElementById(inputId);
+    input?.addEventListener('focus', () => {
+      document.activeKeyboardInput = input;
+    });
+    input?.addEventListener('click', () => {
+      document.activeKeyboardInput = input;
+    });
   });
 
     // Workout Type tiles (Muscle vs Stretch)
@@ -8043,6 +8135,7 @@ if (confirmBtn) {
     // Reset color to default
     if (colorSelect) colorSelect.value = '#3B82F6';
     
+    document.activeKeyboardInput = null;
     document.getElementById('createUserModal')?.classList.add('hidden');
 
     renderUserScreen();
@@ -8060,6 +8153,7 @@ if (cancelBtn) {
     if (input) input.value = '';
     const pinInput = document.getElementById('newUserPin');
     if (pinInput) pinInput.value = '';
+    document.activeKeyboardInput = null;
     document.getElementById('createUserModal')?.classList.add('hidden');
   });
 }

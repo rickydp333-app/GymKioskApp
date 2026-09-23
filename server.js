@@ -61,6 +61,7 @@ ALLOWED_ORIGINS.add('http://localhost:3001');
 ALLOWED_ORIGINS.add('http://127.0.0.1:3001');
 ALLOWED_ORIGINS.add('https://gymkioskapp.onrender.com');
 ALLOWED_ORIGINS.add('https://www.rdpsstrengthandconditioning.ca');
+ALLOWED_ORIGINS.add('https://app.rdpsplace.me');
 
 const criticalAlertState = {
   started: false,
@@ -325,7 +326,7 @@ app.use((_req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 https://gymkioskapp.onrender.com https://www.rdpsstrengthandconditioning.ca");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 https://gymkioskapp.onrender.com https://www.rdpsstrengthandconditioning.ca https://app.rdpsplace.me");
   next();
 });
 app.use(express.json({ limit: '256kb', strict: true }));
@@ -1179,6 +1180,28 @@ app.post('/api/kiosk-sync', (req, res) => {
   if (validEvents.length !== events.length) return res.status(400).json({ error: 'Invalid synchronization event' });
 
   const accepted = persistentStore.receiveSync(kioskId, validEvents);
+
+  // The sync inbox is an audit/deduplication record. Apply incoming workout
+  // events to the public collection as well so QR links resolve on the hosted
+  // server. Replaying a batch is safe because the workout ID is the map key.
+  let workoutsChanged = false;
+  validEvents.forEach((event) => {
+    if (event.event_type !== 'workout.created' && event.event_type !== 'workout.updated') return;
+
+    const { workoutId, data, userId, created } = event.payload;
+    if (!isValidIdentifier(workoutId) || !isPlainObject(data)) return;
+
+    const existing = workouts.get(workoutId);
+    workouts.set(workoutId, {
+      userId: userId || existing?.userId || null,
+      data,
+      created: created || existing?.created || new Date().toISOString(),
+      completed: existing?.completed || false
+    });
+    workoutsChanged = true;
+  });
+
+  if (workoutsChanged) saveWorkouts();
   return res.json({ success: true, accepted, received: validEvents.length });
 });
 
@@ -1255,6 +1278,10 @@ app.get('/api/diagnostics', (req, res) => {
 // ========================================
 
 app.get('/workout/:workoutId', (req, res) => {
+  sendMobileFile(res, 'viewer.html');
+});
+
+app.get('/stretch/:workoutId', (req, res) => {
   sendMobileFile(res, 'viewer.html');
 });
 

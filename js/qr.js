@@ -1,11 +1,12 @@
 // QR Code generation for sharing workouts
 console.log('QR.JS LOADED');
 const LEGACY_SERVER_BASE_URL = 'https://api.rdpsstrengthandconditioning.ca';
-const DEFAULT_SERVER_BASE_URL = 'https://gymkioskapp.onrender.com';
+const DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
 const ALLOWED_PUBLIC_SHARE_HOSTS = new Set([
   'www.rdpsstrengthandconditioning.ca',
   'rdpsstrengthandconditioning.ca',
+  'app.rdpsplace.me',
   'gymkioskapp.onrender.com'
 ]);
 const SHARE_BASE_CACHE_MS = 30000;
@@ -190,10 +191,11 @@ async function resolveExplicitShareBaseFromKioskIP(kioskIP) {
   return null;
 }
 
-async function generateQRCode(workoutId, kioskIP) {
+async function generateQRCode(workoutId, kioskIP, contentType = 'workout') {
   const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
   const resolvedBaseUrl = explicitBaseUrl || await resolveShareBaseUrl(true);
-  const workoutUrl = addRequestNonce(await buildResolvedShareUrl(`/workout/${workoutId}`, resolvedBaseUrl));
+  const sharePath = contentType === 'stretch' ? 'stretch' : 'workout';
+  const workoutUrl = addRequestNonce(await buildResolvedShareUrl(`/${sharePath}/${workoutId}`, resolvedBaseUrl));
 
   console.log('QR.JS: Generated workout URL:', workoutUrl);
   console.log('QR.JS: Encoding to QR code for workoutId:', workoutId);
@@ -230,9 +232,12 @@ async function generateStatsQRCode(kioskIP) {
   return { qrCode: qrUrl, statsUrl };
 }
 
-async function displayQRCodeModal(workoutId, kioskIP) {
+async function displayQRCodeModal(workoutId, kioskIP, options = {}) {
   try {
-    const { qrCode, workoutUrl } = await generateQRCode(workoutId, kioskIP);
+    const isStretch = options.type === 'stretch';
+    const contentLabel = isStretch ? 'stretch routine' : 'workout';
+    const contentLabelTitle = isStretch ? 'Stretch Routine' : 'Workout';
+    const { qrCode, workoutUrl } = await generateQRCode(workoutId, kioskIP, isStretch ? 'stretch' : 'workout');
     
     // Remove existing modal if present
     const existingModal = document.getElementById('qrModal');
@@ -283,11 +288,11 @@ async function displayQRCodeModal(workoutId, kioskIP) {
         <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📱 Send to Phone with QR Code</h2>
         
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.6;">
-          Scan this QR code with your phone to access your workout and track progress:
+          Scan this QR code with your phone to access your ${contentLabel} and track progress:
         </p>
 
         <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 0 0 16px 0; word-break: break-all;">
-          Workout ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${workoutId}</code>
+          ${contentLabelTitle} ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${workoutId}</code>
         </p>
 
         ${buildQrHostBadgeHtml(workoutUrl)}
@@ -300,7 +305,7 @@ async function displayQRCodeModal(workoutId, kioskIP) {
           text-align: center;
           margin-bottom: 20px;
         ">
-          <img src="${qrCode}" alt="Workout QR Code" style="
+          <img src="${qrCode}" alt="${contentLabelTitle} QR Code" style="
             width: 280px;
             height: 280px;
             border-radius: 12px;
