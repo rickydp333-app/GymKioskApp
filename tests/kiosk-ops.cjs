@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -77,6 +78,27 @@ function testStretchQrSharing() {
   assert.ok(viewerCode.includes("workoutData?.type === 'stretch'"), 'phone viewer should render stretch-specific labels');
 }
 
+function testStretchImagesExist() {
+  const context = { window: {} };
+  vm.createContext(context);
+  vm.runInContext(read('js/data/exercises.js'), context);
+
+  const groups = context.window.LOCAL_EXERCISES?.stretchesByBodyPart || {};
+  const missing = [];
+  for (const [group, stretches] of Object.entries(groups)) {
+    for (const stretch of stretches) {
+      const relativePath = String(stretch.image || '').replaceAll('/', path.sep);
+      const fullPath = path.join(ROOT, relativePath);
+      if (!stretch.image || !fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+        missing.push(`${group}: ${stretch.name} -> ${stretch.image || '(no image)'}`);
+      }
+    }
+  }
+
+  assert.ok(Object.keys(groups).length > 0, 'stretch exercise groups should be available');
+  assert.deepStrictEqual(missing, [], `stretch images are missing:\n${missing.join('\n')}`);
+}
+
 function run() {
   try {
     testSingleInstanceLock();
@@ -85,6 +107,7 @@ function run() {
     testStartupLauncherSafetyFlags();
     testCreateUserKeyboardHandlers();
     testStretchQrSharing();
+    testStretchImagesExist();
     console.log('✅ Kiosk operational policy tests passed');
   } catch (error) {
     console.error('❌ Kiosk operational policy tests failed:', error.message);
