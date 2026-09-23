@@ -1,48 +1,10 @@
 // QR Code generation for sharing workouts
 console.log('QR.JS LOADED');
-const LEGACY_SERVER_BASE_URL = 'https://api.rdpsstrengthandconditioning.ca';
 const DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
-const ALLOWED_PUBLIC_SHARE_HOSTS = new Set([
-  'www.rdpsstrengthandconditioning.ca',
-  'rdpsstrengthandconditioning.ca',
-  'app.rdpsplace.me',
-  'gymkioskapp.onrender.com'
-]);
 const SHARE_BASE_CACHE_MS = 30000;
 let cachedResolvedShareBaseUrl = null;
 let cachedResolvedShareBaseAt = 0;
-
-function isAllowedPublicShareBase(baseUrl) {
-  try {
-    const parsed = new URL(baseUrl);
-    return ALLOWED_PUBLIC_SHARE_HOSTS.has(String(parsed.hostname || '').toLowerCase());
-  } catch (_error) {
-    return false;
-  }
-}
-
-function isPrivateOrLocalHostname(hostname) {
-  if (!hostname) return true;
-  const normalized = String(hostname).toLowerCase();
-
-  if (normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1') return true;
-  if (/^10\./.test(normalized)) return true;
-  if (/^192\.168\./.test(normalized)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true;
-  if (/\.local$/.test(normalized)) return true;
-
-  return false;
-}
-
-function isPrivateOrLocalBaseUrl(baseUrl) {
-  try {
-    const parsed = new URL(baseUrl);
-    return isPrivateOrLocalHostname(parsed.hostname);
-  } catch (_error) {
-    return true;
-  }
-}
 
 function getShareBaseUrl() {
   const configured =
@@ -50,16 +12,7 @@ function getShareBaseUrl() {
     localStorage.getItem('gymkiosk_server_base_url') ||
     DEFAULT_SERVER_BASE_URL;
 
-  const normalizedConfigured = String(configured).replace(/\/+$/, '');
-  if (normalizedConfigured === LEGACY_SERVER_BASE_URL) {
-    return DEFAULT_SERVER_BASE_URL;
-  }
-
-  if (!isAllowedPublicShareBase(normalizedConfigured)) {
-    return DEFAULT_SERVER_BASE_URL;
-  }
-
-  return normalizedConfigured;
+  return String(configured).replace(/\/+$/, '');
 }
 
 function getLocalShareBaseUrl() {
@@ -87,19 +40,58 @@ window.resetShareBaseCache = function resetShareBaseCache() {
 };
 
 async function resolveShareBaseUrl(forceRefresh = false) {
-  const cacheIsFresh = !forceRefresh && cachedResolvedShareBaseUrl && (Date.now() - cachedResolvedShareBaseAt) < SHARE_BASE_CACHE_MS;
-  if (cacheIsFresh) {
+  const isCacheValid =
+    !forceRefresh &&
+    cachedResolvedShareBaseUrl &&
+    Date.now() - cachedResolvedShareBaseAt < SHARE_BASE_CACHE_MS;
+
+  if (isCacheValid) {
     return cachedResolvedShareBaseUrl;
   }
 
-  // Always use the configured public server URL so QR codes point to the web server.
-  return setResolvedShareBase(DEFAULT_SERVER_BASE_URL);
+  const configuredBase = getShareBaseUrl();
+  const localBase = getLocalShareBaseUrl();
+
+  try {
+    const configuredInfoResponse = await fetch(`${configuredBase}/api/info`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (isApiInfoJsonResponse(configuredInfoResponse)) {
+      return setResolvedShareBase(configuredBase);
+    }
+
+    console.warn('QR.JS: Configured share base is not serving API JSON. Status:', configuredInfoResponse.status);
+  } catch (configuredErr) {
+    console.warn('QR.JS: Configured share base check failed:', configuredErr.message);
+  }
+
+  try {
+    const localInfoResponse = await fetch(`${localBase}/api/info`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (isApiInfoJsonResponse(localInfoResponse)) {
+      const localInfo = await localInfoResponse.json();
+      const ipAddress = localInfo?.ipAddress;
+
+      if (ipAddress && ipAddress !== 'localhost' && ipAddress !== '127.0.0.1') {
+        return setResolvedShareBase(`http://${ipAddress}:3001`);
+      }
+
+      return setResolvedShareBase(localBase);
+    }
+  } catch (localErr) {
+    console.warn('QR.JS: Local share base check failed:', localErr.message);
+  }
+
+  return setResolvedShareBase(configuredBase);
 }
 
-async function buildResolvedShareUrl(path, explicitBaseUrl = null) {
+async function buildResolvedShareUrl(path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const baseUrl = explicitBaseUrl || await resolveShareBaseUrl();
-  return `${String(baseUrl).replace(/\/+$/, '')}${normalizedPath}`;
+  const baseUrl = await resolveShareBaseUrl();
+  return `${baseUrl}${normalizedPath}`;
 }
 
 function buildShareUrl(path) {
@@ -110,45 +102,6 @@ function buildShareUrl(path) {
 function addRequestNonce(url) {
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}share=${Date.now()}`;
-}
-
-function getQrHostDebugInfo(url) {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.host;
-    const isLocal = isPrivateOrLocalHostname(parsed.hostname);
-    return {
-      host,
-      origin: parsed.origin,
-      mode: isLocal ? 'LAN / Local' : 'Public'
-    };
-  } catch (_error) {
-    return {
-      host: 'Unknown host',
-      origin: '',
-      mode: 'Unknown'
-    };
-  }
-}
-
-function buildQrHostBadgeHtml(url) {
-  const info = getQrHostDebugInfo(url);
-  return `
-    <div style="
-      margin: 0 0 16px 0;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(0, 212, 255, 0.25);
-      background: rgba(7, 30, 46, 0.45);
-      text-align: left;
-      font-size: 12px;
-      color: #b9d7e8;
-      line-height: 1.45;
-    ">
-      <strong style="color: #d9eef9;">QR Host:</strong> ${info.host}<br>
-      <strong style="color: #d9eef9;">Mode:</strong> ${info.mode}
-    </div>
-  `;
 }
 
 // Simple UUID generator
@@ -167,36 +120,33 @@ async function getKioskNetworkIP() {
     const response = await fetch(`${resolvedBase}/api/info`, {
       headers: { 'Content-Type': 'application/json' }
     });
-
+    
     if (response && response.ok) {
       const data = await response.json();
       console.log('QR.JS: Server info received:', data);
       const ip = data.ipAddress || 'localhost';
       console.log('QR.JS: Using IP address:', ip);
       return ip;
+    } else {
+      console.warn('QR.JS: Server responded with status:', response?.status);
     }
-
-    console.warn('QR.JS: Server responded with status:', response?.status);
   } catch (err) {
     console.warn('QR.JS: Could not get server IP:', err);
     console.warn('QR.JS: Make sure Express server is running on port 3001');
   }
-
+  
   console.warn('QR.JS: Falling back to configured site base URL.');
   return null;
 }
 
-async function resolveExplicitShareBaseFromKioskIP(kioskIP) {
-  // Explicit LAN/IP overrides are disabled; always use public share base.
-  return null;
-}
-
 async function generateQRCode(workoutId, kioskIP, contentType = 'workout') {
-  const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
-  const resolvedBaseUrl = explicitBaseUrl || await resolveShareBaseUrl(true);
-  const sharePath = contentType === 'stretch' ? 'stretch' : 'workout';
-  const workoutUrl = addRequestNonce(await buildResolvedShareUrl(`/${sharePath}/${workoutId}`, resolvedBaseUrl));
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
 
+  const sharePath = contentType === 'stretch' ? 'stretch' : 'workout';
+  const workoutUrl = addRequestNonce(await buildResolvedShareUrl(`/${sharePath}/${workoutId}`));
+  
   console.log('QR.JS: Generated workout URL:', workoutUrl);
   console.log('QR.JS: Encoding to QR code for workoutId:', workoutId);
   const qrNonce = Date.now();
@@ -209,24 +159,33 @@ async function generateQRCode(workoutId, kioskIP, contentType = 'workout') {
 }
 
 async function generateCalendarQRCode(calendarId, kioskIP) {
-  const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
-  const calendarUrl = addRequestNonce(await buildResolvedShareUrl(`/calendar/${calendarId}`, explicitBaseUrl));
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
+
+  const calendarUrl = addRequestNonce(await buildResolvedShareUrl(`/calendar/${calendarId}`));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(calendarUrl)}&color=f5f7fa&bgcolor=1a1f2e`;
 
   return { qrCode: qrUrl, calendarUrl };
 }
 
 async function generateFavoritesQRCode(favoritesId, kioskIP) {
-  const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
-  const favoritesUrl = addRequestNonce(await buildResolvedShareUrl(`/favorites/${favoritesId}`, explicitBaseUrl));
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
+
+  const favoritesUrl = addRequestNonce(await buildResolvedShareUrl(`/favorites/${favoritesId}`));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(favoritesUrl)}&color=f5f7fa&bgcolor=1a1f2e`;
 
   return { qrCode: qrUrl, favoritesUrl };
 }
 
 async function generateStatsQRCode(kioskIP) {
-  const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
-  const statsUrl = addRequestNonce(await buildResolvedShareUrl('/stats', explicitBaseUrl));
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
+
+  const statsUrl = addRequestNonce(await buildResolvedShareUrl('/stats'));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(statsUrl)}&color=f5f7fa&bgcolor=1a1f2e&t=${Date.now()}`;
 
   return { qrCode: qrUrl, statsUrl };
@@ -285,7 +244,7 @@ async function displayQRCodeModal(workoutId, kioskIP, options = {}) {
           height: 40px;
         ">✕</button>
         
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📱 Send to Phone with QR Code</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📱 Share Your ${contentLabelTitle}</h2>
         
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.6;">
           Scan this QR code with your phone to access your ${contentLabel} and track progress:
@@ -294,8 +253,6 @@ async function displayQRCodeModal(workoutId, kioskIP, options = {}) {
         <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 0 0 16px 0; word-break: break-all;">
           ${contentLabelTitle} ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${workoutId}</code>
         </p>
-
-        ${buildQrHostBadgeHtml(workoutUrl)}
         
         <div style="
           background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
@@ -305,7 +262,7 @@ async function displayQRCodeModal(workoutId, kioskIP, options = {}) {
           text-align: center;
           margin-bottom: 20px;
         ">
-          <img src="${qrCode}" alt="${contentLabelTitle} QR Code" style="
+          <img src="${qrCode}" alt="Workout QR Code" style="
             width: 280px;
             height: 280px;
             border-radius: 12px;
@@ -410,7 +367,7 @@ async function displayFavoritesQRCodeModal(favoritesId, kioskIP) {
           height: 40px;
         ">✕</button>
         
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📱 Send Favorites to Phone with QR Code</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📱 Share Your Favorites</h2>
         
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.6;">
           Scan this QR code with your phone to access your favorite exercises:
@@ -419,8 +376,6 @@ async function displayFavoritesQRCodeModal(favoritesId, kioskIP) {
         <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 0 0 16px 0; word-break: break-all;">
           Favorites ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${favoritesId}</code>
         </p>
-
-        ${buildQrHostBadgeHtml(favoritesUrl)}
         
         <div style="
           background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
@@ -533,7 +488,7 @@ async function displayStatsQRCodeModal(kioskIP) {
           height: 40px;
         ">✕</button>
 
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📊 Send Stats to Phone with QR Code</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📊 Share My Stats</h2>
 
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 16px 0; line-height: 1.6;">
           Scan this QR code to open the stats page on your phone.
@@ -542,8 +497,6 @@ async function displayStatsQRCodeModal(kioskIP) {
         <p style="text-align: center; color: #8b95a8; font-size: 13px; margin: 0 0 20px 0; line-height: 1.5;">
           The page is login-protected and only shows the signed-in user's stats.
         </p>
-
-        ${buildQrHostBadgeHtml(statsUrl)}
 
         <div style="
           background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
@@ -673,7 +626,7 @@ async function displayCalendarQRCode(calendarId, kioskIP) {
           height: 40px;
         ">✕</button>
 
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📅 Send Calendar to Phone with QR Code</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">📅 Share Your Calendar</h2>
 
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.6;">
           Scan this QR code to view your scheduled workouts and meal plans:
@@ -682,8 +635,6 @@ async function displayCalendarQRCode(calendarId, kioskIP) {
         <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 0 0 16px 0; word-break: break-all;">
           Calendar ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${calendarId}</code>
         </p>
-
-        ${buildQrHostBadgeHtml(calendarUrl)}
 
         <div style="
           background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
@@ -748,8 +699,11 @@ async function displayCalendarQRCode(calendarId, kioskIP) {
 }
 
 async function generateMealPlanQRCode(mealPlanId, kioskIP) {
-  const explicitBaseUrl = await resolveExplicitShareBaseFromKioskIP(kioskIP);
-  const mealPlanUrl = addRequestNonce(await buildResolvedShareUrl(`/meal/${mealPlanId}`, explicitBaseUrl));
+  if (!kioskIP || kioskIP === 'localhost') {
+    await getKioskNetworkIP();
+  }
+
+  const mealPlanUrl = addRequestNonce(await buildResolvedShareUrl(`/meal/${mealPlanId}`));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(mealPlanUrl)}&color=f5f7fa&bgcolor=1a1f2e`;
 
   return { qrCode: qrUrl, mealPlanUrl };
@@ -805,7 +759,7 @@ async function displayMealPlanQRCodeModal(mealPlanId, kioskIP) {
           height: 40px;
         ">✕</button>
         
-        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">🍽️ Send Meal Plan to Phone with QR Code</h2>
+        <h2 style="margin: 0 0 16px 0; font-size: 24px; text-align: center; color: #f5f7fa;">🍽️ Share Your Meal Plan</h2>
         
         <p style="text-align: center; color: #c4cfe0; font-size: 14px; margin: 0 0 24px 0; line-height: 1.6;">
           Scan this QR code with your phone to view your personalized meal plan:
@@ -814,8 +768,6 @@ async function displayMealPlanQRCodeModal(mealPlanId, kioskIP) {
         <p style="text-align: center; font-size: 12px; color: #8b95a8; margin: 0 0 16px 0; word-break: break-all;">
           Meal Plan ID: <code style="background: rgba(45, 55, 72, 0.4); padding: 4px 8px; border-radius: 4px; color: #d4af37; font-size: 11px; font-family: 'Courier New', monospace;">${mealPlanId}</code>
         </p>
-
-        ${buildQrHostBadgeHtml(mealPlanUrl)}
         
         <div style="
           background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
