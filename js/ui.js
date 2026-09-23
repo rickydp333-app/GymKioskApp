@@ -534,7 +534,11 @@ async function saveWorkoutToServer(workoutId, workoutData) {
         data: {
           exercises: workoutData.exercises, // Pass full exercise objects with howTo, primary, secondary, etc
           created: workoutData.created,
-          user: workoutData.user
+          user: workoutData.user,
+          type: workoutData.type || 'workout',
+          title: workoutData.title || '',
+          muscle: workoutData.muscle || '',
+          bodyPart: workoutData.bodyPart || ''
         }
       })
     });
@@ -3391,6 +3395,7 @@ function loadExercisesForMuscle(muscle) {
   // Show share button and set up click handler
   if (shareBtn) {
     shareBtn.style.display = 'block';
+    shareBtn.textContent = '📱 Send to Phone with QR Code';
     shareBtn.onclick = () => {
       // Create workout ID only when sharing
       const workoutId = generateUUID();
@@ -3694,6 +3699,7 @@ function setupAnimationFallback(exerciseName, canvasId) {
 function loadStretchesForBodyPart(bodyPart) {
   const title = document.getElementById('exerciseTitle');
   const grid = document.getElementById('exerciseGrid');
+  const shareBtn = document.getElementById('shareWorkoutBtn');
 
   if (!title || !grid) return;
 
@@ -3709,7 +3715,8 @@ function loadStretchesForBodyPart(bodyPart) {
     'hips-pelvis': 'Hips & Pelvis',
     'spine-core': 'Spine & Core'
   };
-  title.textContent = titleMap[bodyPart] || bodyPart.toUpperCase();
+  const bodyPartTitle = titleMap[bodyPart] || bodyPart.toUpperCase();
+  title.textContent = bodyPartTitle;
   grid.innerHTML = '';
 
   const allStretches = window.LOCAL_EXERCISES?.stretchesByBodyPart?.[bodyPart] || [];
@@ -3745,7 +3752,28 @@ function loadStretchesForBodyPart(bodyPart) {
 
   if (!stretches.length) {
     grid.innerHTML = `<p>No ${currentDifficultyFilter} stretches available for this body part.</p>`;
+    if (shareBtn) shareBtn.style.display = 'none';
     return;
+  }
+
+  if (shareBtn) {
+    shareBtn.style.display = 'block';
+    shareBtn.textContent = '📱 Send Stretches to Phone with QR Code';
+    shareBtn.onclick = async () => {
+      const stretchId = generateUUID();
+      const stretchRoutine = {
+        id: stretchId,
+        type: 'stretch',
+        title: `${bodyPartTitle} Stretch Routine`,
+        bodyPart,
+        exercises: stretches,
+        created: new Date().toISOString(),
+        user: window.currentUser
+      };
+
+      await saveWorkoutToServer(stretchId, stretchRoutine);
+      displayQRCodeModal(stretchId, kioskIP, { type: 'stretch' });
+    };
   }
 
   stretches.forEach((stretch, idx) => {

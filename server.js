@@ -1281,6 +1281,10 @@ app.get('/workout/:workoutId', (req, res) => {
   sendMobileFile(res, 'viewer.html');
 });
 
+app.get('/stretch/:workoutId', (req, res) => {
+  sendMobileFile(res, 'viewer.html');
+});
+
 app.get('/meal/:mealPlanId', (req, res) => {
   sendMobileFile(res, 'viewer-meal.html', ['viewer.html']);
 });

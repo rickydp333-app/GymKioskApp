@@ -283,12 +283,12 @@
         alt="RDPs STRENGTH & CONDITIONING"
         class="brand-logo"
       />
-      <h1>💪 My Workout</h1>
+      <h1 id="pageTitle">💪 My Workout</h1>
     </header>
 
     <div id="loadingState" class="loading">
       <div class="spinner"></div>
-      <p>Loading your workout...</p>
+      <p id="loadingText">Loading your workout...</p>
     </div>
 
     <div id="errorState" style="display: none;">
@@ -297,7 +297,7 @@
 
     <div id="workoutState" style="display: none;">
       <div class="workout-header">
-        Workout ID: <strong id="workoutIdentifier"></strong>
+        <span id="contentIdentifierLabel">Workout ID:</span> <strong id="workoutIdentifier"></strong>
         Created: <strong id="workoutDate"></strong>
       </div>
 
@@ -319,6 +319,9 @@
     let workoutData = null;
     const workoutPathSegments = window.location.pathname.split('/').filter(Boolean);
     const workoutId = workoutPathSegments[workoutPathSegments.length - 1] || '';
+    if (workoutPathSegments[0] === 'stretch') {
+      document.getElementById('loadingText').textContent = 'Loading your stretch routine...';
+    }
 
     function toDisplayText(value, fallback = '—') {
       if (value === null || value === undefined || value === '') return fallback;
@@ -372,6 +375,12 @@
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('workoutState').style.display = 'block';
       document.getElementById('workoutIdentifier').textContent = result.workoutId || workoutId;
+
+      const isStretchRoutine = workoutData?.type === 'stretch' || workoutPathSegments[0] === 'stretch';
+      const routineTitle = workoutData?.title || (isStretchRoutine ? '🧘 My Stretch Routine' : '💪 My Workout');
+      document.getElementById('pageTitle').textContent = routineTitle;
+      document.getElementById('contentIdentifierLabel').textContent = isStretchRoutine ? 'Stretch Routine ID:' : 'Workout ID:';
+      document.title = `${routineTitle} - RDPs Strength & Conditioning`;
 
       const dateStr = new Date(result.created).toLocaleDateString('en-US', {
         weekday: 'short',
@@ -430,7 +439,7 @@
                 >
                 <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
                   <h3>${dayExerciseName}</h3>
-                  <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(dayEx.sets, '3')} sets</p>
+                  <p class="exercise-meta">${primaryMuscles} • ${isStretchRoutine ? toDisplayText(dayEx.duration || dayEx.hold || dayEx.reps, '20–30 sec hold') : `${toDisplayText(dayEx.sets, '3')} sets`}</p>
                 </div>
               </div>
               <div class="exercise-details">
@@ -475,7 +484,7 @@
               >
               <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
                 <h3>${exerciseName}</h3>
-                <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(ex.sets, '3')} sets</p>
+                <p class="exercise-meta">${primaryMuscles} • ${isStretchRoutine ? toDisplayText(ex.duration || ex.hold || ex.reps, '20–30 sec hold') : `${toDisplayText(ex.sets, '3')} sets`}</p>
               </div>
             </div>
             <div class="exercise-details">
