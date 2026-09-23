@@ -99,6 +99,38 @@ function testStretchImagesExist() {
   assert.deepStrictEqual(missing, [], `stretch images are missing:\n${missing.join('\n')}`);
 }
 
+function testStretchImagePathsPreserveExistingFilenames() {
+  const uiCode = read('js/ui.js');
+  const helperStart = uiCode.indexOf('function normalizeMediaPath');
+  const helperEnd = uiCode.indexOf('function applyImageFallbacks');
+  assert.ok(helperStart >= 0 && helperEnd > helperStart, 'media path helpers should be available');
+
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(
+    `${uiCode.slice(helperStart, helperEnd)}\nresult = getMediaPathCandidates('assets/stretches/back/Reverse Back Bend .png');`,
+    sandbox
+  );
+
+  assert.strictEqual(
+    sandbox.result[0],
+    'assets/stretches/back/Reverse Back Bend .png',
+    'the exact stored stretch image filename must be attempted before normalized fallbacks'
+  );
+}
+
+function testMobileViewerScriptsCompile() {
+  const viewerCode = read('mobile/viewer.html');
+  const scripts = [...viewerCode.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  assert.ok(scripts.length > 0, 'mobile viewer should contain executable JavaScript');
+  scripts.forEach((match, index) => {
+    assert.doesNotThrow(
+      () => new Function(match[1]),
+      `mobile viewer script ${index + 1} should compile`
+    );
+  });
+}
+
 function run() {
   try {
     testSingleInstanceLock();
@@ -108,6 +140,8 @@ function run() {
     testCreateUserKeyboardHandlers();
     testStretchQrSharing();
     testStretchImagesExist();
+    testStretchImagePathsPreserveExistingFilenames();
+    testMobileViewerScriptsCompile();
     console.log('✅ Kiosk operational policy tests passed');
   } catch (error) {
     console.error('❌ Kiosk operational policy tests failed:', error.message);

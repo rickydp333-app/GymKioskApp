@@ -6371,10 +6371,22 @@ function getMediaPathCandidates(primaryPath, fallbackPaths = []) {
   const seen = new Set();
   const addCandidate = (candidate, list) => {
     if (!candidate) return;
-    const normalized = normalizeMediaPath(candidate);
-    if (!normalized || seen.has(normalized)) return;
-    seen.add(normalized);
-    list.push(normalized);
+    const literal = String(candidate)
+      .trim()
+      .replace(/\\/g, '/')
+      .replace(/\/+/g, '/');
+    if (literal && !seen.has(literal)) {
+      seen.add(literal);
+      list.push(literal);
+    }
+
+    // Keep normalization as a fallback only. Some legacy image filenames
+    // intentionally contain en dashes or a space before the extension.
+    const normalized = normalizeMediaPath(literal);
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      list.push(normalized);
+    }
   };
 
   const candidates = [];
