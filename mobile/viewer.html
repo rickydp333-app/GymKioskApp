@@ -280,15 +280,16 @@
     <header>
       <img
         src="/assets/branding/logo.png?v=20260922"
+        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22900%22 height=%22180%22 viewBox=%220 0 900 180%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 rx=%2220%22 fill=%22%230f172a%22/%3E%3Ctext x=%2250%25%22 y=%2254%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial,sans-serif%22 font-size=%2252%22 font-weight=%22700%22 fill=%22%23d4af37%22%3ERDPs STRENGTH %26 CONDITIONING%3C/text%3E%3C/svg%3E';"
         alt="RDPs STRENGTH & CONDITIONING"
         class="brand-logo"
       />
-      <h1>💪 My Workout</h1>
+      <h1 id="pageTitle">RDP's STRENGTH and CONDITIONING</h1>
     </header>
 
     <div id="loadingState" class="loading">
       <div class="spinner"></div>
-      <p>Loading your workout...</p>
+      <p id="loadingText">Loading your workout...</p>
     </div>
 
     <div id="errorState" style="display: none;">
@@ -297,7 +298,7 @@
 
     <div id="workoutState" style="display: none;">
       <div class="workout-header">
-        Workout ID: <strong id="workoutIdentifier"></strong>
+        <span id="contentIdentifierLabel">Workout ID:</span> <strong id="workoutIdentifier"></strong>
         Created: <strong id="workoutDate"></strong>
       </div>
 
@@ -319,6 +320,9 @@
     let workoutData = null;
     const workoutPathSegments = window.location.pathname.split('/').filter(Boolean);
     const workoutId = workoutPathSegments[workoutPathSegments.length - 1] || '';
+    if (workoutPathSegments[0] === 'stretch') {
+      document.getElementById('loadingText').textContent = 'Loading your stretch routine...';
+    }
 
     function toDisplayText(value, fallback = '—') {
       if (value === null || value === undefined || value === '') return fallback;
@@ -372,6 +376,12 @@
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('workoutState').style.display = 'block';
       document.getElementById('workoutIdentifier').textContent = result.workoutId || workoutId;
+
+      const isStretchRoutine = workoutData?.type === 'stretch' || workoutPathSegments[0] === 'stretch';
+      const routineTitle = workoutData?.title || (isStretchRoutine ? 'My Stretch Routine' : "RDP's STRENGTH and CONDITIONING");
+      document.getElementById('pageTitle').textContent = routineTitle;
+      document.getElementById('contentIdentifierLabel').textContent = isStretchRoutine ? 'Stretch Routine ID:' : 'Workout ID:';
+      document.title = `${routineTitle} - RDPs Strength & Conditioning`;
 
       const dateStr = new Date(result.created).toLocaleDateString('en-US', {
         weekday: 'short',
@@ -430,7 +440,7 @@
                 >
                 <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
                   <h3>${dayExerciseName}</h3>
-                  <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(dayEx.sets, '3')} sets</p>
+                <p class="exercise-meta">${primaryMuscles} • ${isStretchRoutine ? toDisplayText(dayEx.duration || dayEx.hold || dayEx.reps, '20–30 sec hold') : `${toDisplayText(dayEx.sets, '3')} sets`}</p>
                 </div>
               </div>
               <div class="exercise-details">
@@ -475,7 +485,7 @@
               >
               <div class="exercise-name" onclick="toggleExpanded(this.parentElement.parentElement)">
                 <h3>${exerciseName}</h3>
-                <p class="exercise-meta">${primaryMuscles} • ${toDisplayText(ex.sets, '3')} sets</p>
+                <p class="exercise-meta">${primaryMuscles} • ${isStretchRoutine ? toDisplayText(ex.duration || ex.hold || ex.reps, '20–30 sec hold') : `${toDisplayText(ex.sets, '3')} sets`}</p>
               </div>
             </div>
             <div class="exercise-details">

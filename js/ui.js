@@ -15,8 +15,45 @@ const DISCLAIMER_ACCEPTANCE_KEY = 'gymKiosk_disclaimerAccepted_v1';
 const SCREENSAVER_AUTO_LOGOUT_KEY = 'gymKiosk_screensaverAutoLogout_v1';
 const SERVER_BASE_OVERRIDE_KEY = 'gymkiosk_server_base_url';
 const LAST_PUBLIC_SERVER_BASE_URL_KEY = 'gymkiosk_public_server_base_url';
+const LEGACY_PUBLIC_SERVER_BASE_URL = 'https://api.rdpsstrengthandconditioning.ca';
 const UI_DEFAULT_SERVER_BASE_URL = 'https://app.rdpsplace.me';
 const UI_DEFAULT_LOCAL_SERVER_BASE_URL = 'http://localhost:3001';
+const ALLOWED_PUBLIC_SERVER_HOSTS = new Set([
+  'www.rdpsstrengthandconditioning.ca',
+  'rdpsstrengthandconditioning.ca',
+  'app.rdpsplace.me',
+  'gymkioskapp.onrender.com'
+]);
+
+function isAllowedPublicServerBase(baseUrl) {
+  try {
+    const parsed = new URL(baseUrl);
+    return ALLOWED_PUBLIC_SERVER_HOSTS.has(String(parsed.hostname || '').toLowerCase());
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isVerboseUiTraceEnabled() {
+  try {
+    if (window.GYMKIOSK_UI_TRACE === true) return true;
+    return localStorage.getItem('gymkiosk_ui_trace') === '1';
+  } catch (_error) {
+    return false;
+  }
+}
+
+function verboseUiTrace(...args) {
+  if (isVerboseUiTraceEnabled()) {
+    console.trace(...args);
+  }
+}
+
+function verboseUiLog(...args) {
+  if (isVerboseUiTraceEnabled()) {
+    console.log(...args);
+  }
+}
 
 // Activity tracking
 const ACTIVITY_STORAGE_KEY = 'gymActivityStats';
@@ -36,6 +73,11 @@ let selectedStretchBodyPart = null;
 // Full-body generator state
 let selectedExerciseCount = 8;
 let selectedDifficultyLevel = 'mixed';
+let guidedGoal = null;
+let guidedTime = null;
+let guidedDifficulty = null;
+let currentCoachInterview = null;
+let currentCoachPlanBundle = null;
 
 // Workout builder selections
 let selectedMuscle = null;
@@ -48,6 +90,191 @@ let selectedWorkoutType = 'muscle'; // 'muscle' or 'stretch'
 // Nutrition builder selections
 let selectedNutritionGoal = null;
 let selectedNutritionPlanType = 'single'; // 'single' or 'weekly'
+
+// Facial recognition state
+let faceRecognitionStream = null;
+let faceRecognitionAnimationFrame = null;
+let faceRecognitionDetector = null;
+let faceRecognitionRunning = false;
+let faceRecognitionStableDetections = 0;
+let faceRecognitionHasGreeted = false;
+const FACE_CHECKIN_STORAGE_KEY = 'gymKiosk_faceCheckIns';
+const FACE_GREETING_DAILY_KEY = 'gymKiosk_faceGreetingDaily';
+const FACE_DETECTION_THRESHOLD_KEY = 'gymKiosk_faceDetectionStableFrames';
+const AMBIENT_SILENT_HOURS_ENABLED_KEY = 'gymKiosk_ambientSilentHoursEnabled';
+const AMBIENT_SILENT_HOURS_START_KEY = 'gymKiosk_ambientSilentStart';
+const AMBIENT_SILENT_HOURS_END_KEY = 'gymKiosk_ambientSilentEnd';
+const AUDIO_OUTPUT_DEVICE_KEY = 'gymKiosk_audioOutputDeviceId';
+const NATIVE_VOICE_NAME_KEY = 'gymKiosk_nativeVoiceName';
+let faceDetectionStableFrameThreshold = 6;
+
+// Face login/enrollment state
+let faceAuthStream = null;
+let faceAuthAnimationFrame = null;
+let faceAuthDetector = null;
+let faceAuthRunning = false;
+let faceAuthMode = null;
+let faceAuthTargetUsername = null;
+let faceAuthCompletionContext = 'profile';
+let faceAuthStableDetections = 0;
+let faceAuthSamples = [];
+let faceAuthLoginMatches = 0;
+let faceAuthHasCompleted = false;
+const FACE_AUTH_SIGNATURE_SIZE = 32;
+const FACE_AUTH_MATCH_THRESHOLD = 0.83;
+const FACE_AUTH_ENROLLMENT_SAMPLES = 3;
+const FACE_API_MODEL_PATH = 'assets/face-models';
+const FACE_API_MODEL_PATH_CANDIDATES = [
+  FACE_API_MODEL_PATH,
+  './assets/face-models',
+  '/assets/face-models'
+];
+let faceDetectionBackend = 'unknown';
+let faceDetectionBackendReady = false;
+let faceDetectionBackendPromise = null;
+let faceDetectionLastError = null;
+
+// Ambient auto-greeting on user screen
+let ambientFaceStream = null;
+let ambientFaceDetector = null;
+let ambientFaceRunning = false;
+let ambientFaceAnimationFrame = null;
+let ambientFaceStableDetections = 0;
+let ambientFaceLastGreetingAt = 0;
+const AMBIENT_FACE_GREETING_THRESHOLD = 4;
+const AMBIENT_FACE_GREETING_COOLDOWN_MS = 90000;
+
+// Voice interaction state
+let voiceRecognitionInstance = null;
+let voiceInteractionListening = false;
+let voiceInteractionAutoRestart = false;
+let voiceInteractionSupported = null;
+let audioOutputRoutingSupport = null;
+let cachedNativeVoiceOptions = null;
+
+function getPreferredNativeVoiceName() {
+  try {
+    return localStorage.getItem(NATIVE_VOICE_NAME_KEY) || '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function setPreferredNativeVoiceName(voiceName) {
+  try {
+    if (!voiceName) {
+      localStorage.removeItem(NATIVE_VOICE_NAME_KEY);
+      return;
+    }
+
+    localStorage.setItem(NATIVE_VOICE_NAME_KEY, voiceName);
+  } catch (error) {
+    console.warn('Unable to save preferred native voice:', error?.message || error);
+  }
+}
+
+async function getAvailableNativeVoices() {
+  if (!window.electron?.listNativeVoices) return [];
+  if (cachedNativeVoiceOptions) return cachedNativeVoiceOptions;
+
+  try {
+    const response = await window.electron.listNativeVoices();
+    if (!response?.success || !Array.isArray(response.voices)) {
+      cachedNativeVoiceOptions = [];
+      return cachedNativeVoiceOptions;
+    }
+
+    cachedNativeVoiceOptions = response.voices;
+    return cachedNativeVoiceOptions;
+  } catch (error) {
+    console.warn('Unable to list native voices:', error?.message || error);
+    cachedNativeVoiceOptions = [];
+    return cachedNativeVoiceOptions;
+  }
+}
+
+function getPreferredAudioOutputDeviceId() {
+  try {
+    return localStorage.getItem(AUDIO_OUTPUT_DEVICE_KEY) || 'default';
+  } catch (_error) {
+    return 'default';
+  }
+}
+
+function setPreferredAudioOutputDeviceId(deviceId) {
+  try {
+    localStorage.setItem(AUDIO_OUTPUT_DEVICE_KEY, deviceId || 'default');
+  } catch (error) {
+    console.warn('Unable to save preferred audio output device:', error?.message || error);
+  }
+}
+
+function supportsAudioOutputRouting() {
+  if (audioOutputRoutingSupport !== null) return audioOutputRoutingSupport;
+
+  audioOutputRoutingSupport = Boolean(
+    window.navigator?.mediaDevices &&
+    typeof window.navigator.mediaDevices.enumerateDevices === 'function' &&
+    window.HTMLMediaElement?.prototype &&
+    typeof window.HTMLMediaElement.prototype.setSinkId === 'function'
+  );
+
+  return audioOutputRoutingSupport;
+}
+
+async function getAvailableAudioOutputDevices() {
+  if (!supportsAudioOutputRouting()) return [];
+
+  try {
+    const devices = await window.navigator.mediaDevices.enumerateDevices();
+    return devices
+      .filter(device => device.kind === 'audiooutput')
+      .map((device, index) => ({
+        deviceId: device.deviceId || `audiooutput-${index}`,
+        label: device.label || `Speaker ${index + 1}`
+      }));
+  } catch (error) {
+    console.warn('Unable to enumerate audio output devices:', error?.message || error);
+    return [];
+  }
+}
+
+async function applyPreferredAudioOutputToMediaElement(mediaElement) {
+  if (!mediaElement || !supportsAudioOutputRouting()) return false;
+
+  const deviceId = getPreferredAudioOutputDeviceId();
+  if (!deviceId || typeof mediaElement.setSinkId !== 'function') return false;
+
+  try {
+    await mediaElement.setSinkId(deviceId);
+    return true;
+  } catch (error) {
+    console.warn(`Unable to route media element audio to ${deviceId}:`, error?.message || error);
+    return false;
+  }
+}
+
+async function applyPreferredAudioOutputToAllMediaElements() {
+  if (!supportsAudioOutputRouting()) return;
+
+  const mediaElements = Array.from(document.querySelectorAll('audio, video'));
+  await Promise.all(mediaElements.map(mediaElement => applyPreferredAudioOutputToMediaElement(mediaElement)));
+}
+
+function applyPreferredAudioOutputWhenReady(mediaElement) {
+  if (!mediaElement) return;
+
+  const handler = () => {
+    applyPreferredAudioOutputToMediaElement(mediaElement).catch(() => {});
+  };
+
+  if (mediaElement.readyState >= 1) {
+    handler();
+    return;
+  }
+
+  mediaElement.addEventListener('loadedmetadata', handler, { once: true });
+}
 
 // Generated plan state (for edits/swaps)
 window.currentBuilderPlan = null;
@@ -77,8 +304,8 @@ function hideAllScreens() {
 function showScreen(id, options = {}) {
   const { skipHistory = false } = options;
 
-  console.log(`📺 showScreen("${id}") called at ${new Date().toLocaleTimeString()}`);
-  console.trace(`📺 Stack trace for showScreen("${id}")`);
+  verboseUiLog(`📺 showScreen("${id}") called at ${new Date().toLocaleTimeString()}`);
+  verboseUiTrace(`📺 Stack trace for showScreen("${id}")`);
   
   // Log stack trace if switching to userScreen (to see what's triggering it)
   if (id === 'userScreen' && window.currentUser && window.currentUser !== 'guest' && window.currentUser !== 'admin') {
@@ -88,6 +315,21 @@ function showScreen(id, options = {}) {
 
   if (!skipHistory && currentScreenId && currentScreenId !== id) {
     screenHistoryStack.push(currentScreenId);
+  }
+
+  // Stop camera processing when leaving the facial recognition screen.
+  if (currentScreenId === 'facialRecognitionScreen' && id !== 'facialRecognitionScreen') {
+    stopFacialRecognitionScan();
+  }
+
+  // Stop microphone listening when leaving voice-enabled screens.
+  if ((currentScreenId === 'voiceInteractionScreen' || currentScreenId === 'facialRecognitionScreen') && id !== currentScreenId) {
+    stopVoiceInteractionListening();
+  }
+
+  // Stop ambient face greeting when leaving the profile selection screen.
+  if (currentScreenId === 'userScreen' && id !== 'userScreen') {
+    stopAmbientFaceGreeting();
   }
   
   hideAllScreens();
@@ -100,10 +342,22 @@ function showScreen(id, options = {}) {
   el.style.visibility = 'visible';
   el.style.pointerEvents = 'auto';
   el.style.zIndex = '1';
-  console.log(`📺 Screen "${id}" made visible - class removed`);
+  verboseUiLog(`📺 Screen "${id}" made visible - class removed`);
 
   currentScreenId = id;
   updateTopControls(id);
+
+  if (id === 'adminPanel') {
+    initializeAdminAudioOutputControls();
+    updateAdminAudioOutputUI().catch(() => {});
+    initializeAdminDiagnosticsControls();
+  }
+
+  applyPreferredAudioOutputToAllMediaElements().catch(() => {});
+
+  if (id === 'facialRecognitionScreen') {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }
   
   setTimeout(() => el.classList.add('active'), 10);
 }
@@ -156,6 +410,2598 @@ function showMainActionsScreen() {
     document.getUserTileClickBlocked = false;
     console.log('🔓 User tile clicks re-enabled after auth');
   }, 150);
+}
+
+function getFaceRecognitionElements() {
+  return {
+    video: document.getElementById('faceRecognitionVideo'),
+    status: document.getElementById('faceRecognitionStatus'),
+    startBtn: document.getElementById('startFaceRecognitionBtn'),
+    stopBtn: document.getElementById('stopFaceRecognitionBtn')
+  };
+}
+
+function setFaceRecognitionStatus(message, mode = 'neutral') {
+  const { status } = getFaceRecognitionElements();
+  if (!status) return;
+
+  status.textContent = message;
+
+  if (mode === 'success') {
+    status.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+    status.style.color = '#d1fae5';
+    return;
+  }
+
+  if (mode === 'error') {
+    status.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+    status.style.color = '#fecaca';
+    return;
+  }
+
+  status.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+  status.style.color = 'var(--text-primary)';
+}
+
+function getAmbientFaceElements() {
+  return {
+    panel: document.getElementById('ambientFaceGreetingPanel'),
+    video: document.getElementById('ambientFaceVideo'),
+    status: document.getElementById('ambientFaceStatus')
+  };
+}
+
+function setAmbientFaceStatus(message, mode = 'neutral') {
+  const { status } = getAmbientFaceElements();
+  if (!status) return;
+
+  status.textContent = message;
+
+  if (mode === 'success') {
+    status.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+    status.style.color = '#d1fae5';
+    return;
+  }
+
+  if (mode === 'error') {
+    status.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+    status.style.color = '#fecaca';
+    return;
+  }
+
+  status.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+  status.style.color = 'var(--text-primary)';
+}
+
+function findBestAmbientFaceProfileMatch(descriptor) {
+  if (!Array.isArray(descriptor) || descriptor.length === 0) {
+    return null;
+  }
+
+  const users = getUsers().filter(user => isUserFaceLoginEnabled(user));
+  if (!users.length) {
+    return null;
+  }
+
+  let bestMatch = null;
+
+  for (const user of users) {
+    const similarity = compareFaceDescriptors(user.faceSignature, descriptor);
+    if (!bestMatch || similarity > bestMatch.similarity) {
+      bestMatch = { user, similarity };
+    }
+  }
+
+  if (!bestMatch || bestMatch.similarity < FACE_AUTH_MATCH_THRESHOLD) {
+    return null;
+  }
+
+  return bestMatch;
+}
+
+function buildAmbientGreetingPayload(video, faceDetection) {
+  const descriptor = createFaceDescriptorFromVideo(video, faceDetection);
+  let matched = findBestAmbientFaceProfileMatch(descriptor);
+
+  // Backward compatibility: older enrollments may have stored grayscale signatures.
+  // If face-api produced an embedding and no match was found, retry with a grayscale signature.
+  if (!matched && Array.isArray(faceDetection?.descriptor) && faceDetection.descriptor.length > 0) {
+    const legacyDescriptor = createFaceDescriptorFromVideo(video, {
+      ...faceDetection,
+      descriptor: null
+    });
+    matched = findBestAmbientFaceProfileMatch(legacyDescriptor);
+  }
+
+  if (matched?.user?.username) {
+    return {
+      greeting: `Welcome back, ${matched.user.username}! Please select your profile to begin.`,
+      matchedUsername: matched.user.username,
+      matchedSimilarity: matched.similarity
+    };
+  }
+
+  return {
+    greeting: 'Welcome! I could not find your profile yet. How can I help you today?',
+    matchedUsername: null,
+    matchedSimilarity: 0
+  };
+}
+
+function stopAmbientFaceGreeting() {
+  ambientFaceRunning = false;
+  ambientFaceStableDetections = 0;
+
+  if (ambientFaceAnimationFrame) {
+    cancelAnimationFrame(ambientFaceAnimationFrame);
+    ambientFaceAnimationFrame = null;
+  }
+
+  const { video } = getAmbientFaceElements();
+
+  if (ambientFaceStream) {
+    ambientFaceStream.getTracks().forEach(track => track.stop());
+    ambientFaceStream = null;
+  }
+
+  if (video) {
+    video.srcObject = null;
+  }
+}
+
+async function runAmbientFaceGreetingLoop() {
+  if (!ambientFaceRunning) return;
+
+  if (currentScreenId !== 'userScreen') {
+    stopAmbientFaceGreeting();
+    return;
+  }
+
+  const { video } = getAmbientFaceElements();
+
+  if (video && ambientFaceDetector && video.readyState >= 2) {
+    try {
+      const faces = await detectFacesInVideo(video, { requireDescriptor: true });
+
+      if (faces.length > 0) {
+        ambientFaceStableDetections = Math.min(ambientFaceStableDetections + 1, 20);
+      } else {
+        ambientFaceStableDetections = Math.max(ambientFaceStableDetections - 1, 0);
+      }
+
+      if (ambientFaceStableDetections >= AMBIENT_FACE_GREETING_THRESHOLD) {
+        const now = Date.now();
+        const greetingPayload = buildAmbientGreetingPayload(video, faces[0] || null);
+        if ((now - ambientFaceLastGreetingAt) >= AMBIENT_FACE_GREETING_COOLDOWN_MS) {
+          if (isWithinAmbientGreetingSilentHours()) {
+            const silentMessage = greetingPayload.matchedUsername
+              ? `Face detected: ${greetingPayload.matchedUsername}. Silent hours are active, so greeting audio is muted.`
+              : 'Face detected. Silent hours are active, so greeting audio is muted.';
+            setAmbientFaceStatus(silentMessage, 'neutral');
+          } else {
+            ambientFaceLastGreetingAt = now;
+            ambientFaceStableDetections = 0;
+            const greeting = greetingPayload.greeting;
+            setAmbientFaceStatus(greeting, 'success');
+            speakVoiceResponse(greeting);
+          }
+        } else {
+          const readyMessage = greetingPayload.matchedUsername
+            ? `Face detected: ${greetingPayload.matchedUsername}. Ready to begin when you are.`
+            : 'Face detected. Ready to begin when you are.';
+          setAmbientFaceStatus(readyMessage, 'success');
+        }
+      } else {
+        setAmbientFaceStatus('Scanning for a face to auto-greet...', 'neutral');
+      }
+    } catch (error) {
+      console.warn('Ambient face detection error:', error?.message || error);
+      setAmbientFaceStatus('Face detection error. Retrying automatically...', 'error');
+    }
+  }
+
+  ambientFaceAnimationFrame = requestAnimationFrame(runAmbientFaceGreetingLoop);
+}
+
+async function startAmbientFaceGreeting() {
+  const { panel, video } = getAmbientFaceElements();
+  if (!panel || !video) return;
+
+  if (ambientFaceRunning) return;
+
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    setAmbientFaceStatus('Camera API is unavailable on this device.', 'error');
+    return;
+  }
+
+  stopAmbientFaceGreeting();
+  setAmbientFaceStatus('Starting camera for automatic greeting...', 'neutral');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 640 },
+        height: { ideal: 360 },
+        facingMode: 'user'
+      },
+      audio: false
+    });
+
+    ambientFaceStream = stream;
+    video.srcObject = stream;
+    await video.play();
+
+    const backend = await ensureFaceDetectionBackend();
+    if (backend === 'unsupported') {
+      ambientFaceDetector = null;
+      const detail = faceDetectionLastError ? ` Details: ${faceDetectionLastError}` : '';
+      setAmbientFaceStatus(`Face detection could not start.${detail}`, 'error');
+      stopAmbientFaceGreeting();
+      return;
+    }
+
+    ambientFaceDetector = backend;
+    ambientFaceRunning = true;
+    ambientFaceStableDetections = 0;
+    setAmbientFaceStatus('Auto-greeting is active. Walk up to the kiosk to be greeted.', 'neutral');
+    runAmbientFaceGreetingLoop();
+  } catch (error) {
+    console.warn('Unable to start ambient face greeting:', error?.message || error);
+    setAmbientFaceStatus(`Unable to access camera: ${error?.message || 'Unknown error'}`, 'error');
+    stopAmbientFaceGreeting();
+  }
+}
+
+function clampFaceDetectionThreshold(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return 6;
+  return Math.min(20, Math.max(3, parsed));
+}
+
+function getFaceDetectionStableFrameThreshold() {
+  try {
+    const raw = localStorage.getItem(FACE_DETECTION_THRESHOLD_KEY);
+    if (raw === null) return faceDetectionStableFrameThreshold;
+    return clampFaceDetectionThreshold(raw);
+  } catch (_error) {
+    return faceDetectionStableFrameThreshold;
+  }
+}
+
+function setFaceDetectionStableFrameThreshold(value) {
+  const clamped = clampFaceDetectionThreshold(value);
+  faceDetectionStableFrameThreshold = clamped;
+  localStorage.setItem(FACE_DETECTION_THRESHOLD_KEY, String(clamped));
+  return clamped;
+}
+
+function isAmbientGreetingSilentHoursEnabled() {
+  return localStorage.getItem(AMBIENT_SILENT_HOURS_ENABLED_KEY) === 'true';
+}
+
+function setAmbientGreetingSilentHoursEnabled(enabled) {
+  localStorage.setItem(AMBIENT_SILENT_HOURS_ENABLED_KEY, enabled ? 'true' : 'false');
+}
+
+function normalizeSilentTime(value, fallback) {
+  const candidate = String(value || '').trim();
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(candidate)) return candidate;
+  return fallback;
+}
+
+function getAmbientGreetingSilentHoursWindow() {
+  const start = normalizeSilentTime(localStorage.getItem(AMBIENT_SILENT_HOURS_START_KEY), '22:00');
+  const end = normalizeSilentTime(localStorage.getItem(AMBIENT_SILENT_HOURS_END_KEY), '06:00');
+  return { start, end };
+}
+
+function setAmbientGreetingSilentHoursWindow(start, end) {
+  const normalizedStart = normalizeSilentTime(start, '22:00');
+  const normalizedEnd = normalizeSilentTime(end, '06:00');
+  localStorage.setItem(AMBIENT_SILENT_HOURS_START_KEY, normalizedStart);
+  localStorage.setItem(AMBIENT_SILENT_HOURS_END_KEY, normalizedEnd);
+  return { start: normalizedStart, end: normalizedEnd };
+}
+
+function parseTimeToMinutes(timeString) {
+  const [hours, minutes] = String(timeString).split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return (hours * 60) + minutes;
+}
+
+function isWithinAmbientGreetingSilentHours(now = new Date()) {
+  if (!isAmbientGreetingSilentHoursEnabled()) return false;
+
+  const { start, end } = getAmbientGreetingSilentHoursWindow();
+  const startMinutes = parseTimeToMinutes(start);
+  const endMinutes = parseTimeToMinutes(end);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (startMinutes === null || endMinutes === null) return false;
+  if (startMinutes === endMinutes) return true;
+
+  if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+}
+
+function updateAdminFaceDetectionThresholdUI() {
+  const input = document.getElementById('adminFaceDetectionThreshold');
+  const status = document.getElementById('adminFaceDetectionThresholdStatus');
+  const current = getFaceDetectionStableFrameThreshold();
+
+  if (input) input.value = String(current);
+  if (status) {
+    status.textContent = `Current stable frame threshold: ${current}`;
+    status.classList.add('is-on');
+    status.classList.remove('is-off');
+  }
+}
+
+function updateAdminAmbientSilentHoursUI() {
+  const toggleBtn = document.getElementById('adminToggleAmbientSilentHours');
+  const status = document.getElementById('adminAmbientSilentHoursStatus');
+  const startInput = document.getElementById('adminAmbientSilentStart');
+  const endInput = document.getElementById('adminAmbientSilentEnd');
+  const enabled = isAmbientGreetingSilentHoursEnabled();
+  const { start, end } = getAmbientGreetingSilentHoursWindow();
+
+  if (toggleBtn) {
+    toggleBtn.textContent = enabled
+      ? 'Ambient Greeting Silent Hours: ON'
+      : 'Ambient Greeting Silent Hours: OFF';
+  }
+
+  if (startInput) startInput.value = start;
+  if (endInput) endInput.value = end;
+
+  if (status) {
+    status.textContent = enabled
+      ? `Current status: ON (${start} to ${end})`
+      : 'Current status: OFF';
+    status.classList.toggle('is-on', enabled);
+    status.classList.toggle('is-off', !enabled);
+  }
+}
+
+async function updateAdminAudioOutputUI() {
+  const select = document.getElementById('adminAudioOutputSelect');
+  const saveBtn = document.getElementById('adminSaveAudioOutput');
+  const refreshBtn = document.getElementById('adminRefreshAudioOutputs');
+  const status = document.getElementById('adminAudioOutputStatus');
+
+  if (!select || !status) return;
+
+  if (!supportsAudioOutputRouting()) {
+    select.innerHTML = '<option value="default">Default system speaker</option>';
+    select.value = 'default';
+    select.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
+    if (refreshBtn) refreshBtn.disabled = true;
+    status.textContent = 'Per-device speaker routing is not available in this runtime. Voice replies still use the OS default output.';
+    status.classList.remove('is-on');
+    status.classList.add('is-off');
+    return;
+  }
+
+  const devices = await getAvailableAudioOutputDevices();
+  const preferredDeviceId = getPreferredAudioOutputDeviceId();
+  const options = [
+    { deviceId: 'default', label: 'Default system speaker' },
+    ...devices.filter(device => device.deviceId !== 'default')
+  ];
+
+  select.innerHTML = options
+    .map(device => `<option value="${device.deviceId}">${device.label}</option>`)
+    .join('');
+
+  const selectedDevice = options.find(device => device.deviceId === preferredDeviceId) || options[0];
+  select.value = selectedDevice.deviceId;
+  select.disabled = false;
+  if (saveBtn) saveBtn.disabled = false;
+  if (refreshBtn) refreshBtn.disabled = false;
+
+  status.textContent = selectedDevice.deviceId === 'default'
+    ? 'Current output: default system speaker. Voice replies remain on the OS default output.'
+    : `Current output: ${selectedDevice.label}. Voice replies remain on the OS default output.`;
+  status.classList.add('is-on');
+  status.classList.remove('is-off');
+}
+
+function initializeAdminAudioOutputControls() {
+  const select = document.getElementById('adminAudioOutputSelect');
+  const saveBtn = document.getElementById('adminSaveAudioOutput');
+  const refreshBtn = document.getElementById('adminRefreshAudioOutputs');
+
+  if (saveBtn && saveBtn.dataset.bound !== '1') {
+    saveBtn.dataset.bound = '1';
+    saveBtn.addEventListener('click', async () => {
+      const nextDeviceId = select?.value || 'default';
+      setPreferredAudioOutputDeviceId(nextDeviceId);
+      await applyPreferredAudioOutputToAllMediaElements();
+      await updateAdminAudioOutputUI();
+    });
+  }
+
+  if (refreshBtn && refreshBtn.dataset.bound !== '1') {
+    refreshBtn.dataset.bound = '1';
+    refreshBtn.addEventListener('click', async () => {
+      await updateAdminAudioOutputUI();
+    });
+  }
+}
+
+async function updateAdminNativeVoiceUI() {
+  const select = document.getElementById('adminNativeVoiceSelect');
+  const saveBtn = document.getElementById('adminSaveNativeVoice');
+  const refreshBtn = document.getElementById('adminRefreshNativeVoices');
+  const testBtn = document.getElementById('adminTestNativeVoice');
+  const status = document.getElementById('adminNativeVoiceStatus');
+
+  if (!select || !status) return;
+
+  const voices = await getAvailableNativeVoices();
+  const preferredVoiceName = getPreferredNativeVoiceName();
+
+  if (!voices.length) {
+    select.innerHTML = '<option value="">Default Windows voice</option>';
+    select.value = '';
+    select.disabled = true;
+    if (saveBtn) saveBtn.disabled = true;
+    if (refreshBtn) refreshBtn.disabled = !window.electron?.listNativeVoices;
+    if (testBtn) testBtn.disabled = true;
+    status.textContent = 'No native Windows voices were returned. Voice replies will use the current default voice when available.';
+    status.classList.remove('is-on');
+    status.classList.add('is-off');
+    return;
+  }
+
+  const options = [
+    { name: '', language: '', id: '' },
+    ...voices
+  ];
+
+  select.innerHTML = options
+    .map((voice) => {
+      if (!voice.name) {
+        return '<option value="">Default Windows voice</option>';
+      }
+
+      const label = voice.language ? `${voice.name} (${voice.language})` : voice.name;
+      return `<option value="${voice.name}">${label}</option>`;
+    })
+    .join('');
+
+  const selectedVoice = options.find((voice) => voice.name === preferredVoiceName) || options[0];
+  select.value = selectedVoice.name;
+  select.disabled = false;
+  if (saveBtn) saveBtn.disabled = false;
+  if (refreshBtn) refreshBtn.disabled = false;
+  if (testBtn) testBtn.disabled = false;
+
+  status.textContent = selectedVoice.name
+    ? `Current voice: ${selectedVoice.name}${selectedVoice.language ? ` (${selectedVoice.language})` : ''}`
+    : 'Current voice: default Windows voice';
+  status.classList.add('is-on');
+  status.classList.remove('is-off');
+}
+
+async function previewNativeVoice(voiceName = '') {
+  const sample = voiceName
+    ? `Hello, this is ${voiceName}. Welcome to RDP Strength and Conditioning.`
+    : 'Hello, this is the default Windows voice. Welcome to RDP Strength and Conditioning.';
+
+  if (window.electron?.speakNativeText) {
+    try {
+      await window.electron.stopNativeSpeech?.();
+      const response = await window.electron.speakNativeText({ text: sample, voiceName });
+      if (response?.success) return true;
+    } catch (error) {
+      console.warn('Unable to preview native voice:', error?.message || error);
+    }
+  }
+
+  if (!window.speechSynthesis) return false;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(sample);
+    window.speechSynthesis.speak(utterance);
+    return true;
+  } catch (error) {
+    console.warn('Unable to preview browser voice:', error?.message || error);
+    return false;
+  }
+}
+
+function initializeAdminNativeVoiceControls() {
+  const select = document.getElementById('adminNativeVoiceSelect');
+  const saveBtn = document.getElementById('adminSaveNativeVoice');
+  const refreshBtn = document.getElementById('adminRefreshNativeVoices');
+  const testBtn = document.getElementById('adminTestNativeVoice');
+
+  if (saveBtn && saveBtn.dataset.bound !== '1') {
+    saveBtn.dataset.bound = '1';
+    saveBtn.addEventListener('click', async () => {
+      setPreferredNativeVoiceName(select?.value || '');
+      await updateAdminNativeVoiceUI();
+    });
+  }
+
+  if (refreshBtn && refreshBtn.dataset.bound !== '1') {
+    refreshBtn.dataset.bound = '1';
+    refreshBtn.addEventListener('click', async () => {
+      cachedNativeVoiceOptions = null;
+      await updateAdminNativeVoiceUI();
+    });
+  }
+
+  if (testBtn && testBtn.dataset.bound !== '1') {
+    testBtn.dataset.bound = '1';
+    testBtn.addEventListener('click', async () => {
+      const voiceName = select?.value || '';
+      const status = document.getElementById('adminNativeVoiceStatus');
+      const ok = await previewNativeVoice(voiceName);
+
+      if (status) {
+        status.textContent = ok
+          ? `Previewing voice: ${voiceName || 'default Windows voice'}`
+          : 'Voice preview failed. Check native voice support and try again.';
+        status.classList.toggle('is-on', ok);
+        status.classList.toggle('is-off', !ok);
+      }
+    });
+  }
+}
+
+function updateAdminDiagnosticsStatus(message, mode = 'neutral') {
+  const status = document.getElementById('adminDiagnosticsStatus');
+  if (!status) return;
+
+  status.textContent = message;
+  status.classList.toggle('is-on', mode === 'success');
+  status.classList.toggle('is-off', mode !== 'success');
+}
+
+async function probeMediaInput(constraints) {
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    return { ok: false, error: 'MediaDevices API unavailable' };
+  }
+
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const track = stream.getTracks()[0] || null;
+    const settings = track && typeof track.getSettings === 'function' ? track.getSettings() : null;
+    return { ok: true, settings };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  } finally {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+  }
+}
+
+async function runAdminDeviceDiagnostics() {
+  updateAdminDiagnosticsStatus('Running diagnostics...', 'neutral');
+
+  const enumerateAvailable = Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function');
+  let devices = [];
+
+  if (enumerateAvailable) {
+    try {
+      devices = await navigator.mediaDevices.enumerateDevices();
+    } catch (error) {
+      console.warn('Unable to enumerate media devices for diagnostics:', error?.message || error);
+    }
+  }
+
+  const audioInputs = devices.filter((device) => device.kind === 'audioinput');
+  const videoInputs = devices.filter((device) => device.kind === 'videoinput');
+  const audioOutputs = devices.filter((device) => device.kind === 'audiooutput');
+
+  const [cameraProbe, microphoneProbe, nativeVoices] = await Promise.all([
+    probeMediaInput({ video: true, audio: false }),
+    probeMediaInput({ audio: true, video: false }),
+    getAvailableNativeVoices()
+  ]);
+
+  const cameraSummary = cameraProbe.ok
+    ? `Camera OK${cameraProbe.settings?.deviceId ? ' (' + cameraProbe.settings.deviceId + ')' : ''}`
+    : `Camera unavailable: ${cameraProbe.error || 'Unknown error'}`;
+
+  const microphoneSummary = microphoneProbe.ok
+    ? `Microphone OK${microphoneProbe.settings?.deviceId ? ' (' + microphoneProbe.settings.deviceId + ')' : ''}`
+    : `Microphone unavailable: ${microphoneProbe.error || 'Unknown error'}`;
+
+  const speakerSummary = audioOutputs.length
+    ? `Speakers detected: ${audioOutputs.length}`
+    : 'No speaker outputs detected';
+
+  const voiceSummary = nativeVoices.length
+    ? `Voices detected: ${nativeVoices.slice(0, 4).map((voice) => voice.name).join(', ')}${nativeVoices.length > 4 ? ', ...' : ''}`
+    : 'No native Windows voices detected';
+
+  const enumeratedSummary = `Enumerated devices: ${videoInputs.length} camera, ${audioInputs.length} microphone, ${audioOutputs.length} speaker output`;
+  const passed = cameraProbe.ok || microphoneProbe.ok || audioOutputs.length > 0 || nativeVoices.length > 0;
+  updateAdminDiagnosticsStatus(`${enumeratedSummary}. ${cameraSummary}. ${microphoneSummary}. ${speakerSummary}. ${voiceSummary}.`, passed ? 'success' : 'error');
+}
+
+function initializeAdminDiagnosticsControls() {
+  const button = document.getElementById('adminRunDiagnostics');
+  if (!button || button.dataset.bound === '1') return;
+
+  button.dataset.bound = '1';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await runAdminDeviceDiagnostics();
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+function saveFaceCheckInRecord() {
+  try {
+    const raw = localStorage.getItem(FACE_CHECKIN_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : [];
+    const records = Array.isArray(existing) ? existing : [];
+
+    records.push({
+      user: window.currentUser || 'guest',
+      timestamp: new Date().toISOString()
+    });
+
+    localStorage.setItem(FACE_CHECKIN_STORAGE_KEY, JSON.stringify(records.slice(-200)));
+  } catch (error) {
+    console.warn('Unable to save face check-in record:', error?.message || error);
+  }
+}
+
+function getTodayDateKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function hasFaceGreetingToday(userName) {
+  const userKey = String(userName || 'guest').toLowerCase();
+  const today = getTodayDateKey();
+
+  try {
+    const raw = localStorage.getItem(FACE_GREETING_DAILY_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    return map && map[userKey] === today;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function markFaceGreetingToday(userName) {
+  const userKey = String(userName || 'guest').toLowerCase();
+  const today = getTodayDateKey();
+
+  try {
+    const raw = localStorage.getItem(FACE_GREETING_DAILY_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[userKey] = today;
+    localStorage.setItem(FACE_GREETING_DAILY_KEY, JSON.stringify(map));
+  } catch (error) {
+    console.warn('Unable to save daily face greeting marker:', error?.message || error);
+  }
+}
+
+function saveFaceCheckInToCalendar() {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const existing = getWorkoutForDate(dateStr);
+
+  const faceCheckInMeta = {
+    timestamp: now.toISOString(),
+    user: window.currentUser || 'guest'
+  };
+
+  if (existing && typeof existing === 'object') {
+    saveWorkoutToCalendarDate(now, {
+      ...existing,
+      faceCheckIn: faceCheckInMeta,
+      updated: now.toISOString()
+    });
+    return 'merged';
+  }
+
+  saveWorkoutToCalendarDate(now, {
+    type: 'face-checkin',
+    focusMuscle: 'Face Check-In',
+    created: now.toISOString(),
+    user: window.currentUser,
+    faceCheckIn: faceCheckInMeta,
+    exercises: [
+      {
+        name: 'Facial Recognition Check-In',
+        sets: 1,
+        reps: 'Confirmed',
+        primary: ['Attendance'],
+        secondary: ['Identity Verification'],
+        description: 'Camera-based face presence check recorded.'
+      }
+    ]
+  });
+
+  return 'created';
+}
+
+function stopFacialRecognitionScan() {
+  faceRecognitionRunning = false;
+  faceRecognitionStableDetections = 0;
+  faceRecognitionHasGreeted = false;
+
+  if (faceRecognitionAnimationFrame) {
+    cancelAnimationFrame(faceRecognitionAnimationFrame);
+    faceRecognitionAnimationFrame = null;
+  }
+
+  const { video } = getFaceRecognitionElements();
+
+  if (faceRecognitionStream) {
+    faceRecognitionStream.getTracks().forEach(track => track.stop());
+    faceRecognitionStream = null;
+  }
+
+  if (video) {
+    video.srcObject = null;
+  }
+
+}
+
+async function completeFaceRecognitionGreeting() {
+  if (faceRecognitionHasGreeted) return;
+  faceRecognitionHasGreeted = true;
+
+  const userName = window.currentUser || 'Member';
+  const alreadyCheckedInToday = hasFaceGreetingToday(userName);
+
+  let calendarMessage = 'Welcome back! You are already checked in for today.';
+
+  if (!alreadyCheckedInToday) {
+    saveFaceCheckInRecord();
+    const calendarSaveState = saveFaceCheckInToCalendar();
+    markFaceGreetingToday(userName);
+    calendarMessage = calendarSaveState === 'merged'
+      ? 'Today already had a workout entry, so your face check-in was added to it.'
+      : 'A dated face check-in entry was added to today in the calendar.';
+  }
+
+  setFaceRecognitionStatus(`Welcome, ${userName}! Face check-in recorded.`, 'success');
+  stopFacialRecognitionScan();
+  await showAlert('Welcome', `Hello ${userName}! ${calendarMessage}`);
+}
+
+async function runFaceRecognitionDetectionLoop() {
+  if (!faceRecognitionRunning) return;
+
+  const { video } = getFaceRecognitionElements();
+
+  if (video && faceRecognitionDetector && video.readyState >= 2) {
+    try {
+      const faces = await detectFacesInVideo(video);
+
+      if (faces.length > 0) {
+        faceRecognitionStableDetections = Math.min(faceRecognitionStableDetections + 1, 20);
+      } else {
+        faceRecognitionStableDetections = Math.max(faceRecognitionStableDetections - 1, 0);
+      }
+
+      if (faceRecognitionStableDetections >= getFaceDetectionStableFrameThreshold()) {
+        setFaceRecognitionStatus('Face recognized. Greeting member...', 'success');
+        await completeFaceRecognitionGreeting();
+        return;
+      } else {
+        setFaceRecognitionStatus('Scanning for a face... Center your face in the camera view.', 'neutral');
+      }
+    } catch (error) {
+      console.warn('Face detection error:', error?.message || error);
+      setFaceRecognitionStatus('Face detection encountered an error. Try restarting scan.', 'error');
+    }
+  }
+
+  faceRecognitionAnimationFrame = requestAnimationFrame(runFaceRecognitionDetectionLoop);
+}
+
+async function startFacialRecognitionScan() {
+  const { video } = getFaceRecognitionElements();
+
+  if (!video) return;
+
+  stopAmbientFaceGreeting();
+
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    setFaceRecognitionStatus('Camera API is unavailable on this device.', 'error');
+    return;
+  }
+
+  stopFacialRecognitionScan();
+  faceRecognitionHasGreeted = false;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'user'
+      },
+      audio: false
+    });
+
+    faceRecognitionStream = stream;
+    video.srcObject = stream;
+    await video.play();
+
+    setFaceRecognitionStatus('Camera started. Loading face detection models...', 'neutral');
+    const backend = await ensureFaceDetectionBackend();
+
+    if (backend === 'unsupported') {
+      faceRecognitionDetector = null;
+      faceRecognitionRunning = false;
+      const detail = faceDetectionLastError ? ` Details: ${faceDetectionLastError}` : '';
+      setFaceRecognitionStatus(`Face detection models could not be loaded in this runtime.${detail}`, 'error');
+      return;
+    }
+
+    faceRecognitionDetector = backend;
+    faceRecognitionRunning = true;
+    faceRecognitionStableDetections = 0;
+    setFaceRecognitionStatus('Camera started. Scanning for a face...', 'neutral');
+    runFaceRecognitionDetectionLoop();
+  } catch (error) {
+    console.error('Unable to start facial recognition scan:', error);
+    setFaceRecognitionStatus(`Unable to access camera: ${error?.message || 'Unknown error'}`, 'error');
+  }
+}
+
+function initializeFacialRecognitionScreen() {
+  const { startBtn, stopBtn } = getFaceRecognitionElements();
+
+  setFaceRecognitionStatus('Camera is off. Tap “Start Camera Scan” to begin automatic detection.', 'neutral');
+  setVoiceInteractionTranscript('—');
+  setVoiceInteractionStatus('Microphone is off. Tap “Start Voice Commands”.', 'neutral');
+
+  if (startBtn && startBtn.dataset.bound !== '1') {
+    startBtn.dataset.bound = '1';
+    startBtn.addEventListener('click', async () => {
+      await startFacialRecognitionScan();
+      if (!voiceInteractionListening) {
+        startVoiceInteractionListening();
+      }
+    });
+  }
+
+  if (stopBtn && stopBtn.dataset.bound !== '1') {
+    stopBtn.dataset.bound = '1';
+    stopBtn.addEventListener('click', () => {
+      stopFacialRecognitionScan();
+      setFaceRecognitionStatus('Camera stopped.', 'neutral');
+    });
+  }
+
+  const faceVoiceStartBtn = document.getElementById('startFaceVoiceInteractionBtn');
+  const faceVoiceStopBtn = document.getElementById('stopFaceVoiceInteractionBtn');
+  const faceVoiceHelpBtn = document.getElementById('faceVoiceInteractionHelpBtn');
+
+  if (faceVoiceStartBtn && faceVoiceStartBtn.dataset.bound !== '1') {
+    faceVoiceStartBtn.dataset.bound = '1';
+    faceVoiceStartBtn.addEventListener('click', startVoiceInteractionListening);
+  }
+
+  if (faceVoiceStopBtn && faceVoiceStopBtn.dataset.bound !== '1') {
+    faceVoiceStopBtn.dataset.bound = '1';
+    faceVoiceStopBtn.addEventListener('click', stopVoiceInteractionListening);
+  }
+
+  if (faceVoiceHelpBtn && faceVoiceHelpBtn.dataset.bound !== '1') {
+    faceVoiceHelpBtn.dataset.bound = '1';
+    faceVoiceHelpBtn.addEventListener('click', () => {
+      const helpText = getVoiceCommandHelpText();
+      setVoiceInteractionStatus(helpText, 'neutral');
+      speakVoiceResponse(helpText);
+    });
+  }
+
+  if (currentScreenId === 'facialRecognitionScreen' && !voiceInteractionListening) {
+    startVoiceInteractionListening();
+  }
+}
+
+function getActiveVoiceInteractionElements() {
+  if (currentScreenId === 'facialRecognitionScreen') {
+    return {
+      status: document.getElementById('faceVoiceInteractionStatus'),
+      transcript: document.getElementById('faceVoiceInteractionTranscript'),
+      startBtn: document.getElementById('startFaceVoiceInteractionBtn'),
+      stopBtn: document.getElementById('stopFaceVoiceInteractionBtn'),
+      helpBtn: document.getElementById('faceVoiceInteractionHelpBtn')
+    };
+  }
+
+  return {
+    status: document.getElementById('voiceInteractionStatus'),
+    transcript: document.getElementById('voiceInteractionTranscript'),
+    startBtn: document.getElementById('startVoiceInteractionBtn'),
+    stopBtn: document.getElementById('stopVoiceInteractionBtn'),
+    helpBtn: document.getElementById('voiceInteractionHelpBtn')
+  };
+}
+
+function getVoiceInteractionElements() {
+  return getActiveVoiceInteractionElements();
+}
+
+function setVoiceInteractionStatus(message, mode = 'neutral') {
+  const { status } = getVoiceInteractionElements();
+  if (!status) return;
+
+  status.textContent = message;
+
+  if (mode === 'success') {
+    status.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+    status.style.color = '#d1fae5';
+    return;
+  }
+
+  if (mode === 'error') {
+    status.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+    status.style.color = '#fecaca';
+    return;
+  }
+
+  status.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+  status.style.color = 'var(--text-primary)';
+}
+
+function setVoiceInteractionTranscript(value) {
+  const { transcript } = getVoiceInteractionElements();
+  if (!transcript) return;
+  transcript.textContent = value || '—';
+}
+
+async function speakVoiceResponse(message) {
+  if (!message) return;
+
+  if (window.electron?.speakNativeText) {
+    try {
+      await window.electron.stopNativeSpeech?.();
+      const nativeResponse = await window.electron.speakNativeText({
+        text: message,
+        voiceName: getPreferredNativeVoiceName()
+      });
+
+      if (nativeResponse?.success) {
+        return;
+      }
+
+      console.warn('Native speech failed, falling back to browser speech:', nativeResponse?.error || 'Unknown error');
+    } catch (error) {
+      console.warn('Native speech failed, falling back to browser speech:', error?.message || error);
+    }
+  }
+
+  if (!window.speechSynthesis) return;
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 0.9;
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.warn('Speech synthesis failed:', error?.message || error);
+  }
+}
+
+function supportsVoiceInteraction() {
+  if (voiceInteractionSupported !== null) return voiceInteractionSupported;
+  voiceInteractionSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  return voiceInteractionSupported;
+}
+
+function normalizeVoiceCommand(command) {
+  return String(command || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getVoiceMuscleMatch(command) {
+  const map = {
+    chest: ['chest'],
+    shoulders: ['shoulder', 'shoulders'],
+    back: ['back'],
+    biceps: ['bicep', 'biceps'],
+    triceps: ['tricep', 'triceps'],
+    legs: ['leg', 'legs', 'quads', 'hamstrings'],
+    abs: ['abs', 'abdominals'],
+    core: ['core'],
+    traps: ['traps', 'trap']
+  };
+
+  for (const [muscleKey, aliases] of Object.entries(map)) {
+    if (aliases.some(alias => command.includes(alias))) {
+      return muscleKey;
+    }
+  }
+  return null;
+}
+
+function getVoiceStretchMatch(command) {
+  const map = {
+    back: ['back'],
+    chest: ['chest'],
+    'legs-glutes': ['legs', 'glutes', 'hamstring', 'quad'],
+    'hips-pelvis': ['hip', 'hips', 'pelvis'],
+    'neck-shoulders': ['neck', 'shoulder', 'shoulders'],
+    'spine-core': ['spine', 'core'],
+    'arms-wrists': ['arm', 'arms', 'wrist', 'wrists']
+  };
+
+  for (const [stretchKey, aliases] of Object.entries(map)) {
+    if (aliases.some(alias => command.includes(alias))) {
+      return stretchKey;
+    }
+  }
+  return null;
+}
+
+function getVoiceCommandHelpText() {
+  return 'Try commands like: open muscle groups, show stretches, build workout, nutrition, open calendar, daily challenge, analytics, personal records, interactive coach, start listening, stop listening, home, or log out.';
+}
+
+function executeVoiceCommand(rawCommand) {
+  const command = normalizeVoiceCommand(rawCommand);
+  if (!command) return { handled: false, response: 'I did not hear a command. Please try again.' };
+
+  if (command.includes('help') || command.includes('commands')) {
+    return { handled: true, response: getVoiceCommandHelpText() };
+  }
+
+  if (command.includes('log out') || command.includes('logout') || command.includes('sign out') || command.includes('start over')) {
+    resetToStart();
+    return { handled: true, response: 'Logging out now.' };
+  }
+
+  if (command.includes('home') || command.includes('main menu')) {
+    showMainActionsScreen();
+    return { handled: true, response: 'Returning to the main menu.' };
+  }
+
+  if (command.includes('calendar')) {
+    showWorkoutCalendar();
+    return { handled: true, response: 'Opening your workout calendar.' };
+  }
+
+  if (command.includes('challenge')) {
+    showDailyChallengeScreen();
+    return { handled: true, response: 'Opening daily challenge.' };
+  }
+
+  if (command.includes('analytics')) {
+    renderAnalyticsScreen();
+    return { handled: true, response: 'Opening analytics.' };
+  }
+
+  if (command.includes('personal record') || command.includes('pr')) {
+    showScreen('personalRecordsScreen');
+    renderPersonalRecordsScreen();
+    return { handled: true, response: 'Opening personal records.' };
+  }
+
+  if (command.includes('interactive coach') || command.includes('coach')) {
+    renderInteractiveCoachScreen({ resetInterview: true });
+    return { handled: true, response: 'Opening interactive coach.' };
+  }
+
+  if (command.includes('start listening') || command.includes('microphone on')) {
+    startVoiceInteractionListening();
+    return { handled: true, response: 'Starting voice commands now.' };
+  }
+
+  if (command.includes('stop listening') || command.includes('microphone off')) {
+    stopVoiceInteractionListening();
+    return { handled: true, response: 'Stopping voice commands now.' };
+  }
+
+  if (command.includes('nutrition') || command.includes('meal')) {
+    showScreen('nutritionBuilderScreen');
+    initializeNutritionBuilder();
+    if (typeof initializeFeaturedRecipes === 'function') {
+      initializeFeaturedRecipes('featuredRecipesContainer');
+    }
+    return { handled: true, response: 'Opening training nutrition guide.' };
+  }
+
+  if (command.includes('full body')) {
+    showScreen('fullBodyGeneratorScreen');
+    initializeFullBodyGenerator();
+    return { handled: true, response: 'Opening full body workout generator.' };
+  }
+
+  if (command.includes('build workout') || command.includes('build a workout') || command.includes('builder')) {
+    showScreen('builderScreen');
+    initializeBuilderTiles();
+    return { handled: true, response: 'Opening workout builder.' };
+  }
+
+  if (command.includes('stretch')) {
+    const stretchMatch = getVoiceStretchMatch(command);
+    if (stretchMatch) {
+      loadStretchesForBodyPart(stretchMatch);
+      return { handled: true, response: 'Opening requested stretch category.' };
+    }
+
+    showStretchCategoriesDirect();
+    return { handled: true, response: 'Opening stretch categories.' };
+  }
+
+  if (command.includes('muscle') || command.includes('exercise') || getVoiceMuscleMatch(command)) {
+    const muscleMatch = getVoiceMuscleMatch(command);
+    if (muscleMatch) {
+      loadExercisesForMuscle(muscleMatch);
+      return { handled: true, response: `Opening ${muscleMatch} exercises.` };
+    }
+
+    showMuscleGroupsDirect();
+    return { handled: true, response: 'Opening muscle groups.' };
+  }
+
+  return {
+    handled: false,
+    response: `I heard "${command}", but I do not have an action for that yet. ${getVoiceCommandHelpText()}`
+  };
+}
+
+function stopVoiceInteractionListening() {
+  voiceInteractionAutoRestart = false;
+  voiceInteractionListening = false;
+
+  if (voiceRecognitionInstance) {
+    try {
+      voiceRecognitionInstance.stop();
+    } catch (_error) {
+      // Ignore errors from duplicate stop calls.
+    }
+  }
+
+  window.electron?.stopNativeSpeech?.().catch?.(() => {});
+
+  setVoiceInteractionStatus('Microphone stopped.', 'neutral');
+}
+
+function createVoiceRecognitionInstance() {
+  const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!RecognitionCtor) return null;
+
+  const recognition = new RecognitionCtor();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = true;
+
+  recognition.onstart = () => {
+    voiceInteractionListening = true;
+    setVoiceInteractionStatus('Listening... Speak a command when ready.', 'success');
+  };
+
+  recognition.onresult = (event) => {
+    const index = event.results.length - 1;
+    const transcript = event.results[index]?.[0]?.transcript || '';
+    setVoiceInteractionTranscript(transcript);
+
+    const result = executeVoiceCommand(transcript);
+    setVoiceInteractionStatus(result.response, result.handled ? 'success' : 'error');
+    speakVoiceResponse(result.response);
+  };
+
+  recognition.onerror = (event) => {
+    const code = event?.error || 'unknown';
+    const message = code === 'not-allowed'
+      ? 'Microphone permission was denied. Please allow microphone access and try again.'
+      : `Voice recognition error: ${code}`;
+    setVoiceInteractionStatus(message, 'error');
+  };
+
+  recognition.onend = () => {
+    voiceInteractionListening = false;
+    if (voiceInteractionAutoRestart && (currentScreenId === 'voiceInteractionScreen' || currentScreenId === 'facialRecognitionScreen')) {
+      try {
+        recognition.start();
+      } catch (_error) {
+        setVoiceInteractionStatus('Unable to restart listening automatically.', 'error');
+      }
+      return;
+    }
+
+    if (currentScreenId === 'voiceInteractionScreen' || currentScreenId === 'facialRecognitionScreen') {
+      const idleMessage = currentScreenId === 'facialRecognitionScreen'
+        ? 'Microphone is idle. Tap “Start Voice Commands” to continue.'
+        : 'Microphone is idle. Tap “Start Listening” to continue.';
+      setVoiceInteractionStatus(idleMessage, 'neutral');
+    }
+  };
+
+  return recognition;
+}
+
+function startVoiceInteractionListening() {
+  if (!supportsVoiceInteraction()) {
+    setVoiceInteractionStatus('Speech recognition is not available in this runtime.', 'error');
+    return;
+  }
+
+  if (!voiceRecognitionInstance) {
+    voiceRecognitionInstance = createVoiceRecognitionInstance();
+  }
+
+  if (!voiceRecognitionInstance) {
+    setVoiceInteractionStatus('Unable to initialize speech recognition.', 'error');
+    return;
+  }
+
+  voiceInteractionAutoRestart = true;
+
+  if (voiceInteractionListening) {
+    setVoiceInteractionStatus('Already listening. Speak a command now.', 'success');
+    return;
+  }
+
+  try {
+    voiceRecognitionInstance.start();
+  } catch (error) {
+    setVoiceInteractionStatus(`Unable to start microphone: ${error?.message || 'Unknown error'}`, 'error');
+  }
+}
+
+function initializeVoiceInteractionScreen() {
+  const { startBtn, stopBtn, helpBtn } = getVoiceInteractionElements();
+
+  setVoiceInteractionTranscript('—');
+  setVoiceInteractionStatus('Microphone is off. Tap “Start Listening”.', 'neutral');
+
+  if (startBtn && startBtn.dataset.bound !== '1') {
+    startBtn.dataset.bound = '1';
+    startBtn.addEventListener('click', startVoiceInteractionListening);
+  }
+
+  if (stopBtn && stopBtn.dataset.bound !== '1') {
+    stopBtn.dataset.bound = '1';
+    stopBtn.addEventListener('click', stopVoiceInteractionListening);
+  }
+
+  if (helpBtn && helpBtn.dataset.bound !== '1') {
+    helpBtn.dataset.bound = '1';
+    helpBtn.addEventListener('click', () => {
+      const helpText = getVoiceCommandHelpText();
+      setVoiceInteractionStatus(helpText, 'neutral');
+      speakVoiceResponse(helpText);
+    });
+  }
+
+  if (!supportsVoiceInteraction()) {
+    setVoiceInteractionStatus('Speech recognition is not available in this runtime.', 'error');
+  }
+}
+
+function getFaceAuthElements() {
+  return {
+    modal: document.getElementById('faceAuthModal'),
+    title: document.getElementById('faceAuthTitle'),
+    description: document.getElementById('faceAuthDescription'),
+    video: document.getElementById('faceAuthVideo'),
+    status: document.getElementById('faceAuthStatus'),
+    startBtn: document.getElementById('startFaceAuthBtn'),
+    stopBtn: document.getElementById('stopFaceAuthBtn'),
+    cancelBtn: document.getElementById('cancelFaceAuthBtn'),
+    closeBtn: document.getElementById('closeFaceAuthModal'),
+    loginBtn: document.getElementById('userFaceLoginBtn'),
+    userPinTitle: document.getElementById('userPinTitle')
+  };
+}
+
+function setFaceAuthStatus(message, mode = 'neutral') {
+  const { status } = getFaceAuthElements();
+  if (!status) return;
+
+  status.textContent = message;
+
+  if (mode === 'success') {
+    status.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+    status.style.color = '#d1fae5';
+    return;
+  }
+
+  if (mode === 'error') {
+    status.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+    status.style.color = '#fecaca';
+    return;
+  }
+
+  status.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+  status.style.color = 'var(--text-primary)';
+}
+
+function isUserFaceLoginEnabled(user) {
+  return Boolean(user?.faceLoginEnabled && Array.isArray(user.faceSignature) && user.faceSignature.length > 0);
+}
+
+function updateUserPinModalLoginControls(user) {
+  const { loginBtn, userPinTitle } = getFaceAuthElements();
+  if (userPinTitle) {
+    userPinTitle.textContent = 'Enter PIN';
+  }
+
+  if (loginBtn) {
+    loginBtn.classList.add('hidden');
+    loginBtn.disabled = true;
+  }
+}
+
+async function ensureFaceDetectionBackend() {
+  if (faceDetectionBackendReady) return faceDetectionBackend;
+  if (faceDetectionBackendPromise) return faceDetectionBackendPromise;
+
+  faceDetectionBackendPromise = (async () => {
+    faceDetectionLastError = null;
+
+    if (window.faceapi && window.tf) {
+      try {
+        try {
+          await window.tf.setBackend('webgl');
+        } catch (_error) {
+          await window.tf.setBackend('cpu');
+        }
+        await window.tf.ready();
+
+        const attemptedErrors = [];
+        for (const modelPath of FACE_API_MODEL_PATH_CANDIDATES) {
+          try {
+            await Promise.all([
+              window.faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+              window.faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+              window.faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
+            ]);
+            faceDetectionBackend = 'face-api';
+            faceDetectionBackendReady = true;
+            faceDetectionLastError = null;
+            return faceDetectionBackend;
+          } catch (modelError) {
+            attemptedErrors.push(`${modelPath}: ${modelError?.message || modelError}`);
+          }
+        }
+
+        faceDetectionLastError = attemptedErrors.join(' | ');
+        console.warn('Face-api model load failed, trying native detector:', faceDetectionLastError);
+      } catch (error) {
+        faceDetectionLastError = error?.message || String(error);
+        console.warn('Face-api initialization failed, trying native detector:', faceDetectionLastError);
+      }
+    }
+
+    if (typeof FaceDetector === 'function') {
+      faceDetectionBackend = 'native';
+      faceDetectionBackendReady = true;
+      return faceDetectionBackend;
+    }
+
+    faceDetectionBackend = 'unsupported';
+    faceDetectionBackendReady = false;
+    return faceDetectionBackend;
+  })();
+
+  try {
+    return await faceDetectionBackendPromise;
+  } finally {
+    faceDetectionBackendPromise = null;
+  }
+}
+
+async function detectFacesInVideo(video, { requireDescriptor = false } = {}) {
+  const backend = await ensureFaceDetectionBackend();
+
+  if (backend === 'face-api') {
+    const detectorOptions = new window.faceapi.TinyFaceDetectorOptions({
+      inputSize: 320,
+      scoreThreshold: 0.2
+    });
+
+    const detections = requireDescriptor
+      ? await window.faceapi.detectAllFaces(video, detectorOptions).withFaceLandmarks().withFaceDescriptors()
+      : await window.faceapi.detectAllFaces(video, detectorOptions);
+
+    return detections.map(detection => ({
+      boundingBox: detection.detection?.box || detection.box || null,
+      descriptor: detection.descriptor ? Array.from(detection.descriptor) : null
+    }));
+  }
+
+  if (backend === 'native') {
+    const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    const detections = await detector.detect(video);
+    return detections.map(detection => ({
+      boundingBox: detection.boundingBox || detection.box || detection.detection?.box || null,
+      descriptor: null
+    }));
+  }
+
+  return [];
+}
+
+function createFaceDescriptorFromVideo(video, faceDetection) {
+  if (!video || !faceDetection) return null;
+
+  if (Array.isArray(faceDetection.descriptor) && faceDetection.descriptor.length > 0) {
+    return faceDetection.descriptor;
+  }
+
+  const faceBox = faceDetection.boundingBox || faceDetection.box || faceDetection.detection?.box;
+  if (!faceBox) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = FACE_AUTH_SIGNATURE_SIZE;
+  canvas.height = FACE_AUTH_SIGNATURE_SIZE;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return null;
+
+  const paddingX = Math.max(faceBox.width * 0.18, 10);
+  const paddingY = Math.max(faceBox.height * 0.18, 10);
+
+  const sourceX = Math.max(0, faceBox.x - paddingX);
+  const sourceY = Math.max(0, faceBox.y - paddingY);
+  const sourceWidth = Math.min(video.videoWidth - sourceX, faceBox.width + paddingX * 2);
+  const sourceHeight = Math.min(video.videoHeight - sourceY, faceBox.height + paddingY * 2);
+
+  if (sourceWidth <= 0 || sourceHeight <= 0) return null;
+
+  try {
+    context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const values = [];
+
+    for (let index = 0; index < data.length; index += 4) {
+      const gray = (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+      values.push(gray / 255);
+    }
+
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+    const standardDeviation = Math.sqrt(variance) || 1;
+
+    return values.map(value => (value - mean) / standardDeviation);
+  } catch (error) {
+    console.warn('Unable to build face descriptor:', error?.message || error);
+    return null;
+  }
+}
+
+function averageFaceDescriptors(descriptors) {
+  if (!Array.isArray(descriptors) || descriptors.length === 0) return null;
+
+  const descriptorLength = descriptors[0]?.length || 0;
+  if (!descriptorLength) return null;
+
+  const averaged = new Array(descriptorLength).fill(0);
+  for (const descriptor of descriptors) {
+    if (!Array.isArray(descriptor) || descriptor.length !== descriptorLength) return null;
+    for (let index = 0; index < descriptorLength; index += 1) {
+      averaged[index] += descriptor[index];
+    }
+  }
+
+  return averaged.map(value => value / descriptors.length);
+}
+
+function compareFaceDescriptors(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length || left.length === 0) {
+    return 0;
+  }
+
+  let dotProduct = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    dotProduct += left[index] * right[index];
+    leftMagnitude += left[index] * left[index];
+    rightMagnitude += right[index] * right[index];
+  }
+
+  const denominator = Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude) || 1;
+  return dotProduct / denominator;
+}
+
+function getFaceAuthTargetUser() {
+  if (!faceAuthTargetUsername) return null;
+  return getUsers().find(user => user.username === faceAuthTargetUsername) || null;
+}
+
+function saveFaceLoginProfile(username, descriptor) {
+  if (!username || !Array.isArray(descriptor) || descriptor.length === 0) return false;
+
+  const users = getUsers();
+  const user = users.find(entry => entry.username === username);
+  if (!user) return false;
+
+  user.faceLoginEnabled = true;
+  user.faceSignature = descriptor;
+  user.faceEnrolledAt = new Date().toISOString();
+  saveUsers(users);
+  return true;
+}
+
+function clearFaceLoginProfile(username) {
+  if (!username) return false;
+
+  const users = getUsers();
+  const user = users.find(entry => entry.username === username);
+  if (!user) return false;
+
+  user.faceLoginEnabled = false;
+  user.faceSignature = null;
+  user.faceEnrolledAt = null;
+  saveUsers(users);
+  return true;
+}
+
+function stopFaceAuthSession({ hideModal = true, restorePinModal = false } = {}) {
+  faceAuthRunning = false;
+  faceAuthStableDetections = 0;
+  faceAuthSamples = [];
+  faceAuthLoginMatches = 0;
+  faceAuthHasCompleted = false;
+
+  if (faceAuthAnimationFrame) {
+    cancelAnimationFrame(faceAuthAnimationFrame);
+    faceAuthAnimationFrame = null;
+  }
+
+  const { video, modal } = getFaceAuthElements();
+
+  if (faceAuthStream) {
+    faceAuthStream.getTracks().forEach(track => track.stop());
+    faceAuthStream = null;
+  }
+
+  if (video) {
+    video.srcObject = null;
+  }
+
+  if (hideModal && modal) {
+    modal.classList.add('hidden');
+  }
+
+  if (restorePinModal && pendingUser) {
+    document.getElementById('userPinModal')?.classList.remove('hidden');
+  }
+}
+
+async function completeFaceEnrollment() {
+  if (faceAuthHasCompleted) return;
+  faceAuthHasCompleted = true;
+
+  const username = faceAuthTargetUsername;
+  const descriptor = averageFaceDescriptors(faceAuthSamples);
+  stopFaceAuthSession({ hideModal: true, restorePinModal: false });
+
+  if (!username || !descriptor || !saveFaceLoginProfile(username, descriptor)) {
+    setFaceAuthStatus('Unable to save the face profile. Please try again.', 'error');
+    await showAlert('Face Enrollment Failed', 'We could not save this face profile.');
+    return;
+  }
+
+  setFaceAuthStatus(`Face login is now enabled for ${username}.`, 'success');
+  await showAlert('Face Login Enabled', `Face recognition has been saved for ${username}.`);
+
+  if (faceAuthCompletionContext === 'admin') {
+    showScreen('adminPanel');
+    window.adminModule?.populateAdminUserList?.({
+      getUsers,
+      getSelectedAdminUser: () => selectedAdminUser
+    });
+  } else if (window.currentUser === username) {
+    showMainActionsScreen();
+  } else {
+    showScreen('userScreen');
+    showDisclaimerIfNeeded(true);
+  }
+}
+
+async function completeFaceLogin(user, similarity) {
+  if (faceAuthHasCompleted) return;
+  faceAuthHasCompleted = true;
+
+  stopFaceAuthSession({ hideModal: true, restorePinModal: false });
+
+  window.currentUser = user.username;
+  pendingUser = null;
+  enteredUserPin = '';
+  document.getUserTileClickBlocked = false;
+  updateUserPinDisplay();
+
+  hideAllScreens();
+  showMainActionsScreen();
+
+  setFaceAuthStatus(`Welcome, ${user.username}! Face matched.`, 'success');
+  await showAlert('Face Login Successful', `Face recognition matched ${user.username} (${Math.round(similarity * 100)}% confidence).`);
+}
+
+async function runFaceAuthDetectionLoop() {
+  if (!faceAuthRunning) return;
+
+  const { video } = getFaceAuthElements();
+
+  if (video && faceAuthDetector && video.readyState >= 2) {
+    try {
+      const faces = await detectFacesInVideo(video, { requireDescriptor: true });
+
+      if (faces.length > 0) {
+        faceAuthStableDetections = Math.min(faceAuthStableDetections + 1, 20);
+      } else {
+        faceAuthStableDetections = Math.max(faceAuthStableDetections - 1, 0);
+      }
+
+      if (faceAuthStableDetections >= getFaceDetectionStableFrameThreshold()) {
+        const descriptor = createFaceDescriptorFromVideo(video, faces[0]);
+
+        if (!descriptor) {
+          setFaceAuthStatus('Unable to capture a face profile from the camera view.', 'error');
+        } else if (faceAuthMode === 'enroll') {
+          faceAuthSamples.push(descriptor);
+          setFaceAuthStatus(`Captured face sample ${faceAuthSamples.length} of ${FACE_AUTH_ENROLLMENT_SAMPLES}. Hold still...`, 'neutral');
+
+          if (faceAuthSamples.length >= FACE_AUTH_ENROLLMENT_SAMPLES) {
+            await completeFaceEnrollment();
+            return;
+          }
+        } else if (faceAuthMode === 'login') {
+          const user = getFaceAuthTargetUser();
+          if (!user?.faceSignature) {
+            setFaceAuthStatus('This profile does not have a stored face login yet. Use PIN instead.', 'error');
+          } else {
+            const similarity = compareFaceDescriptors(user.faceSignature, descriptor);
+            if (similarity >= FACE_AUTH_MATCH_THRESHOLD) {
+              faceAuthLoginMatches += 1;
+              setFaceAuthStatus(`Face matched. Confirming login... (${Math.round(similarity * 100)}%)`, 'success');
+
+              if (faceAuthLoginMatches >= 2) {
+                await completeFaceLogin(user, similarity);
+                return;
+              }
+            } else {
+              faceAuthLoginMatches = 0;
+              setFaceAuthStatus('Face not recognized yet. Adjust your position or use PIN.', 'neutral');
+            }
+          }
+        }
+      } else {
+        const waitingMessage = faceAuthMode === 'enroll'
+          ? 'Hold your face steady to begin enrollment...'
+          : 'Center your face in the frame to log in...';
+        setFaceAuthStatus(waitingMessage, 'neutral');
+      }
+    } catch (error) {
+      console.warn('Face auth detection error:', error?.message || error);
+      setFaceAuthStatus('Face detection encountered an error. Try restarting the camera.', 'error');
+    }
+  }
+
+  faceAuthAnimationFrame = requestAnimationFrame(runFaceAuthDetectionLoop);
+}
+
+async function startFaceAuthSession(mode, username, options = {}) {
+  const { video, modal } = getFaceAuthElements();
+
+  if (!video || !modal) return;
+
+  stopAmbientFaceGreeting();
+
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    setFaceAuthStatus('Camera API is unavailable on this device.', 'error');
+    return;
+  }
+
+  stopFaceAuthSession({ hideModal: false, restorePinModal: false });
+
+  faceAuthMode = mode;
+  faceAuthTargetUsername = username || null;
+  faceAuthCompletionContext = options.completionContext || (mode === 'enroll' ? 'profile' : 'login');
+  faceAuthStableDetections = 0;
+  faceAuthSamples = [];
+  faceAuthLoginMatches = 0;
+  faceAuthHasCompleted = false;
+
+  const user = username ? getUsers().find(entry => entry.username === username) : null;
+  const title = document.getElementById('faceAuthTitle');
+  const description = document.getElementById('faceAuthDescription');
+
+  if (title) {
+    title.textContent = mode === 'enroll' ? 'Enroll Face Login' : 'Face Login';
+  }
+
+  if (description) {
+    description.textContent = mode === 'enroll'
+      ? 'Look at the camera and hold still so we can save a face profile for this account.'
+      : `Look at the camera to log in as ${username || 'this user'}.`;
+  }
+
+  modal.classList.remove('hidden');
+  setFaceAuthStatus(mode === 'enroll'
+    ? 'Starting camera for face enrollment...'
+    : `Starting camera for ${username || 'face login'}...`, 'neutral');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: 'user'
+      },
+      audio: false
+    });
+
+    faceAuthStream = stream;
+    video.srcObject = stream;
+    await video.play();
+
+    setFaceAuthStatus('Camera started. Loading face detection models...', 'neutral');
+    const backend = await ensureFaceDetectionBackend();
+
+    if (backend === 'unsupported') {
+      faceAuthDetector = null;
+      faceAuthRunning = false;
+      const detail = faceDetectionLastError ? ` Details: ${faceDetectionLastError}` : '';
+      setFaceAuthStatus(`Face detection models could not be loaded in this runtime.${detail}`, 'error');
+      return;
+    }
+
+    faceAuthDetector = backend;
+    faceAuthRunning = true;
+
+    if (mode === 'login' && !isUserFaceLoginEnabled(user)) {
+      setFaceAuthStatus('This profile does not have a saved face login yet. Use PIN instead.', 'error');
+    } else {
+      setFaceAuthStatus(mode === 'enroll'
+        ? 'Camera started. Keep your face centered to capture samples.'
+        : 'Camera started. Hold still so we can match your face.', 'neutral');
+      runFaceAuthDetectionLoop();
+    }
+  } catch (error) {
+    console.error('Unable to start face auth session:', error);
+    setFaceAuthStatus(`Unable to access camera: ${error?.message || 'Unknown error'}`, 'error');
+  }
+}
+
+const GUIDED_TITLE_MAP = {
+  muscle: {
+    chest: 'Chest',
+    shoulders: 'Shoulders',
+    back: 'Back',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    legs: 'Legs',
+    abs: 'Abs',
+    core: 'Core',
+    traps: 'Traps'
+  },
+  stretch: {
+    back: 'Back Mobility',
+    chest: 'Chest Openers',
+    'legs-glutes': 'Legs & Glutes',
+    'hips-pelvis': 'Hips & Pelvis',
+    'neck-shoulders': 'Neck & Shoulders',
+    'spine-core': 'Spine & Core',
+    'arms-wrists': 'Arms & Wrists'
+  }
+};
+
+const GUIDED_GOAL_CONFIG = {
+  strength: {
+    label: 'Build Strength',
+    type: 'muscle',
+    description: 'Prioritizes large muscle groups with enough exercise depth to build a strong session.',
+    options: ['legs', 'back', 'chest', 'shoulders']
+  },
+  'upper-body': {
+    label: 'Upper Body',
+    type: 'muscle',
+    description: 'Keeps the session focused on pushing and pulling muscles above the waist.',
+    options: ['chest', 'back', 'shoulders', 'triceps', 'biceps']
+  },
+  'lower-body': {
+    label: 'Lower Body',
+    type: 'muscle',
+    description: 'Targets legs and stabilizers so the member can move straight into a lower-body session.',
+    options: ['legs', 'core', 'back']
+  },
+  'posture-core': {
+    label: 'Posture & Core',
+    type: 'muscle',
+    description: 'Favors muscles that support posture, trunk strength, and upper-back control.',
+    options: ['core', 'back', 'traps', 'shoulders']
+  },
+  recovery: {
+    label: 'Recovery & Mobility',
+    type: 'stretch',
+    description: 'Switches to guided mobility when the member wants to loosen up instead of lifting hard.',
+    options: ['hips-pelvis', 'back', 'spine-core', 'neck-shoulders', 'legs-glutes']
+  }
+};
+
+function getGuidedTimeLabel(minutes) {
+  if (minutes <= 5) return '5-minute reset';
+  if (minutes <= 10) return '10-minute focused block';
+  return '20+ minute session';
+}
+
+function getGuidedDifficultyLabel(level) {
+  if (!level) return 'All levels';
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+function formatGuidedTargetLabel(targetType, targetKey) {
+  return GUIDED_TITLE_MAP[targetType]?.[targetKey] || targetKey;
+}
+
+function getGuidedCollection(targetType, targetKey) {
+  if (targetType === 'stretch') {
+    return window.LOCAL_EXERCISES?.stretchesByBodyPart?.[targetKey] || [];
+  }
+
+  return window.LOCAL_EXERCISES?.[targetKey] || [];
+}
+
+function filterGuidedCollectionByDifficulty(collection, difficulty) {
+  if (!difficulty) return collection;
+  return collection.filter(item => (item.difficulty || 'beginner') === difficulty);
+}
+
+function resetGuidedEntryState() {
+  guidedGoal = null;
+  guidedTime = null;
+  guidedDifficulty = null;
+
+  document.querySelectorAll('#guidedEntryScreen [data-guided-group]').forEach(tile => {
+    tile.classList.remove('selected');
+  });
+
+  const panel = document.getElementById('guidedPromptPanel');
+  const card = document.getElementById('guidedRecommendationCard');
+
+  if (panel) {
+    panel.classList.add('hidden');
+  }
+
+  if (card) {
+    card.classList.add('hidden');
+    card.innerHTML = '';
+  }
+}
+
+function showMuscleGroupsDirect() {
+  currentDifficultyFilterContext = 'muscle';
+  currentDifficultyFilter = 'all';
+  selectedStretchBodyPart = null;
+  updateDifficultyFilterButtons();
+  showScreen('muscleScreen');
+}
+
+function showStretchCategoriesDirect() {
+  currentDifficultyFilterContext = 'stretch';
+  currentDifficultyFilter = 'all';
+  updateDifficultyFilterButtons();
+  showScreen('stretchScreen');
+}
+
+function openGuidedEntryScreen() {
+  resetGuidedEntryState();
+  showScreen('guidedEntryScreen');
+}
+
+function chooseGuidedRecommendation(config, difficulty) {
+  const scoredOptions = config.options.map(targetKey => {
+    const fullList = getGuidedCollection(config.type, targetKey);
+    const difficultyMatches = filterGuidedCollectionByDifficulty(fullList, difficulty);
+
+    return {
+      targetKey,
+      totalCount: fullList.length,
+      difficultyCount: difficultyMatches.length,
+      previewList: difficultyMatches.length ? difficultyMatches : fullList
+    };
+  });
+
+  scoredOptions.sort((left, right) => {
+    const leftScore = left.difficultyCount || left.totalCount;
+    const rightScore = right.difficultyCount || right.totalCount;
+    return rightScore - leftScore;
+  });
+
+  return scoredOptions;
+}
+
+function openGuidedTarget(targetType, targetKey) {
+  if (targetType === 'stretch') {
+    loadStretchesForBodyPart(targetKey);
+    return;
+  }
+
+  loadExercisesForMuscle(targetKey);
+}
+
+function renderGuidedRecommendation() {
+  const card = document.getElementById('guidedRecommendationCard');
+  if (!card) return;
+
+  if (!guidedGoal || !guidedTime || !guidedDifficulty) {
+    card.classList.add('hidden');
+    card.innerHTML = '';
+    return;
+  }
+
+  const config = GUIDED_GOAL_CONFIG[guidedGoal];
+  if (!config) {
+    card.classList.add('hidden');
+    card.innerHTML = '';
+    return;
+  }
+
+  const rankedOptions = chooseGuidedRecommendation(config, guidedDifficulty);
+  const topChoice = rankedOptions[0];
+  if (!topChoice) {
+    card.classList.add('hidden');
+    card.innerHTML = '';
+    return;
+  }
+
+  const previewItems = topChoice.previewList.slice(0, 3).map(item => item.name);
+  const alternatives = rankedOptions.slice(1, 4);
+  const browseLabel = config.type === 'stretch' ? 'Browse All Stretch Categories' : 'Browse All Muscle Groups';
+  const openLabel = config.type === 'stretch' ? 'Open Recommended Stretches' : 'Open Recommended Exercises';
+  const availabilityCount = topChoice.difficultyCount || topChoice.totalCount;
+  const timeCopy = guidedTime <= 5
+    ? 'This keeps the member in a tight, low-friction block.'
+    : guidedTime <= 10
+      ? 'This gives enough room for a focused circuit without overwhelming choices.'
+      : 'This supports a fuller session with more exercise variety.';
+
+  card.innerHTML = `
+    <div class="guided-recommendation-kicker">${getGuidedTimeLabel(guidedTime)} • ${getGuidedDifficultyLabel(guidedDifficulty)}</div>
+    <h3 class="guided-recommendation-title">Start with ${formatGuidedTargetLabel(config.type, topChoice.targetKey)}</h3>
+    <p class="guided-recommendation-copy">${config.description} ${timeCopy}</p>
+    <div class="guided-stat-row">
+      <span class="guided-stat-pill">Goal: ${config.label}</span>
+      <span class="guided-stat-pill">Matching options: ${availabilityCount}</span>
+      <span class="guided-stat-pill">Type: ${config.type === 'stretch' ? 'Mobility / Stretching' : 'Strength / Exercise'}</span>
+    </div>
+    <div class="guided-recommendation-actions">
+      <button id="guidedStartRecommendation" class="primary-btn" type="button">${openLabel}</button>
+      <button id="guidedBrowseAllBtn" class="control-btn" type="button">${browseLabel}</button>
+    </div>
+    <div class="guided-section-label">Sample movements</div>
+    <div class="guided-preview-list">
+      ${previewItems.map(item => `<span class="guided-preview-pill">${item}</span>`).join('')}
+    </div>
+    ${alternatives.length ? `
+      <div class="guided-section-label">Other good fits</div>
+      <div class="guided-alt-row">
+        ${alternatives.map(option => `<button class="guided-alt-btn" type="button" data-guided-target-type="${config.type}" data-guided-target-key="${option.targetKey}">${formatGuidedTargetLabel(config.type, option.targetKey)}</button>`).join('')}
+      </div>
+    ` : ''}
+  `;
+
+  card.classList.remove('hidden');
+
+  document.getElementById('guidedStartRecommendation')?.addEventListener('click', () => {
+    openGuidedTarget(config.type, topChoice.targetKey);
+  });
+
+  document.getElementById('guidedBrowseAllBtn')?.addEventListener('click', () => {
+    if (config.type === 'stretch') {
+      showStretchCategoriesDirect();
+      return;
+    }
+
+    showMuscleGroupsDirect();
+  });
+
+  card.querySelectorAll('[data-guided-target-key]').forEach(button => {
+    button.addEventListener('click', () => {
+      openGuidedTarget(button.dataset.guidedTargetType, button.dataset.guidedTargetKey);
+    });
+  });
+}
+
+function updateGuidedSelection(group, value) {
+  if (group === 'goal') guidedGoal = value;
+  if (group === 'time') guidedTime = Number(value);
+  if (group === 'difficulty') guidedDifficulty = value;
+
+  document.querySelectorAll(`#guidedEntryScreen [data-guided-group="${group}"]`).forEach(tile => {
+    tile.classList.toggle('selected', tile.dataset.value === value);
+  });
+
+  renderGuidedRecommendation();
+}
+
+function createDefaultCoachInterview() {
+  return {
+    workoutGoal: '',
+    planHorizon: '',
+    bodyFocus: '',
+    timeAvailable: '',
+    experienceLevel: '',
+    recoveryState: '',
+    nutritionGoal: '',
+    sport: ''
+  };
+}
+
+function resetCoachInterviewState() {
+  currentCoachInterview = createDefaultCoachInterview();
+  currentCoachPlanBundle = null;
+}
+
+function ensureCoachInterviewState() {
+  if (!currentCoachInterview) {
+    resetCoachInterviewState();
+  }
+}
+
+function getCoachOptionLabel(group, value) {
+  const labels = {
+    workoutGoal: {
+      strength: 'Strength',
+      hypertrophy: 'Muscle Growth',
+      fatloss: 'Fat Loss',
+      balance: 'Balance & Coordination',
+      flexibility: 'Flexibility & Mobility',
+      functional: 'Functional Training'
+    },
+    planHorizon: {
+      single: 'Single Session',
+      weekly: 'Weekly Plan'
+    },
+    bodyFocus: {
+      'full-body': 'Full Body',
+      'upper-body': 'Upper Body',
+      'lower-body': 'Lower Body',
+      push: 'Push Focus',
+      pull: 'Pull Focus',
+      'mobility-reset': 'Mobility Reset'
+    },
+    timeAvailable: {
+      30: '30 Minutes',
+      45: '45 Minutes',
+      60: '60 Minutes',
+      90: '90 Minutes'
+    },
+    experienceLevel: {
+      beginner: 'Beginner',
+      intermediate: 'Intermediate',
+      advanced: 'Advanced'
+    },
+    recoveryState: {
+      fresh: 'Fresh and ready',
+      normal: 'Normal energy',
+      sore: 'Sore / beat up'
+    }
+  };
+
+  return labels[group]?.[value] || value || 'Not selected';
+}
+
+function getCoachPromptCount(interview) {
+  return [
+    interview.workoutGoal,
+    interview.planHorizon,
+    interview.bodyFocus,
+    interview.timeAvailable,
+    interview.experienceLevel,
+    interview.recoveryState,
+    interview.nutritionGoal
+  ].filter(Boolean).length;
+}
+
+function getCoachFocusDefinition(interview) {
+  const isMobility = interview.bodyFocus === 'mobility-reset' || interview.workoutGoal === 'flexibility';
+
+  if (isMobility) {
+    return {
+      type: 'stretch',
+      label: 'Mobility Reset',
+      targets: ['hips-pelvis', 'back', 'spine-core', 'neck-shoulders']
+    };
+  }
+
+  if (interview.bodyFocus === 'upper-body') {
+    return {
+      type: 'combined',
+      label: 'Upper Body',
+      targets: ['chest', 'back', 'shoulders', 'triceps', 'biceps']
+    };
+  }
+
+  if (interview.bodyFocus === 'lower-body') {
+    return {
+      type: 'combined',
+      label: 'Lower Body',
+      targets: ['legs', 'core', 'back']
+    };
+  }
+
+  if (interview.bodyFocus === 'push') {
+    return {
+      type: 'preset',
+      label: 'Push Focus',
+      targets: ['push']
+    };
+  }
+
+  if (interview.bodyFocus === 'pull') {
+    return {
+      type: 'preset',
+      label: 'Pull Focus',
+      targets: ['pull']
+    };
+  }
+
+  return {
+    type: 'combined',
+    label: 'Full Body',
+    targets: ['legs', 'back', 'chest', 'shoulders', 'core']
+  };
+}
+
+function collectCoachExercisePool(focusDefinition) {
+  if (focusDefinition.type === 'stretch') {
+    return focusDefinition.targets.flatMap(target => window.LOCAL_EXERCISES?.stretchesByBodyPart?.[target] || []);
+  }
+
+  if (focusDefinition.type === 'preset') {
+    if (focusDefinition.targets[0] === 'push') {
+      return [
+        ...(window.LOCAL_EXERCISES?.chest || []),
+        ...(window.LOCAL_EXERCISES?.shoulders || []),
+        ...(window.LOCAL_EXERCISES?.triceps || [])
+      ];
+    }
+
+    if (focusDefinition.targets[0] === 'pull') {
+      return [
+        ...(window.LOCAL_EXERCISES?.back || []),
+        ...(window.LOCAL_EXERCISES?.biceps || [])
+      ];
+    }
+  }
+
+  return focusDefinition.targets.flatMap(target => window.LOCAL_EXERCISES?.[target] || []);
+}
+
+function getCoachAdjustedConfig(interview, options = {}) {
+  const { weekly = false, stretch = false } = options;
+  const baseGoal = stretch ? 'flexibility' : interview.workoutGoal;
+  const config = { ...getWorkoutConfig(baseGoal, Number(interview.timeAvailable)) };
+
+  if (interview.experienceLevel === 'beginner') {
+    config.count = Math.max(3, config.count - 1);
+    if (typeof config.sets === 'number') {
+      config.sets = Math.max(2, config.sets - 1);
+    }
+  }
+
+  if (interview.experienceLevel === 'advanced' && !stretch) {
+    config.count += 1;
+  }
+
+  if (interview.recoveryState === 'sore') {
+    config.count = Math.max(3, config.count - 1);
+    if (typeof config.sets === 'number') {
+      config.sets = Math.max(2, config.sets - 1);
+    }
+  }
+
+  if (weekly) {
+    config.count = Math.max(3, config.count - 1);
+  }
+
+  return config;
+}
+
+function createCoachExerciseList(pool, interview, options = {}) {
+  const { countOverride = null } = options;
+  const focusDefinition = getCoachFocusDefinition(interview);
+  const isStretch = focusDefinition.type === 'stretch';
+  const excluded = getExcludedExercisesSet();
+  const uniquePool = [];
+  const seen = new Set();
+
+  pool.forEach(exercise => {
+    if (!exercise?.name || seen.has(exercise.name)) return;
+    seen.add(exercise.name);
+    uniquePool.push(exercise);
+  });
+
+  const available = uniquePool.filter(exercise => !excluded.has(exercise.name));
+  const source = available.length ? available : uniquePool;
+  const config = getCoachAdjustedConfig(interview, { weekly: options.weekly, stretch: isStretch });
+  const limit = countOverride || config.count;
+
+  return source
+    .map(exercise => ({ ...exercise, score: scoreExercise(exercise, isStretch ? 'flexibility' : interview.workoutGoal) }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit)
+    .map(exercise => ({
+      name: exercise.name,
+      sets: isStretch ? 3 : config.sets,
+      reps: isStretch ? '30-60 seconds' : config.reps,
+      primary: exercise.primary || [],
+      secondary: exercise.secondary || [],
+      howTo: exercise.howTo || [],
+      image: exercise.image || ''
+    }));
+}
+
+function generateCoachSingleWorkout(interview) {
+  const focusDefinition = getCoachFocusDefinition(interview);
+  const pool = collectCoachExercisePool(focusDefinition);
+  const exercises = createCoachExerciseList(pool, interview);
+
+  return {
+    format: 'single',
+    focusLabel: focusDefinition.label,
+    isStretch: focusDefinition.type === 'stretch',
+    exercises,
+    summary: `Built as a ${getCoachOptionLabel('planHorizon', interview.planHorizon).toLowerCase()} with ${getCoachOptionLabel('experienceLevel', interview.experienceLevel).toLowerCase()} volume for a ${getCoachOptionLabel('recoveryState', interview.recoveryState).toLowerCase()} day.`
+  };
+}
+
+function getCoachWeeklyTargets(interview) {
+  if (interview.bodyFocus === 'mobility-reset' || interview.workoutGoal === 'flexibility') {
+    return [
+      { label: 'Hips & Pelvis', type: 'stretch', target: 'hips-pelvis' },
+      { label: 'Back Recovery', type: 'stretch', target: 'back' },
+      { label: 'Spine & Core Mobility', type: 'stretch', target: 'spine-core' },
+      { label: 'Neck & Shoulders Reset', type: 'stretch', target: 'neck-shoulders' }
+    ];
+  }
+
+  if (interview.bodyFocus === 'upper-body') {
+    return [
+      { label: 'Chest Strength', type: 'muscle', target: 'chest' },
+      { label: 'Back Pull', type: 'muscle', target: 'back' },
+      { label: 'Shoulders', type: 'muscle', target: 'shoulders' },
+      { label: 'Arms Finisher', type: 'combined', targets: ['biceps', 'triceps'] }
+    ];
+  }
+
+  if (interview.bodyFocus === 'lower-body') {
+    return [
+      { label: 'Leg Strength', type: 'muscle', target: 'legs' },
+      { label: 'Core Stability', type: 'muscle', target: 'core' },
+      { label: 'Posterior Chain', type: 'muscle', target: 'back' },
+      { label: 'Lower Body Recovery', type: 'stretch', target: 'legs-glutes' }
+    ];
+  }
+
+  if (interview.bodyFocus === 'push') {
+    return [
+      { label: 'Push Day A', type: 'preset', target: 'push' },
+      { label: 'Pull Balance', type: 'preset', target: 'pull' },
+      { label: 'Leg Support', type: 'muscle', target: 'legs' },
+      { label: 'Push Day B', type: 'preset', target: 'push' }
+    ];
+  }
+
+  if (interview.bodyFocus === 'pull') {
+    return [
+      { label: 'Pull Day A', type: 'preset', target: 'pull' },
+      { label: 'Leg Support', type: 'muscle', target: 'legs' },
+      { label: 'Core Support', type: 'muscle', target: 'core' },
+      { label: 'Pull Day B', type: 'preset', target: 'pull' }
+    ];
+  }
+
+  return [
+    { label: 'Push Focus', type: 'preset', target: 'push' },
+    { label: 'Leg Day', type: 'muscle', target: 'legs' },
+    { label: 'Pull Focus', type: 'preset', target: 'pull' },
+    { label: 'Core & Posture', type: 'combined', targets: ['core', 'back', 'traps'] }
+  ];
+}
+
+function getCoachWeeklyDayCount(interview) {
+  let dayCount = 4;
+
+  if (interview.experienceLevel === 'beginner') {
+    dayCount = 3;
+  }
+
+  if (interview.experienceLevel === 'advanced') {
+    dayCount = 5;
+  }
+
+  if (interview.recoveryState === 'sore') {
+    dayCount = Math.max(2, dayCount - 1);
+  }
+
+  return dayCount;
+}
+
+function collectCoachWeeklyPool(day) {
+  if (day.type === 'stretch') {
+    return window.LOCAL_EXERCISES?.stretchesByBodyPart?.[day.target] || [];
+  }
+
+  if (day.type === 'preset') {
+    return collectCoachExercisePool({ type: 'preset', targets: [day.target] });
+  }
+
+  if (day.type === 'combined') {
+    return day.targets.flatMap(target => window.LOCAL_EXERCISES?.[target] || []);
+  }
+
+  return window.LOCAL_EXERCISES?.[day.target] || [];
+}
+
+function generateCoachWeeklyWorkout(interview) {
+  const templates = getCoachWeeklyTargets(interview);
+  const dayCount = getCoachWeeklyDayCount(interview);
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const plan = {};
+
+  templates.slice(0, dayCount).forEach((template, index) => {
+    const pool = collectCoachWeeklyPool(template);
+    const exercises = createCoachExerciseList(pool, interview, { weekly: true });
+    plan[daysOfWeek[index]] = {
+      title: template.label,
+      exercises
+    };
+  });
+
+  return {
+    format: 'weekly',
+    focusLabel: getCoachOptionLabel('bodyFocus', interview.bodyFocus),
+    isStretch: interview.bodyFocus === 'mobility-reset' || interview.workoutGoal === 'flexibility',
+    days: plan,
+    summary: `Structured as ${dayCount} training days so the weekly load matches a ${getCoachOptionLabel('experienceLevel', interview.experienceLevel).toLowerCase()} member who feels ${getCoachOptionLabel('recoveryState', interview.recoveryState).toLowerCase()}.`
+  };
+}
+
+function generateCoachPlanBundle(interview, username) {
+  const workoutPlan = interview.planHorizon === 'weekly'
+    ? generateCoachWeeklyWorkout(interview)
+    : generateCoachSingleWorkout(interview);
+  const nutritionPlan = interview.planHorizon === 'weekly'
+    ? generateWeeklyNutritionPlan(interview.nutritionGoal)
+    : generateSingleDayNutritionPlan(interview.nutritionGoal);
+  const historyAvailable = Boolean(getMuscleGroupDistribution(username));
+
+  return {
+    workoutPlan,
+    nutritionPlan,
+    narrative: `Based on your answers, I matched a ${getCoachOptionLabel('workoutGoal', interview.workoutGoal).toLowerCase()} training plan with a ${getCoachOptionLabel('workoutGoal', interview.nutritionGoal).toLowerCase()} food plan, tuned for ${getCoachOptionLabel('timeAvailable', interview.timeAvailable).toLowerCase()} and a ${getCoachOptionLabel('experienceLevel', interview.experienceLevel).toLowerCase()} training level.${interview.sport ? ` I also kept ${interview.sport.replace('-', ' ')} in mind when shaping the plan.` : ''}`,
+    notes: [
+      interview.recoveryState === 'sore'
+        ? 'Recovery note: keep 1-2 reps in reserve and move deliberately through the session.'
+        : 'Recovery note: use challenging but controlled effort, and keep technique clean.',
+      interview.experienceLevel === 'beginner'
+        ? 'Execution note: start with the first 3-4 movements and focus on learning form before adding load.'
+        : 'Execution note: use the full movement list and scale load to match the target rep range.',
+      historyAvailable
+        ? 'Personalization note: your recent training history is shown below so you can compare this plan with what you usually do.'
+        : 'Personalization note: once you complete a few sessions, the coach will start adjusting plans based on your history.'
+    ]
+  };
+}
+
+function buildCoachShareExercises(workoutPlan) {
+  if (!workoutPlan) return [];
+
+  if (workoutPlan.format === 'weekly' && workoutPlan.days) {
+    return Object.entries(workoutPlan.days).map(([day, info]) => ({
+      day,
+      dayExercises: Array.isArray(info?.exercises) ? info.exercises : []
+    }));
+  }
+
+  return Array.isArray(workoutPlan.exercises) ? workoutPlan.exercises : [];
+}
+
+async function shareCoachPlanToPhone(bundle, interview) {
+  if (!bundle?.workoutPlan) {
+    throw new Error('No workout plan is available to share yet.');
+  }
+
+  if (typeof displayQRCodeModal !== 'function') {
+    throw new Error('QR module is not available.');
+  }
+
+  const workoutId = generateUUID();
+  const exercises = buildCoachShareExercises(bundle.workoutPlan);
+  const coachPlanToShare = {
+    id: workoutId,
+    type: 'coach-plan',
+    planFormat: bundle.workoutPlan.format,
+    focusLabel: bundle.workoutPlan.focusLabel,
+    narrative: bundle.narrative,
+    notes: bundle.notes || [],
+    coachInterview: {
+      workoutGoal: interview?.workoutGoal || '',
+      planHorizon: interview?.planHorizon || '',
+      bodyFocus: interview?.bodyFocus || '',
+      timeAvailable: interview?.timeAvailable || '',
+      experienceLevel: interview?.experienceLevel || '',
+      recoveryState: interview?.recoveryState || '',
+      nutritionGoal: interview?.nutritionGoal || '',
+      sport: interview?.sport || ''
+    },
+    exercises,
+    nutritionPlan: bundle.nutritionPlan || null,
+    created: new Date().toISOString(),
+    user: window.currentUser
+  };
+
+  try {
+    await saveWorkoutToServer(workoutId, coachPlanToShare);
+  } catch (saveError) {
+    console.warn('UI.JS: Coach workout save failed; still opening QR modal:', saveError?.message || saveError);
+  }
+
+  await displayQRCodeModal(workoutId, kioskIP);
+}
+
+async function shareCoachNutritionToPhone(bundle, interview) {
+  if (!bundle?.nutritionPlan) {
+    throw new Error('No nutrition plan is available to share yet.');
+  }
+
+  if (typeof displayMealPlanQRCodeModal !== 'function') {
+    throw new Error('QR module is not available.');
+  }
+
+  const planId = generateUUID();
+  const nutritionToShare = {
+    id: planId,
+    type: bundle.workoutPlan?.format === 'weekly' ? 'weekly' : 'single',
+    goal: interview?.nutritionGoal || interview?.workoutGoal || 'strength',
+    meals: bundle.nutritionPlan,
+    created: new Date().toISOString(),
+    user: window.currentUser
+  };
+
+  try {
+    await saveNutritionToServer(planId, nutritionToShare);
+  } catch (saveError) {
+    console.warn('UI.JS: Coach nutrition save failed; still opening QR modal:', saveError?.message || saveError);
+  }
+
+  await displayMealPlanQRCodeModal(planId, kioskIP);
+}
+
+function buildCoachQuestionTile(group, value, label) {
+  ensureCoachInterviewState();
+  const isSelected = String(currentCoachInterview[group]) === String(value);
+  return `<button class="builder-tile${isSelected ? ' selected' : ''}" type="button" data-coach-group="${group}" data-coach-value="${value}">${label}</button>`;
+}
+
+function renderCoachPlanHtml(bundle) {
+  if (!bundle?.workoutPlan || !bundle?.nutritionPlan) {
+    return '';
+  }
+
+  const workoutHtml = bundle.workoutPlan.format === 'weekly'
+    ? Object.entries(bundle.workoutPlan.days).map(([day, info]) => `
+        <div class="coach-day-block">
+          <div class="coach-day-title">${day}: ${info.title}</div>
+          <ul class="coach-list">
+            ${info.exercises.map(exercise => `<li><strong>${exercise.name}</strong> — ${exercise.sets} sets × ${exercise.reps}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('')
+    : `
+      <ul class="coach-list">
+        ${bundle.workoutPlan.exercises.map(exercise => `<li><strong>${exercise.name}</strong> — ${exercise.sets} sets × ${exercise.reps}</li>`).join('')}
+      </ul>
+    `;
+
+  const nutritionIsWeekly = Boolean(bundle.nutritionPlan.Monday || bundle.nutritionPlan.Tuesday);
+  const nutritionHtml = nutritionIsWeekly
+    ? Object.entries(bundle.nutritionPlan).slice(0, 4).map(([day, meals]) => `
+        <div class="coach-day-block">
+          <div class="coach-day-title">${day}</div>
+          <ul class="coach-list">
+            <li><strong>Breakfast:</strong> ${meals.breakfast?.name || '—'}</li>
+            <li><strong>Lunch:</strong> ${meals.lunch?.name || '—'}</li>
+            <li><strong>Dinner:</strong> ${meals.dinner?.name || '—'}</li>
+            <li><strong>Pre-workout:</strong> ${meals.preWorkout?.name || '—'}</li>
+            <li><strong>Post-workout:</strong> ${meals.postWorkout?.name || '—'}</li>
+          </ul>
+        </div>
+      `).join('')
+    : `
+      <ul class="coach-list">
+        <li><strong>Breakfast:</strong> ${bundle.nutritionPlan.breakfast?.name || '—'}</li>
+        <li><strong>Lunch:</strong> ${bundle.nutritionPlan.lunch?.name || '—'}</li>
+        <li><strong>Dinner:</strong> ${bundle.nutritionPlan.dinner?.name || '—'}</li>
+        <li><strong>Snacks:</strong> ${bundle.nutritionPlan.snacks?.name || '—'}</li>
+        <li><strong>Pre-workout:</strong> ${bundle.nutritionPlan.preWorkout?.name || '—'}</li>
+        <li><strong>Post-workout:</strong> ${bundle.nutritionPlan.postWorkout?.name || '—'}</li>
+      </ul>
+    `;
+
+  return `
+    <div class="coach-plan-card">
+      <h4>Your Coach Summary</h4>
+      <p class="coach-summary-copy">${bundle.narrative}</p>
+      <div class="coach-plan-meta">
+        <span class="coach-plan-pill">Workout: ${bundle.workoutPlan.focusLabel}</span>
+        <span class="coach-plan-pill">Format: ${bundle.workoutPlan.format === 'weekly' ? 'Weekly structure' : 'Single session'}</span>
+        <span class="coach-plan-pill">Nutrition goal: ${getCoachOptionLabel('workoutGoal', currentCoachInterview.nutritionGoal)}</span>
+      </div>
+      <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 0 0 18px;">
+        <button id="coachSharePlanQrBtn" class="primary-btn" type="button">📱 Send Full Plan to Phone with QR Code</button>
+        <button id="coachShareNutritionQrBtn" class="primary-btn" type="button">🥗 Send Nutrition to Phone with QR Code</button>
+      </div>
+      <ul class="coach-note-list">
+        ${bundle.notes.map(note => `<li>${note}</li>`).join('')}
+      </ul>
+    </div>
+    <div class="coach-plan-grid">
+      <div class="coach-plan-card">
+        <h4>Workout Plan</h4>
+        <p class="coach-summary-copy" style="margin-bottom: 14px;">${bundle.workoutPlan.summary}</p>
+        ${workoutHtml}
+      </div>
+      <div class="coach-plan-card">
+        <h4>Nutrition Plan</h4>
+        <p class="coach-summary-copy" style="margin-bottom: 14px;">Built to support your selected training goal with simple, gym-friendly meals.</p>
+        ${nutritionHtml}
+      </div>
+    </div>
+  `;
+}
+
+function renderCoachHistoryHtml(username) {
+  const distribution = getMuscleGroupDistribution(username);
+  const muscleRec = getMuscleGroupRecommendationWithReason(username);
+  const timing = getOptimalWorkoutTime(username);
+  const warnings = getImbalanceWarnings(username);
+
+  if (!distribution) {
+    return `
+      <div class="coach-history-card">
+        <h4>No training history yet</h4>
+        <p class="coach-summary-copy">Answer the interview above and I will build your first workout and nutrition plan. As you log workouts, this section will start highlighting your trends and gaps.</p>
+      </div>
+    `;
+  }
+
+  const topDistribution = Object.entries(distribution)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([muscle, pct]) => `${muscle.charAt(0).toUpperCase() + muscle.slice(1)} ${pct}%`)
+    .join(' • ');
+
+  return `
+    <div class="coach-history-card">
+      <h4>Your Recent Pattern</h4>
+      <p class="coach-summary-copy">Recent training distribution: <strong>${topDistribution}</strong></p>
+      ${muscleRec ? `<p class="coach-summary-copy" style="margin-top: 10px;">Balance cue: ${muscleRec.reason}</p>` : ''}
+      ${timing ? `<p class="coach-summary-copy" style="margin-top: 10px;">Best consistency window: <strong>${timing.displayTime}</strong>. ${timing.message}</p>` : ''}
+      ${warnings.length ? `<ul class="coach-note-list" style="margin-top: 12px;">${warnings.slice(0, 2).map(warning => `<li>${warning.message}</li>`).join('')}</ul>` : ''}
+    </div>
+  `;
 }
 
 /* ===============================
@@ -331,54 +3177,31 @@ function getConfiguredServerBaseUrl() {
     localStorage.getItem(SERVER_BASE_OVERRIDE_KEY) ||
     UI_DEFAULT_SERVER_BASE_URL;
 
-  return String(configured).replace(/\/+$/, '');
-}
-
-function isPublicQrModeEnabled() {
-  const normalized = getConfiguredServerBaseUrl().toLowerCase();
-  return !normalized.includes('localhost') && !normalized.includes('127.0.0.1');
-}
-
-function setPublicQrModeEnabled(enabled) {
-  const currentBase = getConfiguredServerBaseUrl();
-
-  if (!enabled) {
-    const normalizedCurrent = currentBase.toLowerCase();
-    const isCurrentPublic = !normalizedCurrent.includes('localhost') && !normalizedCurrent.includes('127.0.0.1');
-    if (isCurrentPublic) {
-      localStorage.setItem(LAST_PUBLIC_SERVER_BASE_URL_KEY, currentBase);
-    }
+  // Auto-migrate old production hostname to the new canonical domain.
+  const normalizedConfigured = String(configured).replace(/\/+$/, '');
+  if (normalizedConfigured === LEGACY_PUBLIC_SERVER_BASE_URL) {
+    return UI_DEFAULT_SERVER_BASE_URL;
   }
 
-  const nextBase = enabled
-    ? (localStorage.getItem(LAST_PUBLIC_SERVER_BASE_URL_KEY) || UI_DEFAULT_SERVER_BASE_URL)
-    : UI_DEFAULT_LOCAL_SERVER_BASE_URL;
-
-  localStorage.setItem(SERVER_BASE_OVERRIDE_KEY, nextBase);
-
-  if (typeof window.resetShareBaseCache === 'function') {
-    window.resetShareBaseCache();
+  if (!isAllowedPublicServerBase(normalizedConfigured)) {
+    return UI_DEFAULT_SERVER_BASE_URL;
   }
+
+  return normalizedConfigured;
 }
+
+// QR mode is now always PUBLIC; admin toggle is disabled
+function isPublicQrModeEnabled() { return true; }
+function setPublicQrModeEnabled(enabled) { /* no-op */ }
 
 function updateAdminQrModeButtonLabel() {
   const btn = document.getElementById('adminToggleQrMode');
   const statusEl = document.getElementById('adminQrModeStatus');
-  const isPublic = isPublicQrModeEnabled();
-  const activeBase = getConfiguredServerBaseUrl();
-
-  if (btn) {
-    btn.textContent = isPublic
-      ? '🌐 QR Mode: PUBLIC'
-      : '🏠 QR Mode: LOCAL';
-  }
-
+  if (btn) btn.textContent = '🌐 QR Mode: PUBLIC (locked)';
   if (statusEl) {
-    statusEl.textContent = isPublic
-      ? `Current QR mode: PUBLIC (${activeBase})`
-      : `Current QR mode: LOCAL (${UI_DEFAULT_LOCAL_SERVER_BASE_URL})`;
-    statusEl.classList.toggle('is-on', isPublic);
-    statusEl.classList.toggle('is-off', !isPublic);
+    statusEl.textContent = `Current QR mode: PUBLIC (${UI_DEFAULT_SERVER_BASE_URL})`;
+    statusEl.classList.add('is-on');
+    statusEl.classList.remove('is-off');
   }
 }
 
@@ -463,11 +3286,11 @@ function shouldFallbackToLocal(response, requestPath) {
 
 async function fetchApiWithFallback(path, options = {}) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const primaryBase = getServerBaseUrl();
+  const remoteBase = getServerBaseUrl();
   const localBase = getLocalServerBaseUrl();
-  const primaryUrl = `${primaryBase}${normalizedPath}`;
+  const primaryUrl = `${remoteBase}${normalizedPath}`;
   const localUrl = `${localBase}${normalizedPath}`;
-  const canTryLocal = primaryBase !== localBase;
+  const canTryLocal = remoteBase !== localBase;
 
   let primaryError = null;
 
@@ -534,7 +3357,11 @@ async function saveWorkoutToServer(workoutId, workoutData) {
         data: {
           exercises: workoutData.exercises, // Pass full exercise objects with howTo, primary, secondary, etc
           created: workoutData.created,
-          user: workoutData.user
+          user: workoutData.user,
+          type: workoutData.type || 'workout',
+          title: workoutData.title || '',
+          muscle: workoutData.muscle || '',
+          bodyPart: workoutData.bodyPart || ''
         }
       })
     });
@@ -749,84 +3576,87 @@ function showPRCelebration(exerciseName) {
  * Render the Personal Records dashboard screen
  */
 function renderPersonalRecordsScreen() {
-  const container = document.getElementById('personalRecordsScreen');
-  if (!container) return;
-  
+  const screen = document.getElementById('personalRecordsScreen');
+  const container = document.getElementById('prContainer');
+  if (!screen || !container) return;
+
   container.innerHTML = '';
-  
+
   const users = getUsers();
   const user = users.find(u => u.username === window.currentUser);
-  
+
   if (!user || !user.personalRecords || Object.keys(user.personalRecords).length === 0) {
     container.innerHTML = `
       <div style="padding: 40px; text-align: center;">
         <div style="font-size: 32px; margin-bottom: 20px;">📊</div>
         <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">No Personal Records Yet</div>
         <div style="color: #888; margin-bottom: 20px;">Log weights while completing exercises to track your progress!</div>
-        <button class="primary-btn" onclick="showScreen('muscleScreen')">Start Workout</button>
+        <button class="primary-btn" onclick="showMuscleGroupsDirect()">Start Workout</button>
       </div>
     `;
-    return;
-  }
-  
-  const header = document.createElement('div');
-  header.style.cssText = `
-    padding: 20px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    text-align: center;
-  `;
-  header.innerHTML = `
-    <div style="font-size: 24px; font-weight: bold;">🏆 My Personal Records</div>
-    <div style="margin-top: 8px; opacity: 0.9;">Your strongest lifts tracked</div>
-  `;
-  container.appendChild(header);
-  
-  const grid = document.createElement('div');
-  grid.style.cssText = `
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
-  `;
-  
-  Object.entries(user.personalRecords).forEach(([exerciseName, pr]) => {
-    const card = document.createElement('div');
-    card.style.cssText = `
-      background: #f5f5f5;
-      border: 2px solid #10b981;
-      border-radius: 12px;
+  } else {
+    const header = document.createElement('div');
+    header.style.cssText = `
       padding: 20px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border-radius: 12px;
+      margin-bottom: 20px;
       text-align: center;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     `;
-    
-    card.innerHTML = `
-      <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 12px;">${exerciseName}</div>
-      <div style="font-size: 14px; color: #666; margin-bottom: 4px;">
-        <strong>${pr.weight} lbs</strong> × ${pr.reps} rep${pr.reps > 1 ? 's' : ''}
-      </div>
-      <div style="font-size: 12px; color: #999; margin-bottom: 12px;">
-        Estimated 1RM: <strong>${pr.estimatedMax} lbs</strong>
-      </div>
-      <div style="font-size: 11px; color: #999;">
-        Set on ${new Date(pr.date).toLocaleDateString()}
-      </div>
+    header.innerHTML = `
+      <div style="font-size: 24px; font-weight: bold;">🏆 My Personal Records</div>
+      <div style="margin-top: 8px; opacity: 0.9;">Your strongest lifts tracked</div>
     `;
-    
-    grid.appendChild(card);
-  });
-  
-  container.appendChild(grid);
-  
-  const backBtn = document.createElement('button');
-  backBtn.className = 'primary-btn';
-  backBtn.textContent = '← Back to Main Menu';
-  backBtn.style.width = '100%';
-  backBtn.onclick = () => showScreen('mainScreen');
-  container.appendChild(backBtn);
+    container.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    `;
+
+    Object.entries(user.personalRecords).forEach(([exerciseName, pr]) => {
+      const card = document.createElement('div');
+      card.style.cssText = `
+        background: #f5f5f5;
+        border: 2px solid #10b981;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      `;
+
+      card.innerHTML = `
+        <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 12px;">${exerciseName}</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 4px;">
+          <strong>${pr.weight} lbs</strong> × ${pr.reps} rep${pr.reps > 1 ? 's' : ''}
+        </div>
+        <div style="font-size: 12px; color: #999; margin-bottom: 12px;">
+          Estimated 1RM: <strong>${pr.estimatedMax} lbs</strong>
+        </div>
+        <div style="font-size: 11px; color: #999;">
+          Set on ${new Date(pr.date).toLocaleDateString()}
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+  }
+
+  const backBtn = document.getElementById('backFromPRs');
+  if (backBtn && !backBtn.dataset.listenerBound) {
+    backBtn.dataset.listenerBound = 'true';
+    backBtn.addEventListener('click', () => {
+      showScreen('mainActionsScreen');
+    });
+  }
+
+  showScreen('personalRecordsScreen');
 }
 
 /* ===============================
@@ -1180,7 +4010,7 @@ function renderSingleWorkoutResult(plan, container) {
   const shareBtn = document.createElement('button');
   shareBtn.className = 'primary-btn';
   shareBtn.style.flex = '1';
-  shareBtn.textContent = '📤 Share Workout';
+  shareBtn.textContent = '📱 Send to Phone with QR Code';
   shareBtn.onclick = () => shareBuilderWorkout(plan);
   buttonContainer.appendChild(shareBtn);
   
@@ -1211,9 +4041,10 @@ function renderSingleWorkoutResult(plan, container) {
     swapBtn.style.cssText = 'margin-top: 10px; padding: 8px 12px; font-size: 14px; background: rgba(var(--color-gold-rgb), 0.15); border: 1px solid var(--color-gold); color: var(--color-gold);';
     swapBtn.textContent = '🔄 Swap Exercise';
     swapBtn.onclick = () => {
-      const allOptions = getAllExerciseOptions();
-      const excluded = getExcludedExercisesSet();
-      const options = allOptions.filter(opt => !excluded.has(opt.name));
+      const options = getBuilderSwapExerciseOptions({
+        workoutType: selectedWorkoutType,
+        focus: selectedMuscle
+      });
       openSwapModal({
         title: 'Swap Exercise',
         currentName: ex.name,
@@ -1250,7 +4081,7 @@ function renderSingleWorkoutResult(plan, container) {
   suppDiv.innerHTML = `
     <div style="font-weight: 700; margin-bottom: 10px; color: #f5f7fa;">💊 Suggested Supplements</div>
     <ul style="margin: 0; padding-left: 20px; color: #c4cfe0;">
-      ${supplementList.map(item => `<li style=\"margin-bottom: 6px;\">${item}</li>`).join('')}
+      ${supplementList.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
     </ul>
     <div style="margin-top: 8px; font-size: 12px; color: #8b95a8;">General guidance only. Consult a professional if needed.</div>
   `;
@@ -1265,9 +4096,9 @@ function renderSingleWorkoutResult(plan, container) {
   const recoveryDiv = document.createElement('div');
   recoveryDiv.style.cssText = 'margin-top: 16px; padding: 16px; background: #0f141c; border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 12px;';
   recoveryDiv.innerHTML = `
-    <div style=\"font-weight: 700; margin-bottom: 10px; color: #f5f7fa;\">🛌 Proper Recovery</div>
-    <ul style=\"margin: 0; padding-left: 20px; color: #c4cfe0;\">
-      ${recoveryTips.map(item => `<li style=\\\"margin-bottom: 6px;\\\">${item}</li>`).join('')}
+    <div style="font-weight: 700; margin-bottom: 10px; color: #f5f7fa;">🛌 Proper Recovery</div>
+    <ul style="margin: 0; padding-left: 20px; color: #c4cfe0;">
+      ${recoveryTips.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
     </ul>
   `;
   container.appendChild(recoveryDiv);
@@ -1310,7 +4141,7 @@ function renderWeeklyPlanResult(weeklyPlan, container) {
   const shareBtn = document.createElement('button');
   shareBtn.className = 'primary-btn';
   shareBtn.style.flex = '1';
-  shareBtn.textContent = '📤 Share Weekly Plan';
+  shareBtn.textContent = '📱 Send Weekly Plan to Phone with QR Code';
   shareBtn.onclick = () => shareWeeklyPlan(weeklyPlan);
   buttonContainer.appendChild(shareBtn);
   
@@ -1358,9 +4189,11 @@ function renderWeeklyPlanResult(weeklyPlan, container) {
       swapBtn.style.cssText = 'margin-top: 8px; padding: 6px 10px; font-size: 13px; background: rgba(var(--color-gold-rgb), 0.15); border: 1px solid var(--color-gold); color: var(--color-gold);';
       swapBtn.textContent = '🔄 Swap Exercise';
       swapBtn.onclick = () => {
-        const allOptions = getAllExerciseOptions();
-        const excluded = getExcludedExercisesSet();
-        const options = allOptions.filter(opt => !excluded.has(opt.name));
+        const options = getBuilderSwapExerciseOptions({
+          workoutType: selectedWorkoutType,
+          day,
+          weeklyPlan
+        });
         openSwapModal({
           title: `Swap Exercise (${day})`,
           currentName: ex.name,
@@ -1408,7 +4241,7 @@ function renderWeeklyPlanResult(weeklyPlan, container) {
     suppDiv.innerHTML = `
       <div style="font-weight: 700; margin-bottom: 10px; color: #f5f7fa;">💊 Suggested Supplements</div>
       <ul style="margin: 0; padding-left: 20px; color: #c4cfe0;">
-        ${supplementList.map(item => `<li style=\"margin-bottom: 6px;\">${item}</li>`).join('')}
+        ${supplementList.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
       </ul>
       <div style="margin-top: 8px; font-size: 12px; color: #8b95a8;">General guidance only. Consult a professional if needed.</div>
     `;
@@ -1422,16 +4255,16 @@ function renderWeeklyPlanResult(weeklyPlan, container) {
     const recoveryDiv = document.createElement('div');
     recoveryDiv.style.cssText = 'margin-top: 16px; padding: 16px; background: #0f141c; border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 12px;';
     recoveryDiv.innerHTML = `
-      <div style=\"font-weight: 700; margin-bottom: 10px; color: #f5f7fa;\">🛌 Proper Recovery</div>
-      <ul style=\"margin: 0; padding-left: 20px; color: #c4cfe0;\">
-        ${recoveryTips.map(item => `<li style=\\\"margin-bottom: 6px;\\\">${item}</li>`).join('')}
+      <div style="font-weight: 700; margin-bottom: 10px; color: #f5f7fa;">🛌 Proper Recovery</div>
+      <ul style="margin: 0; padding-left: 20px; color: #c4cfe0;">
+        ${recoveryTips.map(item => `<li style="margin-bottom: 6px;">${item}</li>`).join('')}
       </ul>
     `;
     container.appendChild(recoveryDiv);
   }
 }
 
-function shareWeeklyPlan(weeklyPlan) {
+async function shareWeeklyPlan(weeklyPlan) {
   if (!weeklyPlan) return;
 
   // Flatten weekly plan into a single exercise array for sharing
@@ -1447,7 +4280,6 @@ function shareWeeklyPlan(weeklyPlan) {
   const workoutId = generateUUID();
   const workoutToShare = {
     id: workoutId,
-    type: 'weekly',
     exercises: exercises,
     created: new Date().toISOString(),
     user: window.currentUser
@@ -1455,8 +4287,8 @@ function shareWeeklyPlan(weeklyPlan) {
 
   console.log('UI.JS: Sharing weekly plan with days:', exercises);
 
-  // Save workout to server
-  saveWorkoutToServer(workoutId, workoutToShare);
+  // Save workout to server first, then show QR
+  await saveWorkoutToServer(workoutId, workoutToShare);
   
   // Mark workout as completed today and save workout data
   const today = new Date();
@@ -1466,7 +4298,7 @@ function shareWeeklyPlan(weeklyPlan) {
   displayQRCodeModal(workoutId, kioskIP);
 }
 
-function shareBuilderWorkout(plan) {
+async function shareBuilderWorkout(plan) {
   if (!plan || !plan.length) return;
 
   // The plan already has all exercise details (howTo, primary, secondary, etc)
@@ -1492,8 +4324,8 @@ function shareBuilderWorkout(plan) {
 
   console.log('UI.JS: Sharing workout with exercises:', exercises);
 
-  // Save workout to server
-  saveWorkoutToServer(workoutId, workoutToShare);
+  // Save workout to server first, then show QR
+  await saveWorkoutToServer(workoutId, workoutToShare);
   
   // Mark workout as completed today and save workout data
   const today = new Date();
@@ -1625,7 +4457,7 @@ function renderSingleDayNutritionPlanResult(dayPlan, container) {
   const shareBtn = document.createElement('button');
   shareBtn.className = 'primary-btn';
   shareBtn.style.flex = '1';
-  shareBtn.textContent = '📤 Share Nutrition Plan';
+  shareBtn.textContent = '🥗 Send Nutrition to Phone with QR Code';
   shareBtn.onclick = () => shareNutritionPlan(dayPlan, 'single');
   buttonContainer.appendChild(shareBtn);
   
@@ -1734,7 +4566,7 @@ function renderWeeklyNutritionPlanResult(weeklyPlan, container) {
   const shareBtn = document.createElement('button');
   shareBtn.className = 'primary-btn';
   shareBtn.style.flex = '1';
-  shareBtn.textContent = '📤 Share Weekly Nutrition Plan';
+  shareBtn.textContent = '🥗 Send Weekly Nutrition to Phone with QR Code';
   shareBtn.onclick = () => shareNutritionPlan(weeklyPlan, 'weekly');
   buttonContainer.appendChild(shareBtn);
   
@@ -1860,6 +4692,7 @@ function shareNutritionPlan(plan, planType) {
   const today = new Date();
   saveMealPlanToCalendarDate(today, nutritionToShare);
   
+  // Display QR code
   displayMealPlanQRCodeModal(planId, kioskIP);
 }
 
@@ -1892,15 +4725,21 @@ function updateTopControls(screenId) {
   const backBtn = document.getElementById('backToMuscles');
   if (!backBtn) return;
 
-  backBtn.style.display =
-    screenId === 'userScreen' ? 'none' : 'block';
+  backBtn.style.display = 'block';
 }
 
 /* ===============================
    STORAGE HELPERS
 ================================ */
 function getUsers() {
-  const raw = JSON.parse(localStorage.getItem('users') || '[]');
+  let raw = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem('users') || '[]');
+    raw = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('⚠ getUsers(): invalid users JSON in localStorage, resetting to empty list');
+    raw = [];
+  }
   const filtered = raw.filter(u => u && u.username && u.username.trim());
   console.log('👥 getUsers() - raw:', raw.length, 'filtered:', filtered.length, filtered.map(u => u.username));
   return filtered;
@@ -1908,6 +4747,55 @@ function getUsers() {
 
 function saveUsers(users) {
   localStorage.setItem('users', JSON.stringify(users));
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashUserPin(pin, saltHex = null) {
+  const encoder = new TextEncoder();
+  const salt = saltHex
+    ? new Uint8Array(saltHex.match(/.{1,2}/g).map((value) => parseInt(value, 16)))
+    : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', encoder.encode(String(pin)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 150000 },
+    key,
+    256
+  );
+  return { pinHash: bytesToHex(new Uint8Array(bits)), pinSalt: bytesToHex(salt) };
+}
+
+async function verifyUserPin(user, pin) {
+  if (user?.pinHash && user?.pinSalt) {
+    const result = await hashUserPin(pin, user.pinSalt);
+    return result.pinHash === user.pinHash;
+  }
+  return !!user?.pin && String(user.pin) === String(pin);
+}
+
+function removeDeprecatedBiometricData() {
+  const users = getUsers();
+  let changed = false;
+  const cleaned = users.map((user) => {
+    const next = { ...user };
+    ['faceLoginEnabled', 'faceSignature', 'faceEnrolledAt', 'voiceProfile', 'voiceSignature'].forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(next, field)) {
+        delete next[field];
+        changed = true;
+      }
+    });
+    return next;
+  });
+  if (changed) saveUsers(cleaned);
+
+  [
+    'gymKiosk_faceCheckIns',
+    'gymKiosk_faceGreetingDaily',
+    'gymKiosk_faceDetectionStableFrames',
+    'gymKiosk_nativeVoiceName'
+  ].forEach((key) => localStorage.removeItem(key));
 }
 
 // Save completed exercise for today
@@ -1941,11 +4829,25 @@ function isExerciseCompletedToday(muscle, exerciseName) {
 }
 
 function seedDefaultUser() {
-  const users = JSON.parse(localStorage.getItem('users') || '[]');
+  let users = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem('users') || '[]');
+    users = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('⚠ seedDefaultUser(): invalid users JSON, backing up and restoring defaults');
+    const corrupted = localStorage.getItem('users');
+    if (corrupted) {
+      localStorage.setItem(`users_corrupt_backup_${Date.now()}`, corrupted);
+    }
+    users = [];
+  }
+
+  const validProfiles = users.filter(u => u && typeof u.username === 'string' && u.username.trim());
 
   console.log('🌱 seedDefaultUser() called - current users:', users.length, users.map(u => u.username));
+  console.log('🌱 valid profile users:', validProfiles.length, validProfiles.map(u => u.username));
 
-  if (!users.length) {
+  if (!validProfiles.length) {
     const defaultUsers = [
       {
         username: 'RICK',
@@ -1979,6 +4881,12 @@ function seedDefaultUser() {
     localStorage.setItem('users', JSON.stringify(defaultUsers));
     console.log('✅ Default users CREATED: RICK, Mel, Kean');
   } else {
+    // If mixed valid/invalid records exist, keep only valid profile objects.
+    if (validProfiles.length !== users.length) {
+      localStorage.setItem('users', JSON.stringify(validProfiles));
+      console.log(`🧹 Removed ${users.length - validProfiles.length} invalid user records from localStorage`);
+    }
+
     // Update existing users' colors if needed
     // Update mel's color to pink
     const users2 = JSON.parse(localStorage.getItem('users') || '[]');
@@ -2151,6 +5059,87 @@ function getAllExerciseOptions() {
   });
 
   return options.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function normalizeExerciseOption(ex) {
+  if (!ex?.name) return null;
+  return {
+    name: ex.name,
+    howTo: ex.howTo || [],
+    primary: ex.primary || [],
+    secondary: ex.secondary || [],
+    description: ex.description || ''
+  };
+}
+
+function getBuilderSwapExerciseOptions({
+  workoutType = 'muscle',
+  focus,
+  day,
+  weeklyPlan
+} = {}) {
+  const localExercises = window.LOCAL_EXERCISES || {};
+  const buildOptionsFromSource = sourceList => {
+    const excluded = getExcludedExercisesSet();
+    const seen = new Set();
+    return sourceList
+      .map(normalizeExerciseOption)
+      .filter(opt => opt && !excluded.has(opt.name) && !seen.has(opt.name) && seen.add(opt.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+  let source = [];
+
+  if (workoutType === 'stretch') {
+    const stretchGroups = localExercises.stretchesByBodyPart || {};
+    source = Array.isArray(stretchGroups[focus]) ? stretchGroups[focus] : [];
+  } else if (day && weeklyPlan?.[day]?.muscle) {
+    const dayFocus = weeklyPlan[day].muscle;
+    if (dayFocus === 'push') {
+      source = [
+        ...(localExercises.chest || []),
+        ...(localExercises.shoulders || []),
+        ...(localExercises.triceps || [])
+      ];
+    } else if (dayFocus === 'pull') {
+      source = [
+        ...(localExercises.back || []),
+        ...(localExercises.biceps || [])
+      ];
+    } else {
+      source = localExercises[dayFocus] || [];
+    }
+  } else if (focus === 'push') {
+    source = [
+      ...(localExercises.chest || []),
+      ...(localExercises.shoulders || []),
+      ...(localExercises.triceps || [])
+    ];
+  } else if (focus === 'pull') {
+    source = [
+      ...(localExercises.back || []),
+      ...(localExercises.biceps || [])
+    ];
+  } else {
+    source = localExercises[focus] || [];
+  }
+
+  const strictOptions = buildOptionsFromSource(source);
+  if (strictOptions.length) return strictOptions;
+
+  // Fallback: keep swap candidates within the same workout type.
+  let fallbackSource = [];
+  if (workoutType === 'stretch') {
+    Object.values(localExercises.stretchesByBodyPart || {}).forEach(group => {
+      if (Array.isArray(group)) fallbackSource.push(...group);
+    });
+  } else {
+    Object.entries(localExercises).forEach(([key, value]) => {
+      if (key === 'stretchesByBodyPart') return;
+      if (Array.isArray(value)) fallbackSource.push(...value);
+    });
+  }
+
+  return buildOptionsFromSource(fallbackSource);
 }
 
 function getAllMealOptions(goal) {
@@ -2468,9 +5457,6 @@ function setActiveVariant(variantKey) {
 }
 
 /* ===============================
-   SHOW MAIN ACTIONS SCREEN (After Login)
-================================ -->
-/* ===============================
    FRIEND CHALLENGE NOTIFICATION SYSTEM
 ================================ */
 async function checkAndShowChallengeNotification() {
@@ -2636,7 +5622,7 @@ function showChallengeNotificationModal(challenge) {
       console.log('🎯 ACCEPT CHALLENGE: Flag set in localStorage');
       // Go directly to daily challenge screen
       console.log('🎯 ACCEPT CHALLENGE: Calling showDailyChallengeScreen()');
-      console.trace('🎯 ACCEPT CHALLENGE: Stack trace for showDailyChallengeScreen call');
+      verboseUiTrace('🎯 ACCEPT CHALLENGE: Stack trace for showDailyChallengeScreen call');
       showDailyChallengeScreen();
       console.log('🎯 ACCEPT CHALLENGE: showDailyChallengeScreen() returned');
     });
@@ -2819,7 +5805,7 @@ function initializeHowToGuide() {
 function renderUserScreen() {
   console.log('👥 renderUserScreen() called at', new Date().toLocaleTimeString());
   console.log('👥 Current user:', window.currentUser);
-  console.trace('👥 renderUserScreen stack trace:');
+  verboseUiTrace('👥 renderUserScreen stack trace:');
   
   const grid = document.getElementById('userGrid');
   if (!grid) {
@@ -2832,7 +5818,14 @@ function renderUserScreen() {
 
   grid.innerHTML = '';
 
-  const users = getUsers().filter(user =>
+  let allUsers = getUsers();
+  if (!allUsers.length) {
+    console.warn('⚠ renderUserScreen(): no profiles found, reseeding defaults now');
+    seedDefaultUser();
+    allUsers = getUsers();
+  }
+
+  const users = allUsers.filter(user =>
     user.username.toLowerCase().includes(query)
   );
 
@@ -2868,6 +5861,35 @@ function renderUserScreen() {
       d.className = 'user' + (type === 'admin' ? ' admin-user' : '');
       d.dataset.user = type;
       d.textContent = type === 'guest' ? 'Guest' : 'Admin';
+      grid.appendChild(d);
+    });
+  }
+
+  // Last-resort recovery if profiles are still empty after reseed.
+  if (!query && users.length === 0) {
+    const emergencyUsers = [
+      { username: 'RICK', icon: 'user-icon-01.svg', color: '#06B6D4' },
+      { username: 'Mel', icon: 'user-icon-02.svg', color: '#EC4899' },
+      { username: 'Kean', icon: 'user-icon-03.svg', color: '#EF4444' }
+    ];
+
+    emergencyUsers.forEach(user => {
+      const d = document.createElement('div');
+      d.className = 'user';
+      d.dataset.user = user.username;
+      d.style.color = user.color;
+
+      const img = document.createElement('img');
+      img.className = 'user-icon';
+      img.alt = `${user.username} icon`;
+      img.src = `assets/icons/${user.icon}`;
+
+      const span = document.createElement('span');
+      span.className = 'user-name';
+      span.textContent = user.username;
+
+      d.appendChild(img);
+      d.appendChild(span);
       grid.appendChild(d);
     });
   }
@@ -3041,7 +6063,7 @@ favBtn.addEventListener('click', e => {
   </div>
 
   <div class="exercise-muscles">
-    <strong>Primary:</strong> ${(found.primary || []).join(', ')}<br>
+    <strong>Primary:</strong> ${(found.primary || []).join(', ') || '—'}<br>
     <strong>Secondary:</strong> ${
       found.secondary?.length ? found.secondary.join(', ') : 'None'
     }
@@ -3060,6 +6082,7 @@ function populateAdminUserList() {
     window.adminModule.populateAdminUserList({
       getUsers,
       saveUsers,
+      hashUserPin,
       showAlert,
       showConfirmDialog,
       getSelectedAdminUser: () => selectedAdminUser,
@@ -3323,6 +6346,64 @@ function showWeightRepsModal(muscle, exercise, onComplete) {
 /* ===============================
    EXERCISES
 ================================ */
+function toExerciseSlug(name = '') {
+  return String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[()]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function normalizeMediaPath(value = '') {
+  return String(value)
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/[\u2012\u2013\u2014\u2015]/g, '-')
+    .replace(/\s+\./g, '.')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\/+/g, '/');
+}
+
+function getMediaPathCandidates(primaryPath, fallbackPaths = []) {
+  const seen = new Set();
+  const addCandidate = (candidate, list) => {
+    if (!candidate) return;
+    const normalized = normalizeMediaPath(candidate);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    list.push(normalized);
+  };
+
+  const candidates = [];
+  addCandidate(primaryPath, candidates);
+  fallbackPaths.forEach((pathCandidate) => addCandidate(pathCandidate, candidates));
+  return candidates;
+}
+
+function applyImageFallbacks(imgElement, candidates, contextLabel = 'image') {
+  if (!imgElement || !Array.isArray(candidates) || candidates.length === 0) {
+    if (imgElement) imgElement.style.display = 'none';
+    return;
+  }
+
+  let candidateIndex = 0;
+  imgElement.src = candidates[candidateIndex];
+
+  imgElement.onerror = () => {
+    candidateIndex += 1;
+    if (candidateIndex < candidates.length) {
+      imgElement.src = candidates[candidateIndex];
+      return;
+    }
+
+    imgElement.style.display = 'none';
+    console.log(`Image not found (${contextLabel}):`, candidates.join(' | '));
+  };
+}
+
 function loadExercisesForMuscle(muscle) {
   const title = document.getElementById('exerciseTitle');
   const grid = document.getElementById('exerciseGrid');
@@ -3391,7 +6472,8 @@ function loadExercisesForMuscle(muscle) {
   // Show share button and set up click handler
   if (shareBtn) {
     shareBtn.style.display = 'block';
-    shareBtn.onclick = () => {
+    shareBtn.textContent = '📱 Send to Phone with QR Code';
+    shareBtn.onclick = async () => {
       // Create workout ID only when sharing
       const workoutId = generateUUID();
       const workoutToShare = {
@@ -3402,8 +6484,8 @@ function loadExercisesForMuscle(muscle) {
         user: currentWorkout.user
       };
       
-      // Save workout to server
-      saveWorkoutToServer(workoutId, workoutToShare);
+      // Save workout to server first, then show QR
+      await saveWorkoutToServer(workoutId, workoutToShare);
       
       // Mark workout as completed today and save workout data
       const today = new Date();
@@ -3412,9 +6494,9 @@ function loadExercisesForMuscle(muscle) {
       // Record in analytics for user stats
       if (typeof recordWorkout === 'function' && currentWorkout) {
         recordWorkout(
-          [currentWorkout.muscle],  // muscleGroups array
-          currentWorkout.exercises?.map(e => e.name || e) || [],  // exercise names
-          30  // Default duration
+          [currentWorkout.muscle],
+          currentWorkout.exercises?.map(e => e.name || e) || [],
+          30
         );
       }
       
@@ -3428,23 +6510,22 @@ function loadExercisesForMuscle(muscle) {
     card.className = 'exercise-card';
 
     // Use provided image path, slug, or fallback to name conversion
-    const slug = ex.slug || ex.name.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '');
+    const slug = ex.slug || toExerciseSlug(ex.name);
     const imagePath = ex.image || `assets/muscles/${muscle}/${slug}.png`;
     const videoPath = `assets/videos/${muscle}/${slug}.mp4`;
     const demoVideoPath = `assets/muscles/${muscle}/${slug}.mp4`;
 
     // Create image with fallback
     const img = document.createElement('img');
-    img.src = imagePath;
+    const imageCandidates = getMediaPathCandidates(imagePath, [
+      `assets/muscles/${muscle}/${slug}.png`,
+      `assets/muscles/${muscle}/${String(ex.name || '').replace(/[()]/g, '').trim()}.png`,
+      `assets/muscles/${muscle}/${String(ex.name || '').trim()}.png`
+    ]);
+    applyImageFallbacks(img, imageCandidates, ex.name || 'exercise');
     img.alt = ex.name;
     img.className = 'exercise-image';
     img.style.cssText = 'width: 100%; height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; display: block;';
-    
-    // Image fallback: hide if not found
-    img.onerror = () => {
-      img.style.display = 'none';
-      console.log(`Image not found: ${imagePath}`);
-    };
 
     // Play demo video on image tap for Close Grip Pulldown
     if (slug === 'close-grip-pulldown') {
@@ -3458,6 +6539,7 @@ function loadExercisesForMuscle(muscle) {
         video.playsInline = true;
         video.muted = false;
         video.style.cssText = img.style.cssText;
+        applyPreferredAudioOutputWhenReady(video);
 
         video.addEventListener('ended', () => {
           if (video.parentElement) {
@@ -3694,6 +6776,8 @@ function setupAnimationFallback(exerciseName, canvasId) {
 function loadStretchesForBodyPart(bodyPart) {
   const title = document.getElementById('exerciseTitle');
   const grid = document.getElementById('exerciseGrid');
+  const img = document.getElementById('muscleHeaderImage');
+  const shareBtn = document.getElementById('shareWorkoutBtn');
 
   if (!title || !grid) return;
 
@@ -3709,8 +6793,11 @@ function loadStretchesForBodyPart(bodyPart) {
     'hips-pelvis': 'Hips & Pelvis',
     'spine-core': 'Spine & Core'
   };
-  title.textContent = titleMap[bodyPart] || bodyPart.toUpperCase();
+  const bodyPartTitle = titleMap[bodyPart] || bodyPart.toUpperCase();
+  title.textContent = bodyPartTitle;
   grid.innerHTML = '';
+
+  if (img) img.style.display = 'none';
 
   const allStretches = window.LOCAL_EXERCISES?.stretchesByBodyPart?.[bodyPart] || [];
   if (!allStretches || !allStretches.length) {
@@ -3745,7 +6832,28 @@ function loadStretchesForBodyPart(bodyPart) {
 
   if (!stretches.length) {
     grid.innerHTML = `<p>No ${currentDifficultyFilter} stretches available for this body part.</p>`;
+    if (shareBtn) shareBtn.style.display = 'none';
     return;
+  }
+
+  if (shareBtn) {
+    shareBtn.style.display = 'block';
+    shareBtn.textContent = '📱 Send Stretches to Phone with QR Code';
+    shareBtn.onclick = async () => {
+      const stretchId = generateUUID();
+      const stretchRoutine = {
+        id: stretchId,
+        type: 'stretch',
+        title: `${bodyPartTitle} Stretch Routine`,
+        bodyPart,
+        exercises: stretches,
+        created: new Date().toISOString(),
+        user: window.currentUser
+      };
+
+      await saveWorkoutToServer(stretchId, stretchRoutine);
+      displayQRCodeModal(stretchId, kioskIP, { type: 'stretch' });
+    };
   }
 
   stretches.forEach((stretch, idx) => {
@@ -3756,16 +6864,16 @@ function loadStretchesForBodyPart(bodyPart) {
     const imagePath = stretch.image;
     if (imagePath) {
       const img = document.createElement('img');
-      img.src = imagePath;
+      const stretchSlug = stretch.slug || toExerciseSlug(stretch.name);
+      const stretchImageCandidates = getMediaPathCandidates(imagePath, [
+        `assets/stretches/${stretchSlug}.png`,
+        `assets/stretches/${String(stretch.name || '').trim()}.png`,
+        `assets/stretches/${String(stretch.name || '').replace(/[()]/g, '').trim()}.png`
+      ]);
+      applyImageFallbacks(img, stretchImageCandidates, stretch.name || 'stretch');
       img.alt = stretch.name;
       img.className = 'exercise-image';
       img.style.cssText = 'width: 100%; height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; display: block;';
-      
-      // Image fallback: hide if not found
-      img.onerror = () => {
-        img.style.display = 'none';
-        console.log(`Image not found: ${imagePath}`);
-      };
 
       card.appendChild(img);
     }
@@ -3824,6 +6932,20 @@ function loadStretchesForBodyPart(bodyPart) {
    DOM READY
 ================================ */
 function initializeApp() {
+
+  removeDeprecatedBiometricData();
+
+    // Add Exit Kiosk App button handler (admin panel)
+    const exitKioskAppBtn = document.getElementById('exitKioskApp');
+    if (exitKioskAppBtn && window.electron && window.electron.exitApp) {
+      exitKioskAppBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to exit the Kiosk App?')) {
+          window.electron.exitApp(window.getAdminSessionToken?.()).then((result) => {
+            if (result?.success === false) showAlert('Authorization Required', result.error || 'Please sign in as administrator again.');
+          });
+        }
+      });
+    }
   console.log('🚀 initializeApp() START');
   // ensure default users exist (adds Rick if users list is empty)
   seedDefaultUser();
@@ -3839,6 +6961,7 @@ function initializeApp() {
   setupGlobalErrorHandlers();
   updateAdminAutoLogoutButtonLabel();
   updateAdminQrModeButtonLabel();
+  updateAdminAmbientSilentHoursUI();
 
   // ATTACH ALL EVENT LISTENERS
   console.log('🔌 Attaching event listeners...');
@@ -3918,6 +7041,7 @@ function initializeApp() {
 
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     
     // Ensure input is focused and ready
     setTimeout(() => {
@@ -3943,7 +7067,7 @@ function initializeApp() {
     return;
   }
 
-  // 👤 NORMAL USER → PIN
+  // 👤 NORMAL USER → PIN OR FACE LOGIN
   const user = getUsers().find(u => u.username === name);
   if (!user) {
     console.log('❌ User not found:', name);
@@ -3957,6 +7081,7 @@ function initializeApp() {
   pendingUser = user;
   enteredUserPin = '';
   updateUserPinDisplay();
+  updateUserPinModalLoginControls(user);
   const modal = document.getElementById('userPinModal');
   if (!modal) {
     console.error('❌ userPinModal element not found!');
@@ -3980,6 +7105,7 @@ function initializeApp() {
     if (!modal || !input) return;
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     setTimeout(() => { input.focus(); input.click(); }, 50);
   });
 
@@ -3989,6 +7115,7 @@ function initializeApp() {
     if (!modal || !input) return;
     input.value = '';
     modal.classList.remove('hidden');
+    document.activeKeyboardInput = input;
     setTimeout(() => { input.focus(); input.click(); }, 50);
   });
 
@@ -3996,11 +7123,24 @@ function initializeApp() {
      MAIN ACTION BUTTONS (After Login)
   ================================ */
   document.getElementById('muscleGroupsBtn')?.addEventListener('click', () => {
-    currentDifficultyFilterContext = 'muscle';
-    currentDifficultyFilter = 'all';
-    selectedStretchBodyPart = null;
-    updateDifficultyFilterButtons();
-    showScreen('muscleScreen');
+    showMuscleGroupsDirect();
+  });
+
+  document.getElementById('guidedDirectPathBtn')?.addEventListener('click', () => {
+    showMuscleGroupsDirect();
+  });
+
+  document.getElementById('guidedPromptToggleBtn')?.addEventListener('click', () => {
+    const panel = document.getElementById('guidedPromptPanel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.querySelectorAll('#guidedEntryScreen [data-guided-group]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      updateGuidedSelection(tile.dataset.guidedGroup, tile.dataset.value);
+    });
   });
 
   document.getElementById('stretchesBtn')?.addEventListener('click', () => {
@@ -4034,39 +7174,19 @@ function initializeApp() {
     initializeHowToGuide();
   });
 
-  document.getElementById('howToBack')?.addEventListener('click', () => {
-    showMainActionsScreen();
-  });
-  
-  // Analytics Button
   document.getElementById('analyticsBtn')?.addEventListener('click', () => {
     renderAnalyticsScreen();
   });
-  
-  // Personal Records Button
+
   document.getElementById('myPRsBtn')?.addEventListener('click', () => {
     showScreen('personalRecordsScreen');
     renderPersonalRecordsScreen();
   });
 
-  document.getElementById('shareStatsBtn')?.addEventListener('click', async () => {
-    if (typeof displayStatsQRCodeModal === 'function') {
-      await displayStatsQRCodeModal(kioskIP);
-      return;
-    }
-
-    console.error('displayStatsQRCodeModal function not found');
-    if (typeof showAlert === 'function') {
-      await showAlert('Unavailable', 'Stats QR sharing is not available right now.');
-    } else {
-      alert('Stats QR sharing is not available right now.');
-    }
+  document.getElementById('interactiveCoachBtn')?.addEventListener('click', () => {
+    renderInteractiveCoachScreen({ resetInterview: true });
   });
-  
-  // Initialize Calendar
-  initializeCalendar();
-  
-  // Initialize Daily Challenge
+
   initializeDailyChallenge();
   
   // Initialize Custom Icon Selector
@@ -4139,97 +7259,91 @@ function initializeApp() {
   ================================ */
   document.getElementById('backFromExercises')?.addEventListener('click', () => {
     console.log('🔙 Back from exercises clicked');
-    showScreen('muscleScreen');
+    goToPreviousScreen();
   });
 
-  /* ON-SCREEN KEYBOARD FOR CREATE USER MODAL */
+  /* ON-SCREEN KEYBOARDS (CREATE USER AND USER SEARCH) */
   document.querySelectorAll('.keyboard-key').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.preventDefault();
-      
-      // Use active input (search or username) or default to username
-      const input = document.activeKeyboardInput || document.getElementById('newUsernameInput');
+    btn.addEventListener('click', event => {
+      event.preventDefault();
+
+      const keyboardModal = btn.closest('#createUserModal, #searchUserKeyboardModal');
+      let input = document.activeKeyboardInput;
+
+      if (keyboardModal?.id === 'createUserModal' && !keyboardModal.contains(input)) {
+        input = document.getElementById('newUsernameInput');
+      } else if (keyboardModal?.id === 'searchUserKeyboardModal') {
+        input = document.getElementById('userSearchInput');
+      }
+
       if (!input) return;
 
-      const key = btn.dataset.key;
+      const key = btn.dataset.key || '';
+      const isPinInput = input.id === 'newUserPin';
+      const selectionStart = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+      const selectionEnd = Number.isInteger(input.selectionEnd) ? input.selectionEnd : selectionStart;
+      let nextValue = input.value;
+      let nextCursor = selectionStart;
 
       if (key === 'backspace') {
-        input.value = input.value.slice(0, -1);
-      } else if (key === ' ') {
-        if (input.value.length < 20) input.value += ' ';
-      } else {
-        if (input.value.length < 20) input.value += key;
-      }
-      
-      // Trigger input event for search filtering
-      const event = new Event('input', { bubbles: true });
-      input.dispatchEvent(event);
-      
-      input.focus();
-    });
-  });
-
-  // Set active keyboard input when clicking on username or PIN inputs
-  document.getElementById('newUsernameInput')?.addEventListener('click', () => {
-    document.activeKeyboardInput = document.getElementById('newUsernameInput');
-  });
-
-  document.getElementById('newUserPin')?.addEventListener('click', () => {
-    document.activeKeyboardInput = document.getElementById('newUserPin');
-  });
-
-  /* ADMIN PIN KEYPAD */
-  if (window.adminModule?.setupAdminPinEditorHandlers) {
-    window.adminModule.setupAdminPinEditorHandlers({
-      showAlert,
-      getUsers,
-      saveUsers,
-      populateAdminUserList
-    });
-  }
-
-  document.getElementById('openFavoritesBtn')?.addEventListener('click', () => {
-    showScreen('favoritesScreen');
-    renderFavoritesScreen();
-  });
-
-  /* BUILDER TILE SELECTION */
-  function initializeBuilderTiles() {
-    console.log('UI.JS: initializeBuilderTiles() called');
-    
-    // Reset selections when initializing
-    selectedMuscle = null;
-    selectedGoal = null;
-    selectedTime = null;
-    selectedSport = '';
-    selectedBuildType = 'single';
-    selectedWorkoutType = 'muscle'; // Default to muscle workouts
-
-    // Build type tiles (Single vs Weekly)
-    const typeTiles = document.querySelectorAll('#builderTypeGrid .builder-tile');
-    console.log(`UI.JS: Found ${typeTiles.length} build type tiles`);
-    
-    typeTiles.forEach(tile => {
-      tile.addEventListener('click', () => {
-        console.log(`UI.JS: Build type tile clicked: ${tile.dataset.value}`);
-        document.querySelectorAll('#builderTypeGrid .builder-tile').forEach(t => t.classList.remove('selected'));
-        tile.classList.add('selected');
-        selectedBuildType = tile.dataset.value;
-        
-        // Show/hide muscle selection based on build type
-        const muscleSection = document.getElementById('singleWorkoutSection');
-        if (muscleSection) {
-          if (selectedBuildType === 'single') {
-            muscleSection.style.display = 'block';
-          } else {
-            muscleSection.style.display = 'none';
-          }
+        if (selectionStart !== selectionEnd) {
+          nextValue = input.value.slice(0, selectionStart) + input.value.slice(selectionEnd);
+        } else if (selectionStart > 0) {
+          nextValue = input.value.slice(0, selectionStart - 1) + input.value.slice(selectionEnd);
+          nextCursor = selectionStart - 1;
         }
-      });
+      } else {
+        if (isPinInput && !/^\d$/.test(key)) return;
+        const maxLength = input.maxLength > 0 ? input.maxLength : 40;
+        const candidate = input.value.slice(0, selectionStart) + key + input.value.slice(selectionEnd);
+        if (candidate.length > maxLength) return;
+        nextValue = candidate;
+        nextCursor = selectionStart + key.length;
+      }
+
+      input.value = nextValue;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.setSelectionRange?.(nextCursor, nextCursor);
+      document.activeKeyboardInput = input;
     });
+  });
+
+  ['newUsernameInput', 'newUserPin'].forEach(inputId => {
+    const input = document.getElementById(inputId);
+    input?.addEventListener('focus', () => {
+      document.activeKeyboardInput = input;
+    });
+    input?.addEventListener('click', () => {
+      document.activeKeyboardInput = input;
+    });
+  });
 
     // Workout Type tiles (Muscle vs Stretch)
     const workoutTypeTiles = document.querySelectorAll('#builderWorkoutTypeGrid .builder-tile');
+    const muscleGrid = document.getElementById('builderMuscleGrid');
+    const stretchGrid = document.getElementById('builderStretchGrid');
+    const muscleGroupTitle = document.getElementById('muscleGroupTitle');
+
+    function syncBuilderWorkoutTypeUI() {
+      if (!muscleGrid || !stretchGrid || !muscleGroupTitle) return;
+
+      // Keep one visible grid only: muscle OR stretch.
+      if (selectedWorkoutType === 'stretch') {
+        muscleGrid.style.display = 'none';
+        stretchGrid.style.display = 'grid';
+        muscleGroupTitle.textContent = 'Select Stretch Category';
+        document.querySelectorAll('#builderMuscleGrid .builder-tile').forEach(t => t.classList.remove('selected'));
+      } else {
+        muscleGrid.style.display = 'grid';
+        stretchGrid.style.display = 'none';
+        muscleGroupTitle.textContent = 'Select Muscle Group';
+        document.querySelectorAll('#builderStretchGrid .builder-tile').forEach(t => t.classList.remove('selected'));
+      }
+
+      workoutTypeTiles.forEach(t => t.classList.toggle('selected', t.dataset.value === selectedWorkoutType));
+    }
+
     console.log(`UI.JS: Found ${workoutTypeTiles.length} workout type tiles`);
     
     workoutTypeTiles.forEach(tile => {
@@ -4239,27 +7353,13 @@ function initializeApp() {
         tile.classList.add('selected');
         selectedWorkoutType = tile.dataset.value;
         selectedMuscle = null; // Reset muscle selection when switching types
-        
-        // Show/hide appropriate grids
-        const muscleGrid = document.getElementById('builderMuscleGrid');
-        const stretchGrid = document.getElementById('builderStretchGrid');
-        const muscleGroupTitle = document.getElementById('muscleGroupTitle');
-        
-        if (selectedWorkoutType === 'stretch') {
-          muscleGrid.style.display = 'none';
-          stretchGrid.style.display = 'grid';
-          muscleGroupTitle.textContent = 'Select Stretch Category';
-          // Clear muscle selections
-          document.querySelectorAll('#builderMuscleGrid .builder-tile').forEach(t => t.classList.remove('selected'));
-        } else {
-          muscleGrid.style.display = 'grid';
-          stretchGrid.style.display = 'none';
-          muscleGroupTitle.textContent = 'Select Muscle Group';
-          // Clear stretch selections
-          document.querySelectorAll('#builderStretchGrid .builder-tile').forEach(t => t.classList.remove('selected'));
-        }
+        syncBuilderWorkoutTypeUI();
       });
     });
+
+    // Ensure correct visibility every time the builder screen opens.
+    selectedWorkoutType = selectedWorkoutType === 'stretch' ? 'stretch' : 'muscle';
+    syncBuilderWorkoutTypeUI();
 
     // Muscle tiles
     const muscleTiles = document.querySelectorAll('#builderMuscleGrid .builder-tile');
@@ -4519,7 +7619,7 @@ function initializeApp() {
   const startOverBtn = document.getElementById('startOverBtn');
   if (startOverBtn) {
     startOverBtn.addEventListener('click', () => {
-      console.log('🔄 Start Over clicked');
+      console.log('⎋ Log Out clicked');
       // Ensure modals and flags do not block the reset.
       document.getUserTileClickBlocked = false;
       const userPinModal = document.getElementById('userPinModal');
@@ -4527,6 +7627,18 @@ function initializeApp() {
       const adminPinModal = document.getElementById('adminPinModal');
       if (adminPinModal) adminPinModal.classList.add('hidden');
       resetToStart();
+    });
+  }
+
+  const homeBtn = document.getElementById('homeBtn');
+  if (homeBtn) {
+    homeBtn.addEventListener('click', () => {
+      console.log('🏠 Home clicked');
+      if (window.currentUser) {
+        showMainActionsScreen();
+      } else {
+        showScreen('userScreen');
+      }
     });
   }
 
@@ -4571,7 +7683,7 @@ function initializeApp() {
   document
     .querySelectorAll('#userPinModal button[data-key]')
     .forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const key = btn.dataset.key;
 
         if (key === 'clear') {
@@ -4587,7 +7699,7 @@ function initializeApp() {
           }
 
           try {
-            if (!pendingUser.pin) {
+            if (!pendingUser.pin && !pendingUser.pinHash) {
               if (enteredUserPin.length !== 4) {
                 showAlert('Invalid PIN', 'PIN must be 4 digits');
                 return;
@@ -4596,14 +7708,24 @@ function initializeApp() {
               const users = getUsers();
               const currentUser = users.find(u => u.username === pendingUser.username);
               if (currentUser) {
-                currentUser.pin = enteredUserPin;
+                Object.assign(currentUser, await hashUserPin(enteredUserPin));
+                delete currentUser.pin;
                 saveUsers(users);
                 console.log('💾 PIN saved for user:', pendingUser.username);
               }
-              pendingUser.pin = enteredUserPin; // Also update local reference
+              Object.assign(pendingUser, await hashUserPin(enteredUserPin));
             }
 
-            if (enteredUserPin === pendingUser.pin) {
+            if (await verifyUserPin(pendingUser, enteredUserPin)) {
+              if (pendingUser.pin && !pendingUser.pinHash) {
+                const users = getUsers();
+                const currentUser = users.find(u => u.username === pendingUser.username);
+                if (currentUser) {
+                  Object.assign(currentUser, await hashUserPin(enteredUserPin));
+                  delete currentUser.pin;
+                  saveUsers(users);
+                }
+              }
               console.log('✅ PIN correct for user:', pendingUser.username);
               console.log('🔐 Setting window.currentUser to:', pendingUser.username);
               window.currentUser = pendingUser.username;
@@ -4690,6 +7812,8 @@ function initializeApp() {
       populateAdminUserList,
       populateAdminStatsUserSelect,
       updateAdminAutoLogoutButtonLabel,
+      updateAdminFaceDetectionThresholdUI,
+      updateAdminAmbientSilentHoursUI,
       auditAdminAction
     });
   }
@@ -4716,6 +7840,13 @@ function initializeApp() {
       isPublicQrModeEnabled,
       setPublicQrModeEnabled,
       updateAdminQrModeButtonLabel,
+      getFaceDetectionStableFrameThreshold,
+      setFaceDetectionStableFrameThreshold,
+      updateAdminFaceDetectionThresholdUI,
+      isAmbientGreetingSilentHoursEnabled,
+      setAmbientGreetingSilentHoursEnabled,
+      setAmbientGreetingSilentHoursWindow,
+      updateAdminAmbientSilentHoursUI,
       getSelectedAdminUser: () => selectedAdminUser,
       setSelectedAdminUser: (value) => { selectedAdminUser = value; },
       getUsers,
@@ -4725,6 +7856,54 @@ function initializeApp() {
       handleResetUserStats
     });
   }
+
+  document.getElementById('adminChangePin')?.addEventListener('click', async () => {
+    const currentPin = document.getElementById('adminCurrentPin')?.value || '';
+    const newPin = document.getElementById('adminNewPin')?.value || '';
+    const confirmPin = document.getElementById('adminConfirmPin')?.value || '';
+    const status = document.getElementById('adminChangePinStatus');
+
+    if (!/^\d{4,8}$/.test(newPin)) {
+      if (status) status.textContent = 'The new PIN must contain 4 to 8 digits.';
+      return;
+    }
+    if (newPin !== confirmPin) {
+      if (status) status.textContent = 'The new PIN entries do not match.';
+      return;
+    }
+
+    const result = await window.electron?.changeAdminPin?.({
+      token: window.getAdminSessionToken?.(),
+      currentPin,
+      newPin
+    });
+    if (status) status.textContent = result?.success ? 'Administrator PIN updated successfully.' : (result?.error || 'Unable to update PIN.');
+    if (result?.success) {
+      ['adminCurrentPin', 'adminNewPin', 'adminConfirmPin'].forEach((id) => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+      });
+      await auditAdminAction('admin_pin_changed', 'Administrator PIN changed securely');
+    }
+  });
+
+  document.getElementById('adminCheckWebsiteSync')?.addEventListener('click', async () => {
+    const status = document.getElementById('adminWebsiteSyncStatus');
+    if (status) status.textContent = 'Checking website synchronization…';
+    try {
+      const response = await fetch('http://127.0.0.1:3001/api/sync-status');
+      const result = await response.json();
+      const sync = result.sync || {};
+      const message = sync.status === 'online'
+        ? `Online — ${sync.synced || 0} recent update(s) synchronized.`
+        : sync.status === 'idle'
+          ? 'Online — all local updates are synchronized.'
+          : `Offline queue active — ${sync.pending || 0} update(s) waiting. ${sync.error || ''}`.trim();
+      if (status) status.textContent = message;
+    } catch (error) {
+      if (status) status.textContent = `Local synchronization service unavailable: ${error.message}`;
+    }
+  });
 
   document.getElementById('adminTestScreensaverBtn')?.addEventListener('click', async () => {
     if (typeof window.triggerScreensaverTest === 'function') {
@@ -4794,6 +7973,66 @@ function resetUserStats(username) {
 /* ===============================
    CREATE USER MODAL (FINAL – SAFE)
 ================================ */
+const BLOCKED_USERNAME_TERMS = [
+  'fuck',
+  'fuckyou',
+  'shit',
+  'bitch',
+  'asshole',
+  'bastard',
+  'dick',
+  'pussy',
+  'cunt',
+  'slut',
+  'whore',
+  'motherfucker'
+];
+
+function normalizeUsernameForModeration(value) {
+  const leetMap = {
+    '0': 'o',
+    '1': 'i',
+    '3': 'e',
+    '4': 'a',
+    '5': 's',
+    '7': 't',
+    '@': 'a',
+    '$': 's',
+    '!': 'i'
+  };
+
+  return String(value || '')
+    .toLowerCase()
+    .split('')
+    .map(char => leetMap[char] || char)
+    .join('')
+    .replace(/[^a-z]/g, '');
+}
+
+function hasBlockedUsernameTerms(username) {
+  const normalized = normalizeUsernameForModeration(username);
+  const tokenized = String(username || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map(normalizeUsernameForModeration)
+    .filter(Boolean);
+
+  return BLOCKED_USERNAME_TERMS.some(term => {
+    if (term.length <= 4) {
+      return tokenized.includes(term);
+    }
+    return normalized.includes(term) || tokenized.some(token => token.includes(term));
+  });
+}
+
+function normalizeUsernameForUniqueness(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 const confirmBtn = document.getElementById('confirmCreateUser');
 if (confirmBtn) {
   confirmBtn.addEventListener('click', async (e) => {
@@ -4829,9 +8068,26 @@ if (confirmBtn) {
       return;
     }
 
+    if (username.length > 40 || !/^[\p{L}\p{N}][\p{L}\p{N} '\-]*$/u.test(username)) {
+      await showAlert('Invalid Username', 'Use 1–40 letters, numbers, spaces, apostrophes, or hyphens.');
+      input.focus();
+      input.select();
+      return;
+    }
+
+    if (hasBlockedUsernameTerms(username)) {
+      console.warn('⚠️ Username blocked by content policy:', username);
+      await showAlert('Username Not Allowed', 'Please choose a different username.');
+      input.focus();
+      input.select();
+      return;
+    }
+
     const users = getUsers();
 
-    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+    const normalizedUsername = normalizeUsernameForUniqueness(username);
+
+    if (users.some(u => normalizeUsernameForUniqueness(u.username) === normalizedUsername)) {
       console.warn('⚠️ Username already exists:', username);
       alert('That username already exists');
       input.select();
@@ -4855,11 +8111,11 @@ if (confirmBtn) {
       pinInput.select();
       return;
     }
-    const userPin = pinValue;
+    const userPin = await hashUserPin(pinValue);
 
     users.push({
       username,
-      pin: userPin,
+      ...userPin,
       favorites: { exercises: [], muscles: [] },
       icon: selectedIcon,
       color: selectedColor
@@ -4879,9 +8135,11 @@ if (confirmBtn) {
     // Reset color to default
     if (colorSelect) colorSelect.value = '#3B82F6';
     
+    document.activeKeyboardInput = null;
     document.getElementById('createUserModal')?.classList.add('hidden');
 
     renderUserScreen();
+
     showDisclaimerIfNeeded(true);
 
     console.log('✅ User created:', username);
@@ -4895,10 +8153,11 @@ if (cancelBtn) {
     if (input) input.value = '';
     const pinInput = document.getElementById('newUserPin');
     if (pinInput) pinInput.value = '';
+    document.activeKeyboardInput = null;
     document.getElementById('createUserModal')?.classList.add('hidden');
   });
 }
-}
+window.clearFaceLoginProfile = clearFaceLoginProfile;
 
 // Check if DOM is already ready, otherwise wait for event
 if (document.readyState === 'loading') {
@@ -5055,7 +8314,7 @@ function generateFullBodyWorkout() {
   const shareButtonDiv = document.createElement('div');
   shareButtonDiv.style.cssText = 'text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #ddd;';
   const shareBtn = document.createElement('button');
-  shareBtn.textContent = '📱 Share This Workout';
+  shareBtn.textContent = '📱 Send to Phone with QR Code';
   shareBtn.style.cssText = 'padding: 12px 24px; background: #333; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;';
   shareBtn.onclick = () => shareGeneratedWorkout(selected);
   shareButtonDiv.appendChild(shareBtn);
@@ -6064,10 +9323,10 @@ function showFriendChallengeDetails(entry) {
   });
 }
 
-function shareFriendChallenge(entry) {
+async function shareFriendChallenge(entry) {
   const workoutToShare = buildFriendChallengeWorkout(entry);
   const shareWorkoutId = generateUUID();
-  saveWorkoutToServer(shareWorkoutId, workoutToShare);
+  await saveWorkoutToServer(shareWorkoutId, workoutToShare);
   displayQRCodeModal(shareWorkoutId, kioskIP);
 }
 
@@ -6352,6 +9611,237 @@ function initializeFullBodyGenerator() {
   document.getElementById('backFromGenerator')?.addEventListener('click', () => {
     showScreen('mainActionsScreen');
   });
+}
+
+/* ===============================
+   INTERACTIVE COACH SCREEN
+================================ */
+
+function renderInteractiveCoachScreen(options = {}) {
+  const { resetInterview = false } = options;
+
+  if (!window.currentUser || window.currentUser === 'admin') {
+    showAlert('Notice', 'Interactive Coach is not available in admin mode.');
+    return;
+  }
+
+  if (resetInterview) {
+    resetCoachInterviewState();
+  } else {
+    ensureCoachInterviewState();
+  }
+
+  const username = window.currentUser;
+  const container = document.getElementById('coachInsightsContainer');
+  if (!container) {
+    showAlert('Unavailable', 'Coach screen is not available right now.');
+    return;
+  }
+
+  const answeredPrompts = getCoachPromptCount(currentCoachInterview);
+  const canGenerate = answeredPrompts === 7;
+
+  container.innerHTML = `
+    <div class="coach-intro-card">
+      <h3>Coach Intake</h3>
+      <p class="coach-summary-copy">Answer these questions and the coach will build a full workout plan and a matching nutrition plan for this member. This keeps the direct workout browser intact, but gives new members a clear place to start.</p>
+      <p class="coach-progress-line">Progress: ${answeredPrompts} of 7 coach prompts answered.</p>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">1. What is the main training goal?</h3>
+        <div class="builder-goal-grid">
+          ${buildCoachQuestionTile('workoutGoal', 'strength', '💪 Strength')}
+          ${buildCoachQuestionTile('workoutGoal', 'hypertrophy', '🏋️ Muscle Growth')}
+          ${buildCoachQuestionTile('workoutGoal', 'fatloss', '🔥 Fat Loss')}
+          ${buildCoachQuestionTile('workoutGoal', 'balance', '⚖️ Balance & Coordination')}
+          ${buildCoachQuestionTile('workoutGoal', 'flexibility', '🤸 Flexibility & Mobility')}
+          ${buildCoachQuestionTile('workoutGoal', 'functional', '🏃 Functional Training')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">2. Do you want one session or a weekly structure?</h3>
+        <div class="builder-goal-grid" style="max-width: 600px; margin: 0 auto;">
+          ${buildCoachQuestionTile('planHorizon', 'single', '📅 Single Session')}
+          ${buildCoachQuestionTile('planHorizon', 'weekly', '📆 Weekly Plan')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">3. What body focus sounds right?</h3>
+        <div class="builder-goal-grid">
+          ${buildCoachQuestionTile('bodyFocus', 'full-body', '🧩 Full Body')}
+          ${buildCoachQuestionTile('bodyFocus', 'upper-body', '🏋️ Upper Body')}
+          ${buildCoachQuestionTile('bodyFocus', 'lower-body', '🦵 Lower Body')}
+          ${buildCoachQuestionTile('bodyFocus', 'push', '📈 Push Focus')}
+          ${buildCoachQuestionTile('bodyFocus', 'pull', '🧲 Pull Focus')}
+          ${buildCoachQuestionTile('bodyFocus', 'mobility-reset', '🧘 Mobility Reset')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">4. How much time is available?</h3>
+        <div class="builder-time-grid">
+          ${buildCoachQuestionTile('timeAvailable', '30', '⏱️ 30 Min')}
+          ${buildCoachQuestionTile('timeAvailable', '45', '⏱️ 45 Min')}
+          ${buildCoachQuestionTile('timeAvailable', '60', '⏱️ 60 Min')}
+          ${buildCoachQuestionTile('timeAvailable', '90', '⏱️ 90 Min')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">5. What experience level fits this member?</h3>
+        <div class="builder-time-grid">
+          ${buildCoachQuestionTile('experienceLevel', 'beginner', '🟢 Beginner')}
+          ${buildCoachQuestionTile('experienceLevel', 'intermediate', '🟡 Intermediate')}
+          ${buildCoachQuestionTile('experienceLevel', 'advanced', '🔴 Advanced')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">6. How is the body feeling today?</h3>
+        <div class="builder-time-grid">
+          ${buildCoachQuestionTile('recoveryState', 'fresh', '🚀 Fresh and ready')}
+          ${buildCoachQuestionTile('recoveryState', 'normal', '🙂 Normal energy')}
+          ${buildCoachQuestionTile('recoveryState', 'sore', '🛠️ Sore / beat up')}
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <h3 class="builder-section-title">7. What should the food plan support most?</h3>
+        <div class="builder-goal-grid">
+          ${buildCoachQuestionTile('nutritionGoal', 'strength', '💪 Strength Fuel')}
+          ${buildCoachQuestionTile('nutritionGoal', 'hypertrophy', '🏋️ Muscle Growth Fuel')}
+          ${buildCoachQuestionTile('nutritionGoal', 'fatloss', '🔥 Fat Loss Fuel')}
+          ${buildCoachQuestionTile('nutritionGoal', 'balance', '⚖️ Balanced Eating')}
+          ${buildCoachQuestionTile('nutritionGoal', 'flexibility', '🤸 Recovery & Mobility Fuel')}
+          ${buildCoachQuestionTile('nutritionGoal', 'functional', '🏃 Performance Fuel')}
+        </div>
+      </div>
+
+      <div class="builder-section" style="margin-bottom: 16px;">
+        <h3 class="builder-section-title">Optional: Which sport or activity matters most?</h3>
+        <select id="coachSportSelect" class="builder-select" style="width: 100%; max-width: 500px; margin: 0 auto; display: block; padding: 16px; font-size: 18px; border-radius: 12px; border: 2px solid #333; background: #1a1e27; color: #fff;">
+          <option value="">None / general fitness</option>
+          <option value="hockey" ${currentCoachInterview.sport === 'hockey' ? 'selected' : ''}>🏒 Hockey</option>
+          <option value="basketball" ${currentCoachInterview.sport === 'basketball' ? 'selected' : ''}>🏀 Basketball</option>
+          <option value="soccer" ${currentCoachInterview.sport === 'soccer' ? 'selected' : ''}>⚽ Soccer</option>
+          <option value="football" ${currentCoachInterview.sport === 'football' ? 'selected' : ''}>🏈 Football</option>
+          <option value="running" ${currentCoachInterview.sport === 'running' ? 'selected' : ''}>🏃 Running</option>
+          <option value="cycling" ${currentCoachInterview.sport === 'cycling' ? 'selected' : ''}>🚴 Cycling</option>
+          <option value="swimming" ${currentCoachInterview.sport === 'swimming' ? 'selected' : ''}>🏊 Swimming</option>
+          <option value="martial-arts" ${currentCoachInterview.sport === 'martial-arts' ? 'selected' : ''}>🥋 Martial Arts</option>
+          <option value="crossfit" ${currentCoachInterview.sport === 'crossfit' ? 'selected' : ''}>🏋️ CrossFit</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 10px;">
+        <button id="coachGeneratePlanBtn" class="primary-btn" ${canGenerate ? '' : 'disabled'}>🧠 Build Full Workout + Nutrition Plan</button>
+        <button id="coachOpenMusclesBtn" class="control-btn" type="button">💪 Browse Muscle Groups Instead</button>
+      </div>
+    </div>
+    ${currentCoachPlanBundle ? renderCoachPlanHtml(currentCoachPlanBundle) : ''}
+    ${renderCoachHistoryHtml(username)}
+  `;
+
+  container.querySelectorAll('[data-coach-group]').forEach(button => {
+    button.addEventListener('click', () => {
+      ensureCoachInterviewState();
+      const field = button.dataset.coachGroup;
+      const value = button.dataset.coachValue;
+      const previousGoal = currentCoachInterview.workoutGoal;
+
+      currentCoachInterview[field] = value;
+      if (field === 'workoutGoal' && (!currentCoachInterview.nutritionGoal || currentCoachInterview.nutritionGoal === previousGoal)) {
+        currentCoachInterview.nutritionGoal = value;
+      }
+      currentCoachPlanBundle = null;
+      renderInteractiveCoachScreen();
+    });
+  });
+
+  document.getElementById('coachSportSelect')?.addEventListener('change', (event) => {
+    ensureCoachInterviewState();
+    currentCoachInterview.sport = event.target.value;
+    currentCoachPlanBundle = null;
+  });
+
+  document.getElementById('coachGeneratePlanBtn')?.addEventListener('click', async () => {
+    ensureCoachInterviewState();
+    if (getCoachPromptCount(currentCoachInterview) !== 7) {
+      showAlert('More Info Needed', 'Please answer all seven coach prompts before generating the plan.');
+      return;
+    }
+
+    currentCoachPlanBundle = generateCoachPlanBundle(currentCoachInterview, username);
+    renderInteractiveCoachScreen();
+
+    const shouldShareNow = await showConfirmDialog(
+      'Plan Ready',
+      'Your workout + nutrition plan is ready. Generate a QR code to send it to phone now?'
+    );
+
+    if (!shouldShareNow || !currentCoachPlanBundle) {
+      return;
+    }
+
+    try {
+      await shareCoachPlanToPhone(currentCoachPlanBundle, currentCoachInterview);
+    } catch (error) {
+      console.error('UI.JS: Auto coach plan QR share failed:', error);
+      showAlert('QR Share Failed', `Could not generate coach plan QR: ${error.message || error}`);
+    }
+  });
+
+  document.getElementById('coachSharePlanQrBtn')?.addEventListener('click', async () => {
+    if (!currentCoachPlanBundle) {
+      showAlert('No Plan Yet', 'Build a plan first, then share it to phone with QR.');
+      return;
+    }
+
+    try {
+      await shareCoachPlanToPhone(currentCoachPlanBundle, currentCoachInterview);
+    } catch (error) {
+      console.error('UI.JS: Coach plan QR share failed:', error);
+      showAlert('QR Share Failed', `Could not generate coach plan QR: ${error.message || error}`);
+    }
+  });
+
+  document.getElementById('coachShareNutritionQrBtn')?.addEventListener('click', async () => {
+    if (!currentCoachPlanBundle) {
+      showAlert('No Plan Yet', 'Build a plan first, then share the nutrition plan to phone.');
+      return;
+    }
+
+    try {
+      await shareCoachNutritionToPhone(currentCoachPlanBundle, currentCoachInterview);
+    } catch (error) {
+      console.error('UI.JS: Coach nutrition QR share failed:', error);
+      showAlert('QR Share Failed', `Could not generate nutrition QR: ${error.message || error}`);
+    }
+  });
+
+  document.getElementById('coachOpenMusclesBtn')?.addEventListener('click', () => {
+    showMuscleGroupsDirect();
+  });
+
+  const backBtn = document.getElementById('backFromCoach');
+  if (backBtn && !backBtn.dataset.listenerBound) {
+    backBtn.dataset.listenerBound = 'true';
+    backBtn.addEventListener('click', () => {
+      showScreen('mainActionsScreen');
+    });
+  }
+
+  const refreshBtn = document.getElementById('coachRefreshBtn');
+  if (refreshBtn && !refreshBtn.dataset.listenerBound) {
+    refreshBtn.dataset.listenerBound = 'true';
+    refreshBtn.addEventListener('click', () => {
+      renderInteractiveCoachScreen({ resetInterview: true });
+    });
+  }
+
+  showScreen('interactiveCoachScreen');
 }
 
 /* ===============================
