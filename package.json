@@ -1,6 +1,6 @@
 {
 	"name": "gym-kiosk-app",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"engines": {
 		"node": ">=22.5.0"
 	},
@@ -14,6 +14,7 @@
 		"kiosk": "electron .",
 		"kiosk:wait": "wait-on tcp:3001 && electron .",
 		"test:smoke": "node tests/smoke-server.cjs",
+		"test:mobile-logs": "node tests/mobile-workout-logs.cjs",
 		"test:ops": "node tests/ops-regression.cjs",
 		"test:kiosk-ops": "node tests/kiosk-ops.cjs"
 	},
