@@ -265,6 +265,72 @@
       text-align: center;
     }
 
+    .exercise-log-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 10px;
+      background: rgba(4, 12, 22, 0.46);
+    }
+
+    .exercise-log-title {
+      margin: 0 0 10px;
+      color: var(--color-blue);
+      font-size: 14px;
+    }
+
+    .exercise-log-form {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      align-items: end;
+    }
+
+    .exercise-log-field {
+      display: grid;
+      gap: 5px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .exercise-log-field input {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      padding: 8px;
+      border: 1px solid rgba(196, 207, 224, 0.28);
+      border-radius: 7px;
+      background: #101925;
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+
+    .exercise-log-submit {
+      grid-column: 1 / -1;
+      min-height: 44px;
+    }
+
+    .exercise-log-history {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .exercise-log-entry {
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .exercise-log-status {
+      min-height: 1.2em;
+      margin: 8px 0 0;
+      color: #84e5d4;
+      font-size: 12px;
+    }
+
     @media (max-width: 600px) {
       .container {
         padding: 12px;
@@ -282,6 +348,11 @@
       .action-buttons {
         grid-template-columns: 1fr;
       }
+
+      .exercise-log-panel { padding: 11px; }
+      .exercise-log-form { gap: 6px; }
+      .exercise-log-field { font-size: 11px; }
+      .exercise-log-field input { padding: 7px 5px; font-size: 15px; }
     }
   </style>
 </head>
@@ -328,6 +399,7 @@
 
   <script>
     let workoutData = null;
+    let exerciseLogEntries = [];
     const workoutPathSegments = window.location.pathname.split('/').filter(Boolean);
     const workoutId = workoutPathSegments[workoutPathSegments.length - 1] || '';
     if (workoutPathSegments[0] === 'stretch') {
@@ -363,20 +435,124 @@
       return '';
     }
 
+    function getLocalDateString(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getExerciseLogStorageKey() {
+      return `workout_${workoutId}_exercise_logs`;
+    }
+
+    function loadExerciseLogEntries(remoteEntries = []) {
+      try {
+        const localEntries = JSON.parse(localStorage.getItem(getExerciseLogStorageKey()) || 'null');
+        if (Array.isArray(localEntries)) return localEntries;
+      } catch (_error) {
+      }
+
+      const entries = Array.isArray(remoteEntries) ? remoteEntries : [];
+      if (entries.length) {
+        localStorage.setItem(getExerciseLogStorageKey(), JSON.stringify(entries));
+      }
+      return entries;
+    }
+
+    function saveExerciseLogEntries() {
+      localStorage.setItem(getExerciseLogStorageKey(), JSON.stringify(exerciseLogEntries));
+    }
+
+    function renderExerciseLogHistory(container, exerciseKey) {
+      container.replaceChildren();
+      exerciseLogEntries
+        .filter(entry => entry.exerciseKey === exerciseKey)
+        .slice()
+        .reverse()
+        .forEach(entry => {
+          const row = document.createElement('div');
+          row.className = 'exercise-log-entry';
+          const completedOn = new Date(`${entry.date}T12:00:00`).toLocaleDateString();
+          row.textContent = `${entry.weight} lb × ${entry.reps} reps · ${completedOn}`;
+          container.appendChild(row);
+        });
+    }
+
+    function createExerciseLogPanel(exerciseKey, exerciseName, checkbox) {
+      const panel = document.createElement('section');
+      panel.className = 'exercise-log-panel';
+      panel.innerHTML = `
+        <h4 class="exercise-log-title">Log your training</h4>
+        <form class="exercise-log-form">
+          <label class="exercise-log-field">Weight (lb)
+            <input name="weight" type="number" min="0" max="10000" step="0.1" inputmode="decimal" required aria-label="Weight in pounds">
+          </label>
+          <label class="exercise-log-field">Reps
+            <input name="reps" type="number" min="1" max="1000" step="1" inputmode="numeric" required aria-label="Repetitions">
+          </label>
+          <label class="exercise-log-field">Date completed
+            <input name="date" type="date" required aria-label="Date completed">
+          </label>
+          <button class="btn-primary exercise-log-submit" type="submit">Add to workout log</button>
+        </form>
+        <div class="exercise-log-history" aria-live="polite"></div>
+        <p class="exercise-log-status" role="status" aria-live="polite"></p>
+      `;
+
+      const form = panel.querySelector('form');
+      const weightInput = form.elements.weight;
+      const repsInput = form.elements.reps;
+      const dateInput = form.elements.date;
+      const history = panel.querySelector('.exercise-log-history');
+      const status = panel.querySelector('.exercise-log-status');
+      dateInput.value = getLocalDateString();
+      dateInput.max = getLocalDateString();
+      renderExerciseLogHistory(history, exerciseKey);
+
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+
+        exerciseLogEntries.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          exerciseKey,
+          exerciseName,
+          weight: Number(weightInput.value),
+          reps: Number(repsInput.value),
+          date: dateInput.value
+        });
+        saveExerciseLogEntries();
+        renderExerciseLogHistory(history, exerciseKey);
+        checkbox.checked = true;
+        updateProgress();
+        status.textContent = 'Saved on this phone. Sign in, then choose Save Progress to sync.';
+        weightInput.value = '';
+        repsInput.value = '';
+        weightInput.focus();
+      });
+
+      return panel;
+    }
+
     async function loadWorkout() {
       try {
         if (!workoutId) {
           throw new Error('Missing workout ID in URL');
         }
 
-        const response = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, { cache: 'no-store' });
+        const headers = {};
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) headers.Authorization = `Bearer ${sessionId}`;
+        const response = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, { cache: 'no-store', headers });
         if (!response.ok) throw new Error('Workout not found');
 
         const result = await response.json();
         workoutData = result.data;
+        exerciseLogEntries = loadExerciseLogEntries(result.exerciseLogs);
 
         displayWorkout(result);
-        restoreProgress();
+        restoreProgress(result);
       } catch (error) {
         showError(error.message);
       }
@@ -462,6 +638,12 @@
                 ${dayEx.description ? `<p><strong>Additional Notes:</strong> ${dayEx.description}</p>` : ''}
               </div>
             `;
+            const exerciseKey = `${idx}-${dayIdx}`;
+            li.classList.add('expanded');
+            li.dataset.exerciseKey = exerciseKey;
+            if (!isStretchRoutine) {
+              li.appendChild(createExerciseLogPanel(exerciseKey, dayExerciseName, li.querySelector('.exercise-checkbox')));
+            }
             exerciseList.appendChild(li);
           });
         } else if (ex && ex.name) {
@@ -510,6 +692,12 @@
               ${ex.description ? `<p><strong>Additional Notes:</strong> ${ex.description}</p>` : ''}
             </div>
           `;
+          const exerciseKey = String(idx);
+          li.classList.add('expanded');
+          li.dataset.exerciseKey = exerciseKey;
+          if (!isStretchRoutine) {
+            li.appendChild(createExerciseLogPanel(exerciseKey, exerciseName, li.querySelector('.exercise-checkbox')));
+          }
           exerciseList.appendChild(li);
         }
       });
@@ -554,18 +742,23 @@
       });
     }
 
-    function restoreProgress() {
+    function restoreProgress(result = {}) {
       const savedProgress = localStorage.getItem(`workout_${workoutId}_progress`);
-      if (savedProgress) {
-        const progress = JSON.parse(savedProgress);
+      const progress = savedProgress ? JSON.parse(savedProgress) : result.progress;
+      if (Array.isArray(progress)) {
         const checkboxes = document.querySelectorAll('.exercise-checkbox');
         progress.forEach((checked, idx) => {
           if (checkboxes[idx]) {
             checkboxes[idx].checked = checked;
           }
         });
-        updateProgress();
+      } else if (exerciseLogEntries.length) {
+        const loggedKeys = new Set(exerciseLogEntries.map(entry => entry.exerciseKey));
+        document.querySelectorAll('.exercise-checkbox').forEach(checkbox => {
+          checkbox.checked = loggedKeys.has(checkbox.dataset.index);
+        });
       }
+      updateProgress();
     }
 
     function showError(message) {
@@ -590,14 +783,14 @@
       try {
         const sessionId = localStorage.getItem('sessionId');
         if (!sessionId) {
-          alert('Please sign in from the mobile home page before saving progress to your account.');
+          alert('Your exercise logs are saved on this phone. Sign in from the mobile home page to sync them to your workout account.');
           return;
         }
 
         const checkboxes = document.querySelectorAll('.exercise-checkbox');
         const progress = Array.from(checkboxes).map(cb => cb.checked);
 
-        const response = await fetch(`/api/workouts/${workoutId}`, {
+        const response = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -605,7 +798,8 @@
           },
           body: JSON.stringify({
             completed: document.querySelectorAll('.exercise-checkbox:checked').length > 0,
-            progress: progress
+            progress,
+            exerciseLogs: exerciseLogEntries
           })
         });
 

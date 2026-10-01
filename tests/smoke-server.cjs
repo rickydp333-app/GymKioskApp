@@ -3,8 +3,9 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const net = require('net');
 
-const BASE_URL = 'http://localhost:3001';
+let BASE_URL = '';
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,23 +34,34 @@ async function isServerHealthy() {
   }
 }
 
+function getAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address();
+      probe.close(error => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
 async function run() {
   const root = path.resolve(__dirname, '..');
   const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gymkiosk-smoke-'));
-  const hadServerAlready = await isServerHealthy();
-  const serverProcess = hadServerAlready
-    ? null
-    : spawn(process.execPath, ['server.js'], {
-      cwd: root,
-      env: {
-        ...process.env,
-        GYMKIOSK_DATA_DIR: testDataDir,
-        GYMKIOSK_SYNC_KEY: 'smoke-sync-key-1234567890',
-        GYMKIOSK_SYNC_URL: `${BASE_URL}/api/kiosk-sync`,
-        ALERT_EMAIL_ENABLED: '0'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
+  const port = await getAvailablePort();
+  BASE_URL = `http://127.0.0.1:${port}`;
+  const serverProcess = spawn(process.execPath, ['server.js'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PORT: String(port),
+      GYMKIOSK_DATA_DIR: testDataDir,
+      GYMKIOSK_SYNC_KEY: 'smoke-sync-key-1234567890',
+      GYMKIOSK_SYNC_URL: `${BASE_URL}/api/kiosk-sync`,
+      ALERT_EMAIL_ENABLED: '0'
+    },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
 
   let stderr = '';
   if (serverProcess) {
@@ -128,6 +140,46 @@ async function run() {
       body: JSON.stringify({ email, password })
     });
     assert.strictEqual(loginRes.status, 200, 'login should return 200');
+    const loginPayload = await loginRes.json();
+    const authCheckRes = await fetch(`${BASE_URL}/api/user/stats`, {
+      headers: { Authorization: `Bearer ${loginPayload.sessionId}` }
+    });
+    assert.strictEqual(authCheckRes.status, 200, 'new mobile session should authorize account API requests');
+
+    const completionDate = new Date().toISOString().slice(0, 10);
+    const saveExerciseLogsRes = await fetch(`${BASE_URL}/api/workouts/${workoutId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${loginPayload.sessionId}`
+      },
+      body: JSON.stringify({
+        completed: true,
+        progress: [true],
+        exerciseLogs: [{
+          id: `smoke-log-${Date.now()}`,
+          exerciseKey: '0',
+          exerciseName: 'Push-Up',
+          weight: 45,
+          reps: 10,
+          date: completionDate
+        }]
+      })
+    });
+    assert.strictEqual(saveExerciseLogsRes.status, 200, 'authenticated mobile exercise logs should save');
+    const savedExerciseWorkout = await saveExerciseLogsRes.json();
+    assert.strictEqual(savedExerciseWorkout.workout.userId, loginPayload.userId, 'saved workout should belong to the signed-in owner');
+
+    const privateWorkoutRes = await fetch(`${BASE_URL}/api/workouts/${workoutId}`, {
+      headers: { Authorization: `Bearer ${loginPayload.sessionId}` }
+    });
+    const privateWorkoutPayload = await privateWorkoutRes.json();
+    assert.strictEqual(privateWorkoutPayload.exerciseLogs.length, 1, `workout owner should retrieve saved exercise logs; owner=${loginPayload.userId} session=${loginPayload.sessionId} PUT=${JSON.stringify(savedExerciseWorkout)} GET=${JSON.stringify(privateWorkoutPayload)}`);
+    assert.strictEqual(privateWorkoutPayload.exerciseLogs[0].date, completionDate, 'saved completion date should be preserved');
+
+    const publicWorkoutRes = await fetch(`${BASE_URL}/api/workouts/${workoutId}`);
+    const publicWorkoutPayload = await publicWorkoutRes.json();
+    assert.strictEqual(publicWorkoutPayload.exerciseLogs.length, 0, 'public QR viewers must not receive private exercise logs');
 
     const rejectedSync = await fetch(`${BASE_URL}/api/kiosk-sync`, {
       method: 'POST',

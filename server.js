@@ -455,8 +455,10 @@ function loadFriendChallenges() {
 function saveWorkouts() {
   try {
     persistentStore.writeMap('workouts', workouts);
+    return true;
   } catch (err) {
     console.error('✗ Error saving workouts:', err.message);
+    return false;
   }
 }
 
@@ -464,8 +466,10 @@ function saveWorkouts() {
 function saveUsers() {
   try {
     persistentStore.writeMap('users', users);
+    return true;
   } catch (err) {
     console.error('✗ Error saving users:', err.message);
+    return false;
   }
 }
 
@@ -473,8 +477,10 @@ function saveUsers() {
 function saveCalendars() {
   try {
     persistentStore.writeMap('calendars', calendars);
+    return true;
   } catch (err) {
     console.error('✗ Error saving calendars:', err.message);
+    return false;
   }
 }
 
@@ -482,9 +488,17 @@ function saveCalendars() {
 function saveFriendChallenges() {
   try {
     persistentStore.writeList('friend-challenges', friendChallenges);
+    return true;
   } catch (err) {
     console.error('✗ Error saving friend challenges:', err.message);
+    return false;
   }
+}
+
+function saveCollections(res, ...saveFunctions) {
+  if (saveFunctions.every((save) => save())) return true;
+  res.status(500).json({ error: 'Unable to save changes. Please retry.' });
+  return false;
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -601,6 +615,63 @@ function isValidIdentifier(value, maxLength = 128) {
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeExerciseLogs(value) {
+  if (!Array.isArray(value) || value.length > 500) return null;
+  const normalized = [];
+
+  for (const entry of value) {
+    if (!isPlainObject(entry)) return null;
+    const id = String(entry.id || '');
+    const exerciseKey = String(entry.exerciseKey || '');
+    const exerciseName = String(entry.exerciseName || '').trim();
+    const weight = Number(entry.weight);
+    const reps = Number(entry.reps);
+    const date = String(entry.date || '');
+    const dateMs = Date.parse(`${date}T00:00:00.000Z`);
+
+    if (!/^[a-zA-Z0-9_-]{8,128}$/.test(id)) return null;
+    if (!/^[0-9-]{1,24}$/.test(exerciseKey)) return null;
+    if (!exerciseName || exerciseName.length > 160) return null;
+    if (!Number.isFinite(weight) || weight < 0 || weight > 10000) return null;
+    if (!Number.isSafeInteger(reps) || reps < 1 || reps > 1000) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(dateMs) || new Date(dateMs).toISOString().slice(0, 10) !== date) return null;
+
+    normalized.push({ id, exerciseKey, exerciseName, weight, reps, date });
+  }
+
+  return normalized;
+}
+
+function applyExerciseLogsToUser(user, workoutId, exerciseLogs) {
+  if (!exerciseLogs.length) return;
+  if (!user.exerciseHistory) user.exerciseHistory = {};
+  if (!user.personalRecords) user.personalRecords = {};
+
+  const grouped = new Map();
+  exerciseLogs.forEach((entry) => {
+    const key = `${entry.exerciseName}\u0000${entry.date}`;
+    if (!grouped.has(key)) grouped.set(key, { exerciseName: entry.exerciseName, date: entry.date, sets: [] });
+    grouped.get(key).sets.push({ weight: entry.weight, reps: entry.reps });
+  });
+
+  grouped.forEach(({ exerciseName, date, sets }) => {
+    if (!Array.isArray(user.exerciseHistory[exerciseName])) user.exerciseHistory[exerciseName] = [];
+    const history = user.exerciseHistory[exerciseName];
+    const record = { sets, date, notes: '', sourceWorkoutId: workoutId };
+    const existingIndex = history.findIndex(entry => entry.sourceWorkoutId === workoutId && entry.date === date);
+    if (existingIndex >= 0) history[existingIndex] = record;
+    else history.push(record);
+
+    sets.forEach(({ weight, reps }) => {
+      const estimatedMax = Math.round(weight * (1 + (reps / 30)));
+      const current = user.personalRecords[exerciseName];
+      if (!current || estimatedMax > (Number(current.estimatedMax) || Number(current.weight) || 0)) {
+        user.personalRecords[exerciseName] = { weight, reps, estimatedMax, date };
+      }
+    });
+  });
 }
 
 function hasValidWebsiteSyncKey(req) {
@@ -878,11 +949,16 @@ app.get('/api/workouts/:workoutId', (req, res) => {
     return res.status(404).json({ error: 'Workout not found' });
   }
 
+  const sessionId = req.headers['authorization']?.replace(/^Bearer\s+/i, '');
+  const session = sessionId ? sessions.get(sessionId) : null;
+  const canViewExerciseLogs = !!session && session.expiresAt >= Date.now() && workout.userId === session.userId;
+
   res.json({
     success: true,
     workoutId,
     data: workout.data,
-    created: workout.created
+    created: workout.created,
+    exerciseLogs: canViewExerciseLogs ? (workout.exerciseLogs || []) : []
   });
 });
 
@@ -911,7 +987,12 @@ app.get('/api/user/workouts', (req, res) => {
 // Update workout (mark as completed, track progress)
 app.put('/api/workouts/:workoutId', (req, res) => {
   const { workoutId } = req.params;
-  const { completed, progress } = req.body;
+  const { completed, progress, exerciseLogs } = req.body;
+  const normalizedExerciseLogs = exerciseLogs === undefined ? undefined : normalizeExerciseLogs(exerciseLogs);
+  if (exerciseLogs !== undefined && normalizedExerciseLogs === null) {
+    return res.status(400).json({ error: 'Invalid exercise log data' });
+  }
+
   const auth = getAuthenticatedUser(req, res);
   if (!auth) return;
 
@@ -941,10 +1022,13 @@ app.put('/api/workouts/:workoutId', (req, res) => {
   if (progress !== undefined) {
     workout.progress = progress;
   }
+  if (normalizedExerciseLogs !== undefined) {
+    workout.exerciseLogs = normalizedExerciseLogs;
+    applyExerciseLogsToUser(auth.user, workoutId, normalizedExerciseLogs);
+  }
 
   // Save to file
-  saveWorkouts();
-  saveUsers();
+  if (!saveCollections(res, saveWorkouts, saveUsers)) return;
 
   res.json({
     success: true,
