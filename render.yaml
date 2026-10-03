@@ -8,7 +8,13 @@ services:
     autoDeploy: true
     domains:
       - app.rdpsplace.me
+    disk:
+      name: gymkiosk-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
+      - key: GYMKIOSK_DATA_DIR
+        value: /var/data/gymkiosk
       - key: NODE_VERSION
         value: "24.19.0"
       - key: NODE_ENV
