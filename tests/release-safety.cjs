@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const vm = require('vm');
 const { resolveAdminProfile } = require('../lib/admin-profile');
 const { registerUserPinVault } = require('../lib/user-pin-vault');
 const { createPersistentStore } = require('../lib/persistent-store');
@@ -42,6 +43,35 @@ try {
   store = createPersistentStore(opts);
   assert.equal(store.readMap('users').get('test-member').favorite, 'kept');
   store.close();
+  const releaseSource = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'release-install-set.cjs'), 'utf8');
+  const verifyStart = releaseSource.indexOf('function verifyPackagedApp(');
+  const verifyEnd = releaseSource.indexOf('\nfunction cleanTargetBuildArtifacts(', verifyStart);
+  const packageFiles = ['/server.js', '/js/data/exercises.js', '/mobile/viewer.html', '/screensaver-tutorial.html', '/js/kiosk-tutorial.js', '/css/kiosk-tutorial.css', '/lib/user-pin-vault.js', '/assets/branding/logo.png', '/main.js'];
+  for (let index = 0; index < 97; index++) packageFiles.push(`/assets/stretches/test-${index}.png`);
+  let wrongSource = false;
+  let packagedVersion = require('../package.json').version;
+  const verifierContext = {
+    repoRoot: '/test-source', version: packagedVersion, path,
+    fs: { existsSync: () => true, readFileSync: () => Buffer.from('current-source') },
+    asar: {
+      listPackage: () => packageFiles,
+      extractFile: (_archive, name) => name === 'package.json'
+        ? Buffer.from(JSON.stringify({ version: packagedVersion }))
+        : Buffer.from(wrongSource ? 'stale-source' : 'current-source')
+    }
+  };
+  vm.createContext(verifierContext);
+  vm.runInContext(releaseSource.slice(verifyStart, verifyEnd), verifierContext);
+  const target = { name: 'kiosk', label: 'Kiosk', outputDir: '/test-output' };
+  assert.equal(verifierContext.verifyPackagedApp(target).verifiedSourceFiles, 11);
+  wrongSource = true;
+  assert.throws(() => verifierContext.verifyPackagedApp(target), /does not match current source/);
+  wrongSource = false;
+  packageFiles.push('/data/users.json');
+  assert.throws(() => verifierContext.verifyPackagedApp(target), /development data/);
+  packageFiles.pop();
+  packagedVersion = '0.0.0';
+  assert.throws(() => verifierContext.verifyPackagedApp(target), /incorrect version/);
   console.log('PASS: profile migration, preserved data on reopen, clean new install, authorized PIN reveal, package safeguards');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });

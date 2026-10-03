@@ -82,6 +82,10 @@ function verifyPackagedApp(target) {
     '/server.js',
     '/js/data/exercises.js',
     '/mobile/viewer.html',
+    '/screensaver-tutorial.html',
+    '/js/kiosk-tutorial.js',
+    '/css/kiosk-tutorial.css',
+    '/lib/user-pin-vault.js',
     '/assets/branding/logo.png',
     target.name === 'kiosk' ? '/main.js' : '/main-admin.js'
   ];
@@ -95,7 +99,18 @@ function verifyPackagedApp(target) {
     throw new Error(`${target.label} package contains only ${stretchImages.length} stretch images`);
   }
 
-  return { stretchImageCount: stretchImages.length, packagedFileCount: files.length };
+  if (files.some(file => file.startsWith('/data/') || /-DESKTOP-|MacBook Pro|\.log$|\.bak$/.test(file))) {
+    throw new Error(`${target.label} package contains development data or stale backup files`);
+  }
+  const packagedVersion = JSON.parse(asar.extractFile(asarPath, 'package.json').toString('utf8')).version;
+  if (packagedVersion !== version) throw new Error(`${target.label} package has incorrect version ${packagedVersion}`);
+  const sourceFiles = ['server.js', 'index.html', 'js/ui.js', 'js/analytics.js', 'js/reset.js', 'js/kiosk-tutorial.js', 'mobile/viewer.html', 'screensaver-tutorial.html', 'css/style.css', 'lib/user-pin-vault.js', target.name === 'kiosk' ? 'main.js' : 'main-admin.js'];
+  for (const file of sourceFiles) {
+    if (!asar.extractFile(asarPath, file).equals(fs.readFileSync(path.join(repoRoot, file)))) {
+      throw new Error(`${target.label} package does not match current source: ${file}`);
+    }
+  }
+  return { version: packagedVersion, verifiedSourceFiles: sourceFiles.length, stretchImageCount: stretchImages.length, packagedFileCount: files.length };
 }
 
 function cleanTargetBuildArtifacts(target) {

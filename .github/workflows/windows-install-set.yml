@@ -1,0 +1,54 @@
+name: Windows Install Set
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/windows-install-set.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-install-set
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate release
+        run: |
+          npm run test:all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tests/mobile-workout-logs.cjs
+          exit $LASTEXITCODE
+      - name: Build and verify both Windows installers
+        env:
+          GYMKIOSK_MOVE_INSTALLERS_TO_SET: '1'
+        run: npm run release:install-set
+      - name: Publish verified install set
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          $bundle = Join-Path (Split-Path $env:GITHUB_WORKSPACE -Parent) "installs/gymkiosk-install-set-v$version.zip"
+          $checksum = "$bundle.sha256.txt"
+          if (-not (Test-Path $bundle) -or -not (Test-Path $checksum)) { throw 'Verified bundle is missing.' }
+          $expected = ((Get-Content $checksum -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash
+          if ($actual.ToLowerInvariant() -ne $expected.ToLowerInvariant()) { throw 'Bundle checksum mismatch.' }
+          gh release create "v$version" $bundle $checksum --target $env:GITHUB_SHA --title "GymKiosk Windows Install Set v$version" --notes "Includes the kiosk and admin installers, installation notes, manifest, and SHA-256 checksums. Packages are verified against the release source and exclude development account data. These installers are unsigned; Windows application-control policies may require an approved signing setup."
+          exit $LASTEXITCODE

@@ -6,7 +6,7 @@ const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 
 function read(relPath) {
-  return fs.readFileSync(path.join(ROOT, relPath), 'utf8');
+  return fs.readFileSync(path.join(ROOT, relPath), 'utf8').replace(/\r\n/g, '\n');
 }
 
 function testSingleInstanceLock() {
