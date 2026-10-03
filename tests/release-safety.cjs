@@ -44,6 +44,7 @@ try {
   assert.equal(store.readMap('users').get('test-member').favorite, 'kept');
   store.close();
   const releaseSource = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'release-install-set.cjs'), 'utf8');
+  assert(/'--publish',\s*'never'/.test(releaseSource), 'builder must not publish unverified CI installers automatically');
   const verifyStart = releaseSource.indexOf('function verifyPackagedApp(');
   const verifyEnd = releaseSource.indexOf('\nfunction cleanTargetBuildArtifacts(', verifyStart);
   const packageFiles = ['/server.js', '/js/data/exercises.js', '/mobile/viewer.html', '/screensaver-tutorial.html', '/js/kiosk-tutorial.js', '/css/kiosk-tutorial.css', '/lib/user-pin-vault.js', '/assets/branding/logo.png', '/main.js'];

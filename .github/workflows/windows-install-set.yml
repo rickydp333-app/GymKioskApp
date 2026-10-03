@@ -34,7 +34,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node tests/mobile-workout-logs.cjs
           exit $LASTEXITCODE
-      - name: Build and verify both Windows installers
+      - name: Build and verify both installers without auto-publishing
         env:
           GYMKIOSK_MOVE_INSTALLERS_TO_SET: '1'
         run: npm run release:install-set

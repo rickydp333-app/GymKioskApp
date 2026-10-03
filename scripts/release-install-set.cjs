@@ -38,7 +38,9 @@ function runBuild(configFile) {
     'nsis',
     '--config',
     configFile,
-    '--config.win.signAndEditExecutable=false'
+    '--config.win.signAndEditExecutable=false',
+    '--publish',
+    'never'
   ], {
     cwd: repoRoot,
     stdio: 'inherit'
