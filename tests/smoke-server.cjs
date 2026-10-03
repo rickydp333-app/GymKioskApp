@@ -78,6 +78,8 @@ async function run() {
 
     const infoRes = await fetch(`${BASE_URL}/api/info`);
     assert.strictEqual(infoRes.status, 200, 'info endpoint should return 200');
+    const infoPayload = await infoRes.json();
+    assert.strictEqual(infoPayload.nodeVersion, process.versions.node, 'info should report the running Node version');
 
     const workoutId = `smoke-${Date.now()}`;
     const analyticsSyncToken = 'a'.repeat(64);

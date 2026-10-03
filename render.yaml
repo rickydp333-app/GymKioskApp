@@ -2,13 +2,15 @@ services:
   - type: web
     name: gymkiosk-api
     runtime: node
-    plan: free
+    plan: 0.5c-512mb
     buildCommand: npm install
     startCommand: npm run server
     autoDeploy: true
     domains:
       - app.rdpsplace.me
     envVars:
+      - key: NODE_VERSION
+        value: "24.19.0"
       - key: NODE_ENV
         value: production
       - key: GYMKIOSK_TRUST_PROXY_HOPS
