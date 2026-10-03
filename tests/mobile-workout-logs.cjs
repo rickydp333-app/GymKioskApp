@@ -99,7 +99,7 @@ async function run() {
     assert.equal(viewer.status, 200, 'workout QR route should serve the phone viewer');
     const viewerHtml = await viewer.text();
     assert.match(viewerHtml, /exercise-log-panel/, 'phone viewer should include the logging form');
-    assert.match(viewerHtml, /Track your set/, 'phone viewer should label the set logging panel');
+    assert.match(viewerHtml, /Log your training/, 'phone viewer should label the set logging panel');
 
     const invalid = await requestJson(`/api/workouts/${workoutId}`, {
       method: 'PUT',

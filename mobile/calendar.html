@@ -3,206 +3,231 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Workout Calendar – RDP's Gym</title>
+  <title>My Calendar - RDPs STRENGTH & CONDITIONING</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
+    * { box-sizing: border-box; }
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 16px;
+    }
     header {
-      background: #1a1e28;
-      border-bottom: 1px solid #3d4a5c;
-      padding: 14px 20px;
+      text-align: center;
+      padding: 24px 0;
+      border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 24px;
     }
-    .brand-logo { display: block; width: min(100%, 330px); height: auto; margin: 0 auto 12px; }
-    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
-    .header-sub { color: #a0aec0; font-size: 0.8rem; margin-top: 2px; }
-    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
-    .meta-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 12px;
-      padding: 16px;
+    .brand-logo {
+      width: 300px;
+      height: auto;
+      margin: 0 auto 12px;
+      display: block;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
+    }
+    h1 {
+      font-size: 26px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--color-silver) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: var(--text-secondary);
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 212, 255, 0.2);
+      border-top-color: var(--color-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .date-card {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: 16px;
+      padding: 18px;
       margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
-    .meta-label { font-size: 0.75rem; color: #a0aec0; }
-    .meta-value { font-weight: bold; font-size: 1rem; color: #d4af37; }
-    .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
-      margin-bottom: 20px;
+    .date-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-gold);
+      margin: 0 0 10px 0;
     }
-    .day-header {
+    .section-title {
+      font-size: 14px;
+      color: var(--color-blue);
+      margin: 12px 0 6px 0;
+      font-weight: 600;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-right: 6px;
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--text-secondary);
+    }
+    ul {
+      margin: 6px 0 0 16px;
+      padding: 0;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .meal-item {
+      padding: 10px 12px;
+      background: rgba(212, 175, 55, 0.1);
+      border-left: 3px solid var(--color-gold);
+      border-radius: 6px;
+      margin: 8px 0;
+    }
+    .meal-name { font-weight: 600; color: var(--text-primary); }
+    .meal-focus { font-size: 12px; color: var(--text-muted); }
+    .empty-state {
       text-align: center;
-      font-size: 0.7rem;
-      color: #a0aec0;
-      padding: 4px 0;
+      color: var(--text-muted);
+      padding: 20px 10px;
     }
-    .day-cell {
-      background: #1a1e28;
-      border: 1px solid #2a3040;
-      border-radius: 4px;
-      min-height: 36px;
-      padding: 4px;
-      text-align: center;
-      font-size: 0.75rem;
-    }
-    .day-cell.today { border-color: #d4af37; }
-    .day-cell.has-workout { background: rgba(212,175,55,0.12); }
-    .day-cell.empty { background: transparent; border-color: transparent; }
-    .day-num { font-size: 0.7rem; color: #a0aec0; }
-    .day-dot { width: 6px; height: 6px; background: #d4af37; border-radius: 50%; margin: 2px auto 0; }
-    .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-bottom: 10px; }
-    .event-list { }
-    .event-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 8px;
-    }
-    .event-date { font-size: 0.8rem; color: #a0aec0; margin-bottom: 4px; }
-    .event-name { font-weight: bold; font-size: 0.95rem; }
-    .event-meta { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
-    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
-    .error-box {
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.3);
-      border-radius: 8px;
-      padding: 16px;
-      color: #f87171;
-      text-align: center;
-    }
-    .empty { color: #a0aec0; text-align: center; padding: 24px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <header>
-    <img src="/assets/branding/logo.png?v=20260922" alt="RDPs Strength & Conditioning" class="brand-logo" />
-    <div class="header-title">📅 Workout Calendar</div>
-    <div class="header-sub" id="calendarOwner">Loading…</div>
-  </header>
+  <div class="container">
+    <img src="/assets/branding/logo.png?v=20260922" alt="RDPs STRENGTH &amp; CONDITIONING" class="brand-logo">
+    <header>
+      <h1>RDP's STRENGTH and CONDITIONING</h1>
+      <div class="subtitle" id="calendarSubtitle">Loading schedule…</div>
+    </header>
 
-  <div id="mainContent" class="content">
-    <div class="spinner">Loading calendar…</div>
+    <div id="calendarContent" class="loading">
+      <div class="spinner"></div>
+      <div style="margin-top: 12px;">Fetching your calendar…</div>
+    </div>
   </div>
 
   <script>
-    const calendarId = location.pathname.split('/').pop();
+    const calendarContent = document.getElementById('calendarContent');
+    const calendarSubtitle = document.getElementById('calendarSubtitle');
+    const calendarId = window.location.pathname.split('/').pop();
 
-    async function loadCalendar() {
-      const content = document.getElementById('mainContent');
-      try {
-        const res = await fetch(`/api/calendar/${encodeURIComponent(calendarId)}`);
-        if (!res.ok) {
-          const d = await res.json();
-          content.innerHTML = `<div class="error-box">${d.error || 'Calendar not found.'}</div>`;
-          return;
-        }
-        const { userName, data, created } = await res.json();
-        document.getElementById('calendarOwner').textContent = `${userName}'s Calendar`;
-        document.title = `${userName}'s Calendar – RDP's Gym`;
-
-        const events = Array.isArray(data?.events) ? data.events : [];
-        const createdDate = new Date(created);
-
-        content.innerHTML = '';
-
-        // Meta card
-        const meta = document.createElement('div');
-        meta.className = 'meta-card';
-        meta.innerHTML = `
-          <div><div class="meta-label">Owner</div><div class="meta-value">${userName}</div></div>
-          <div><div class="meta-label">Saved</div><div class="meta-value">${createdDate.toLocaleDateString()}</div></div>
-          <div><div class="meta-label">Events</div><div class="meta-value">${events.length}</div></div>
-        `;
-        content.appendChild(meta);
-
-        // Mini calendar for current month
-        renderMiniCalendar(content, events);
-
-        // Event list
-        const titleEl = document.createElement('div');
-        titleEl.className = 'section-title';
-        titleEl.textContent = 'Scheduled Workouts';
-        content.appendChild(titleEl);
-
-        if (!events.length) {
-          const empty = document.createElement('div');
-          empty.className = 'empty';
-          empty.textContent = 'No events scheduled.';
-          content.appendChild(empty);
-          return;
-        }
-
-        events
-          .slice()
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .forEach(ev => {
-            const card = document.createElement('div');
-            card.className = 'event-card';
-            card.innerHTML = `
-              <div class="event-date">${new Date(ev.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-              <div class="event-name">${ev.name || ev.title || 'Workout'}</div>
-              ${ev.notes ? `<div class="event-meta">${ev.notes}</div>` : ''}
-            `;
-            content.appendChild(card);
-          });
-      } catch (err) {
-        content.innerHTML = `<div class="error-box">Failed to load calendar. ${err.message}</div>`;
-      }
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      if (Number.isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     }
 
-    function renderMiniCalendar(container, events) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+    function renderCalendar(data) {
+      const workouts = data.workouts || {};
+      const meals = data.meals || {};
+      const dates = Array.from(new Set([...Object.keys(workouts), ...Object.keys(meals)])).sort();
 
-      const eventDates = new Set(events.map(e => {
-        const d = new Date(e.date);
-        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      }));
-
-      const grid = document.createElement('div');
-      grid.style.marginBottom = '20px';
-
-      const monthLabel = document.createElement('div');
-      monthLabel.style.cssText = 'font-size:.85rem;color:#d4af37;font-weight:bold;margin-bottom:8px;';
-      monthLabel.textContent = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-      grid.appendChild(monthLabel);
-
-      const calGrid = document.createElement('div');
-      calGrid.className = 'cal-grid';
-
-      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d => {
-        const h = document.createElement('div');
-        h.className = 'day-header';
-        h.textContent = d;
-        calGrid.appendChild(h);
-      });
-
-      for (let i = 0; i < firstDay; i++) {
-        const empty = document.createElement('div');
-        empty.className = 'day-cell empty';
-        calGrid.appendChild(empty);
+      if (!dates.length) {
+        calendarContent.innerHTML = '<div class="empty-state">No saved workouts or meal plans yet.</div>';
+        return;
       }
 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const key = `${year}-${month}-${d}`;
-        const isToday = d === now.getDate();
-        const hasEvent = eventDates.has(key);
-        const cell = document.createElement('div');
-        cell.className = `day-cell${isToday ? ' today' : ''}${hasEvent ? ' has-workout' : ''}`;
-        cell.innerHTML = `<div class="day-num">${d}</div>${hasEvent ? '<div class="day-dot"></div>' : ''}`;
-        calGrid.appendChild(cell);
-      }
+      const cards = dates.map(dateStr => {
+        const workout = workouts[dateStr];
+        const mealPlan = meals[dateStr];
 
-      grid.appendChild(calGrid);
-      container.appendChild(grid);
+        let workoutHtml = '';
+        if (workout) {
+          const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
+          const exerciseItems = exercises.map(ex => `<li>${ex.name || ex}</li>`).join('');
+          const metaTags = [workout.difficulty, workout.focusMuscle].filter(Boolean).map(tag => `<span class="tag">${tag}</span>`).join('');
+          workoutHtml = `
+            <div class="section-title">💪 Workout</div>
+            ${metaTags}
+            ${exerciseItems ? `<ul>${exerciseItems}</ul>` : '<div class="empty-state">No exercises listed.</div>'}
+          `;
+        }
+
+        let mealsHtml = '';
+        if (mealPlan && mealPlan.meals) {
+          const mealLabels = {
+            breakfast: '🌅 Breakfast',
+            lunch: '🍽️ Lunch',
+            dinner: '🍴 Dinner',
+            snacks: '🥜 Snacks',
+            preWorkout: '⚡ Pre-Workout',
+            postWorkout: '💪 Post-Workout'
+          };
+          const mealItems = Object.keys(mealPlan.meals).map(key => {
+            const meal = mealPlan.meals[key];
+            if (!meal || !meal.name) return '';
+            return `
+              <div class="meal-item">
+                <div class="meal-name">${mealLabels[key] || key} — ${meal.name}</div>
+                ${meal.focus ? `<div class="meal-focus">${meal.focus}</div>` : ''}
+              </div>
+            `;
+          }).join('');
+
+          mealsHtml = `
+            <div class="section-title">🍽️ Meal Plan</div>
+            ${mealItems || '<div class="empty-state">No meals listed.</div>'}
+          `;
+        }
+
+        return `
+          <div class="date-card">
+            <div class="date-title">${formatDate(dateStr)}</div>
+            ${workoutHtml || ''}
+            ${mealsHtml || ''}
+          </div>
+        `;
+      }).join('');
+
+      calendarContent.innerHTML = cards;
+    }
+
+    async function loadCalendar() {
+      try {
+        const response = await fetch(`/api/calendar/${calendarId}`);
+        if (!response.ok) {
+          throw new Error('Calendar not found');
+        }
+        const payload = await response.json();
+        calendarSubtitle.textContent = `${payload.userName || 'Your'} schedule`;
+        renderCalendar(payload.data || {});
+      } catch (error) {
+        calendarSubtitle.textContent = 'Unable to load calendar';
+        calendarContent.innerHTML = `<div class="empty-state">${error.message}</div>`;
+      }
     }
 
     loadCalendar();

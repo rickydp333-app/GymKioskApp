@@ -2,7 +2,7 @@
   "appId": "com.rdps.gymkiosk.admin",
   "productName": "GymKiosk Admin",
   "directories": {
-    "output": "dist-admin-installer",
+    "output": "../installs/dist-admin-installer",
     "buildResources": "assets"
   },
   "files": [
@@ -12,22 +12,29 @@
     "admin/**/*",
     "css/**/*",
     "js/**/*",
-    "data/**/*",
     "mobile/**/*",
     "assets/**/*",
     "index.html",
     "package.json",
-    "server.js"
+    "server.js",
+    "lib/**/*",
+    "!assets/face-models/**/*",
+    "!**/*-Rick’s MacBook Pro.js",
+    "!**/*.bak",
+    "!**/*.log",
+    "!data/**/*",
+    "!**/*-DESKTOP-*.js",
+    "screensaver-tutorial.html"
   ],
   "extraMetadata": {
     "main": "main-admin.js"
   },
   "win": {
-    "icon": "assets/branding/logo.png",
+    "icon": "assets/branding/icon.ico",
     "target": [
       "nsis"
     ],
-    "artifactName": "GymKiosk-Admin-Setup-${version}.${ext}"
+    "artifactName": "GymKiosk-Admin-v${version}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -35,6 +42,7 @@
     "perMachine": false,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "GymKiosk Admin"
+    "shortcutName": "GymKiosk Admin",
+    "deleteAppDataOnUninstall": false
   }
 }

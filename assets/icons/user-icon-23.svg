@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#ef6c00" />
+  <circle cx="64" cy="64" r="22" fill="#fff" />
+  <text x="64" y="110" font-size="10" fill="#fff" text-anchor="middle">SlamBall</text>
+</svg>

@@ -1,0 +1,46 @@
+{
+  "appId": "com.rdp.gymkiosk.kiosk",
+  "productName": "RDP-GYM",
+  "files": [
+    "main.js",
+    "preload.js",
+    "server.js",
+    "index.html",
+    "screensaver-tutorial.html",
+    "package.json",
+    "lib/**/*",
+    "css/**/*",
+    "js/**/*",
+    "mobile/**/*",
+    "assets/**/*",
+    "!assets/face-models/**/*",
+    "!**/*-Rick’s MacBook Pro.js",
+    "!**/*.bak",
+    "!**/*.log",
+    "!data/**/*",
+    "!**/*-DESKTOP-*.js"
+  ],
+  "directories": {
+    "output": "../installs/dist-kiosk-installer",
+    "buildResources": "assets"
+  },
+  "extraMetadata": {
+    "main": "main.js"
+  },
+  "win": {
+    "icon": "assets/branding/icon.ico",
+    "target": [
+      "nsis"
+    ],
+    "artifactName": "RDP-GYM-v${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "RDP-GYM",
+    "deleteAppDataOnUninstall": false
+  }
+}

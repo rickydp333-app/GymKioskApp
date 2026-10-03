@@ -1,26 +1,58 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require('electron');
+const { registerUserPinVault } = require('./lib/user-pin-vault');
+const { resolveAdminProfile } = require('./lib/admin-profile');
+registerUserPinVault({ ipcMain, safeStorage, isAdmin: (token) => hasAdminSession(token) });
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const { spawn } = require('child_process');
+const crypto = require('crypto');
+const { createAdminSettings } = require('./lib/admin-settings');
+const { createPersistentStore, resolveDataDirectory } = require('./lib/persistent-store');
 
 const ROOT_DIR = __dirname;
-const DATA_DIR = path.join(ROOT_DIR, 'data');
+const DATA_DIR = resolveDataDirectory();
+const KIOSK_SETTINGS_PATH = path.join(DATA_DIR, 'kiosk-settings.json');
 const SERVER_URL = 'http://127.0.0.1:3001/api/info';
+
+try {
+  const sessionDataPath = resolveAdminProfile(app.getPath('appData'), app.getPath('temp'));
+  fs.mkdirSync(sessionDataPath, { recursive: true });
+  app.setPath('sessionData', sessionDataPath);
+} catch (_error) {
+}
 
 let adminWindow = null;
 let kioskWindow = null;
 let kioskAdminWindow = null;
+let apiServerProcess = null;
+let apiServerStartedByAdmin = false;
+const adminSettings = createAdminSettings(path.dirname(DATA_DIR));
+const persistentStore = createPersistentStore({ dataDir: DATA_DIR, sourceDataDir: path.join(ROOT_DIR, 'data') });
+const adminSessions = new Map();
 
-function getAdminCode() {
-  try {
-    const authPath = path.join(ROOT_DIR, 'js', 'auth.js');
-    const authCode = fs.readFileSync(authPath, 'utf8');
-    const match = authCode.match(/const\s+ADMIN_CODE\s*=\s*['\"]([^'\"]+)['\"]/);
-    return match?.[1] || '3333';
-  } catch (_error) {
-    return '3333';
-  }
+function issueAdminSession() {
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, Date.now() + (15 * 60 * 1000));
+  return token;
 }
+
+function hasAdminSession(token) {
+  const normalized = String(token || '');
+  const expiresAt = adminSessions.get(normalized);
+  if (!expiresAt || expiresAt < Date.now()) {
+    adminSessions.delete(normalized);
+    return false;
+  }
+  return true;
+}
+
+function requireAdminToken(token) {
+  return hasAdminSession(token) ? null : { success: false, error: 'Administrator session expired.' };
+}
+
+const isDev = process.env.NODE_ENV !== 'production' || process.env.GYMKIOSK_DEVTOOLS === '1';
+const autoOpenDevTools = isDev && process.env.GYMKIOSK_DEVTOOLS_AUTO_OPEN !== '0';
 
 function formatBytes(bytes = 0) {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -49,6 +81,27 @@ function sanitizeForFilename(value = 'report') {
     .replace(/[^a-zA-Z0-9-_]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase() || 'report';
+}
+
+function getKioskSettings() {
+  return readJson(KIOSK_SETTINGS_PATH, { autoStartOnBoot: true });
+}
+
+function saveKioskSettings(settings = {}) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const toSave = {
+      autoStartOnBoot: settings.autoStartOnBoot !== false
+    };
+
+    fs.writeFileSync(KIOSK_SETTINGS_PATH, JSON.stringify(toSave, null, 2), 'utf8');
+    return toSave;
+  } catch (_error) {
+    return null;
+  }
 }
 
 function flattenRows(value, prefix = '', rows = []) {
@@ -99,7 +152,8 @@ function createAdminWindow() {
     webPreferences: {
       preload: path.join(ROOT_DIR, 'preload-admin.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true
     }
   });
 
@@ -126,11 +180,17 @@ function createKioskWindow() {
       preload: path.join(ROOT_DIR, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      devTools: false
+      sandbox: true,
+      devTools: isDev
     }
   });
 
   kioskWindow.loadFile('index.html');
+
+  if (autoOpenDevTools) {
+    kioskWindow.webContents.openDevTools({ mode: 'detach' });
+  }
+
   kioskWindow.on('closed', () => {
     kioskWindow = null;
   });
@@ -152,6 +212,7 @@ function openKioskAdminPanelWindow() {
       preload: path.join(ROOT_DIR, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       devTools: false
     }
   });
@@ -231,8 +292,7 @@ function collectAdminAuditReport() {
 }
 
 function collectWorkoutUsageReport() {
-  const workoutsPath = path.join(DATA_DIR, 'workouts.json');
-  const entries = readJson(workoutsPath, []);
+  const entries = Array.from(persistentStore.readMap('workouts').entries());
 
   const muscleCounts = new Map();
   const exerciseCounts = new Map();
@@ -272,11 +332,8 @@ function collectWorkoutUsageReport() {
 }
 
 function collectUserActivityReport() {
-  const usersPath = path.join(DATA_DIR, 'users.json');
-  const workoutsPath = path.join(DATA_DIR, 'workouts.json');
-
-  const usersData = readJson(usersPath, []);
-  const workoutEntries = readJson(workoutsPath, []);
+  const usersData = Array.from(persistentStore.readMap('users').entries());
+  const workoutEntries = Array.from(persistentStore.readMap('workouts').entries());
 
   const users = usersData.map(([id, user]) => ({
     id,
@@ -318,8 +375,60 @@ function pingServer() {
   });
 }
 
+function waitForServerReady(timeoutMs = 60000, intervalMs = 1000) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+
+    const check = async () => {
+      const status = await pingServer();
+      if (status.ok) {
+        resolve(true);
+        return;
+      }
+
+      if (Date.now() - startedAt >= timeoutMs) {
+        reject(new Error(`Server did not become ready within ${timeoutMs}ms`));
+        return;
+      }
+
+      setTimeout(check, intervalMs);
+    };
+
+    check();
+  });
+}
+
+function startApiServer() {
+  if (apiServerProcess && !apiServerProcess.killed) {
+    return;
+  }
+
+  apiServerStartedByAdmin = true;
+  const syncEnvironment = adminSettings.getSyncEnvironment();
+  apiServerProcess = spawn(process.execPath, [path.join(ROOT_DIR, 'server.js')], {
+    cwd: ROOT_DIR,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', GYMKIOSK_DATA_DIR: DATA_DIR, ...syncEnvironment },
+    stdio: 'inherit'
+  });
+
+  apiServerProcess.on('exit', () => {
+    apiServerProcess = null;
+    apiServerStartedByAdmin = false;
+  });
+}
+
+async function ensureApiServerForKiosk() {
+  const status = await pingServer();
+  if (status.ok) {
+    return;
+  }
+
+  startApiServer();
+  await waitForServerReady();
+}
+
 async function collectSystemHealthReport() {
-  const files = ['workouts.json', 'users.json', 'calendars.json', 'friend-challenges.json'];
+  const files = ['gym-kiosk.db'];
   const fileStats = files.map((name) => {
     const filePath = path.join(DATA_DIR, name);
     if (!fs.existsSync(filePath)) {
@@ -371,13 +480,60 @@ async function getReportData(reportType) {
 }
 
 ipcMain.handle('admin-validate-pin', (_event, pin) => {
-  return String(pin || '') === String(getAdminCode());
+  const success = adminSettings.validate(String(pin || ''));
+  return { success, token: success ? issueAdminSession() : null };
 });
 
-ipcMain.handle('admin-start-kiosk', () => createKioskWindow());
-ipcMain.handle('admin-open-kiosk-admin-panel', () => openKioskAdminPanelWindow());
+ipcMain.handle('admin-change-pin', (_event, payload = {}) => {
+  const denied = requireAdminToken(payload.token); if (denied) return denied;
+  return adminSettings.change(payload.currentPin, payload.newPin);
+});
 
-ipcMain.handle('admin-get-report', async (_event, reportType) => {
+ipcMain.handle('admin-start-kiosk', async (_event, token) => {
+  const denied = requireAdminToken(token); if (denied) return denied;
+  await ensureApiServerForKiosk();
+  return createKioskWindow();
+});
+ipcMain.handle('admin-exit-kiosk', (_event, token) => {
+  const denied = requireAdminToken(token); if (denied) return denied;
+  let closedAny = false;
+
+  if (kioskAdminWindow && !kioskAdminWindow.isDestroyed()) {
+    kioskAdminWindow.close();
+    kioskAdminWindow = null;
+    closedAny = true;
+  }
+
+  if (kioskWindow && !kioskWindow.isDestroyed()) {
+    kioskWindow.close();
+    kioskWindow = null;
+    closedAny = true;
+  }
+
+  return { status: closedAny ? 'closed' : 'not-running' };
+});
+ipcMain.handle('admin-get-kiosk-autostart', (_event, token) => {
+  const denied = requireAdminToken(token); if (denied) return denied;
+  const settings = getKioskSettings();
+  return { enabled: settings.autoStartOnBoot !== false };
+});
+ipcMain.handle('admin-set-kiosk-autostart', (_event, payload = {}) => {
+  const denied = requireAdminToken(payload.token); if (denied) return denied;
+  const enabled = payload.enabled;
+  const saved = saveKioskSettings({ autoStartOnBoot: !!enabled });
+  if (!saved) {
+    return { success: false, error: 'Failed to save kiosk startup setting.' };
+  }
+  return { success: true, enabled: saved.autoStartOnBoot !== false };
+});
+ipcMain.handle('admin-open-kiosk-admin-panel', (_event, token) => {
+  const denied = requireAdminToken(token); if (denied) return denied;
+  return openKioskAdminPanelWindow();
+});
+
+ipcMain.handle('admin-get-report', async (_event, payload = {}) => {
+  const denied = requireAdminToken(payload.token); if (denied) return denied;
+  const reportType = payload.reportType;
   try {
     return await getReportData(reportType);
   } catch (error) {
@@ -386,6 +542,7 @@ ipcMain.handle('admin-get-report', async (_event, reportType) => {
 });
 
 ipcMain.handle('admin-export-report', async (_event, payload = {}) => {
+  const denied = requireAdminToken(payload.token); if (denied) return denied;
   const reportType = payload.reportType;
   const format = String(payload.format || 'json').toLowerCase();
   if (!reportType) {
@@ -428,7 +585,13 @@ ipcMain.handle('admin-export-report', async (_event, payload = {}) => {
   }
 });
 
-ipcMain.handle('exit-app', (event) => {
+ipcMain.handle('admin-cancel-login', (event) => {
+  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+  if (sourceWindow === adminWindow) sourceWindow.close();
+});
+
+ipcMain.handle('exit-app', (event, token) => {
+  const denied = requireAdminToken(token); if (denied) return denied;
   const sourceWindow = BrowserWindow.fromWebContents(event.sender);
   if (sourceWindow && sourceWindow !== adminWindow) {
     sourceWindow.close();
@@ -464,7 +627,14 @@ ipcMain.handle('log-admin-action', (_event, payload = {}) => {
 app.whenReady().then(createAdminWindow);
 
 app.on('window-all-closed', () => {
+  if (apiServerStartedByAdmin && apiServerProcess && !apiServerProcess.killed) {
+    apiServerProcess.kill();
+  }
   app.quit();
+});
+
+app.on('before-quit', () => {
+  try { persistentStore.close(); } catch (_error) {}
 });
 
 app.on('activate', () => {

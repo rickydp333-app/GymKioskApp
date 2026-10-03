@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#6a1b9a" />
+  <rect x="44" y="44" width="40" height="20" rx="10" fill="#fff" />
+  <text x="64" y="110" font-size="10" fill="#fff" text-anchor="middle">AbRoller</text>
+</svg>

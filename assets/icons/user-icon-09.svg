@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#c62828" />
+  <path d="M64 32c-12 0-22 10-22 22 0 22 22 34 22 34s22-12 22-34c0-12-10-22-22-22z" fill="#fff" />
+  <text x="64" y="110" font-size="10" fill="#fff" text-anchor="middle">Heart</text>
+</svg>

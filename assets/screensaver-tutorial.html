@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymKiosk Tutorial</title>
+  <meta http-equiv="refresh" content="0; url=../screensaver-tutorial.html">
+  <script>window.location.replace(`../screensaver-tutorial.html${window.location.search}`);</script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      color: #f5f7fa;
+      background: radial-gradient(circle at top, #23314b 0%, #0a0e14 60%, #06080d 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .wrap {
+      width: min(1200px, 92vw);
+      background: rgba(20, 28, 44, 0.88);
+      border: 1px solid rgba(212, 175, 55, 0.28);
+      border-radius: 20px;
+      padding: 36px;
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 42px;
+      color: #d4af37;
+      text-align: center;
+    }
+    p.sub {
+      margin: 0 0 28px;
+      text-align: center;
+      color: #c4cfe0;
+      font-size: 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: rgba(45, 55, 72, 0.5);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 14px;
+      padding: 18px;
+      min-height: 120px;
+    }
+    .card h3 { margin: 0 0 8px; color: #00d4ff; }
+    .card p { margin: 0; color: #dbe4f3; line-height: 1.5; }
+    .footer {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 14px 30px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #0a0e14;
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Welcome to RDPs Strength & Conditioning</h1>
+    <p class="sub">Quick tutorial while the kiosk is idle</p>
+    <div class="grid">
+      <div class="card">
+        <h3>1) Select Profile</h3>
+        <p>Tap your user tile to enter your profile and load your saved progress.</p>
+      </div>
+      <div class="card">
+        <h3>2) Build Workout</h3>
+        <p>Choose a muscle group or use Build a Workout for single-day and weekly plans.</p>
+      </div>
+      <div class="card">
+        <h3>3) Add Nutrition</h3>
+        <p>Open Training Nutrition & Fuel Guide to pair meals with training goals.</p>
+      </div>
+      <div class="card">
+        <h3>4) Share to Phone</h3>
+        <p>Use QR share for workouts, meals, favorites, calendar, and private stats (login required).</p>
+      </div>
+    </div>
+    <div class="footer">
+      <button id="startNow">START NOW</button>
+    </div>
+  </div>
+
+  <script>
+    function returnToApp() {
+      if (window.parent && window.parent !== window && typeof window.parent.closeScreensaver === 'function') {
+        window.parent.closeScreensaver();
+      } else if (window.opener && typeof window.opener.closeScreensaver === 'function') {
+        window.opener.closeScreensaver();
+      } else {
+        window.close();
+      }
+    }
+
+    document.getElementById('startNow').addEventListener('click', returnToApp);
+    document.addEventListener('click', (e) => {
+      if (e.target.id !== 'startNow') returnToApp();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') returnToApp();
+    });
+  </script>
+</body>
+</html>

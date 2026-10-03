@@ -54,6 +54,27 @@
       font-size: 24px;
     }
 
+    .header-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .brand-heading {
+      margin: 0;
+      font-size: 24px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, #e8eef5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
     .nav-btn {
       background: rgba(45, 55, 72, 0.6);
       border: 1px solid rgba(212, 175, 55, 0.2);
@@ -111,6 +132,12 @@
     .error { color: #ff8b8b; }
 
     @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
       .stats-grid {
         grid-template-columns: 1fr;
       }
@@ -119,9 +146,12 @@
 </head>
 <body>
   <div class="container">
-    <img src="/assets/branding/logo.png?v=20260922" alt="RDPs Strength & Conditioning" class="brand-logo" />
+    <img src="/assets/branding/logo.png?v=20260922" alt="RDPs STRENGTH &amp; CONDITIONING" class="brand-logo">
     <header>
-      <h1>📊 My Stats</h1>
+      <div class="header-copy">
+        <h1 class="brand-heading">RDP's STRENGTH and CONDITIONING</h1>
+        <p class="page-subtitle">📊 My Stats</p>
+      </div>
       <a class="nav-btn" href="/dashboard.html">← Dashboard</a>
     </header>
 

@@ -1,234 +1,773 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Workout Builder – RDP's Gym</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Workout - RDPs STRENGTH & CONDITIONING</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
-    header {
-      background: #1a1e28;
-      border-bottom: 1px solid #3d4a5c;
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --color-black: #0a0e14;
+      --color-charcoal: #1a1f2e;
+      --color-dark: #2d3748;
+      --color-silver: #e8eef5;
+      --color-blue: #00d4ff;
+      --color-blue-dark: #0088cc;
+      --color-gold: #d4af37;
+      --text-primary: #f5f7fa;
+      --text-secondary: #c4cfe0;
+      --text-muted: #8b95a8;
+      --bg-main: #0a0e14;
+      --bg-panel: #1a1f2e;
+      --bg-card: #252d3a;
+      --radius: 12px;
+      --radius-lg: 20px;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%, #0f1318 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+
+    .brand-logo {
+      width: 360px;
+      height: auto;
+      margin: 4px auto 12px;
+      display: block;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin: 0 0 24px 0;
+      color: var(--color-blue);
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      margin: 24px 0 16px 0;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 12px;
     }
-    .back-btn {
-      background: none;
-      border: none;
-      color: #d4af37;
-      font-size: 1.2rem;
-      cursor: pointer;
-    }
-    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
-    .section { padding: 16px; }
-    .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #a0aec0; margin-bottom: 10px; }
-    .form-group { margin-bottom: 14px; }
-    label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: #a0aec0; }
-    input[type="text"], select, textarea {
-      width: 100%;
-      padding: 11px 12px;
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 8px;
-      color: #f5f7fa;
+
+    .tile {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 16px 12px;
+      text-align: center;
       font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      touch-action: manipulation;
     }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: #d4af37; }
-    .exercise-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 10px;
-      position: relative;
+
+    .tile:active {
+      transform: scale(0.95);
     }
-    .exercise-card h3 { font-size: 0.95rem; margin-bottom: 8px; color: #f5f7fa; }
-    .exercise-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .mini-input {
+
+    .tile:hover {
+      transform: translateY(-4px);
+      border-color: rgba(212, 175, 55, 0.5);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .tile.selected {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 136, 204, 0.3) 100%);
+      border-color: var(--color-blue);
+      color: var(--text-primary);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .tile.hidden-option {
+      display: none;
+    }
+
+    .button {
+      background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+      color: var(--bg-main);
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: 14px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
       width: 100%;
-      padding: 8px;
-      background: #252d3a;
-      border: 1px solid #3d4a5c;
-      border-radius: 6px;
-      color: #f5f7fa;
+      margin-top: 8px;
+      touch-action: manipulation;
+    }
+
+    .button:active {
+      transform: scale(0.98);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .button.secondary {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.8) 0%, rgba(20, 30, 50, 0.9) 100%);
+      color: var(--text-primary);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .button.secondary:hover {
+      border-color: rgba(212, 175, 55, 0.6);
+      box-shadow: 0 8px 20px rgba(212, 175, 55, 0.2);
+    }
+
+    .result-container {
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    .result-container.show {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .exercise-list {
+      list-style: none;
+      padding: 0;
+      margin: 16px 0 0 0;
+    }
+
+    .exercise-item {
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.6) 0%, rgba(20, 30, 50, 0.8) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .exercise-item:active {
+      background: linear-gradient(135deg, rgba(55, 65, 82, 0.8) 0%, rgba(30, 40, 60, 0.9) 100%);
+    }
+
+    .exercise-item:hover {
+      border-color: rgba(212, 175, 55, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .exercise-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 8px;
+    }
+
+    .exercise-name {
+      flex: 1;
+    }
+
+    .exercise-name h3 {
+      margin: 0 0 4px 0;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+    }
+
+    .exercise-meta {
+      margin: 0;
       font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .exercise-details {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(212, 175, 55, 0.1);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .exercise-details.show {
+      display: block;
+    }
+
+    .exercise-video {
+      width: 100%;
+      max-width: 100%;
+      border-radius: var(--radius-lg);
+      margin-bottom: 12px;
+      background: #000;
+    }
+
+    .exercise-video-placeholder {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, rgba(45, 55, 72, 0.4) 0%, rgba(20, 30, 50, 0.6) 100%);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+
+    .exercise-details p {
+      margin: 8px 0;
+    }
+
+    .exercise-details ol {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+
+    .exercise-details li {
+      margin-bottom: 4px;
+    }
+
+    .error {
+      background: rgba(255, 100, 100, 0.1);
+      border: 1px solid rgba(255, 100, 100, 0.3);
+      color: #ff9999;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      margin: 16px 0;
       text-align: center;
     }
-    .mini-label { font-size: 0.7rem; color: #a0aec0; text-align: center; margin-bottom: 3px; }
-    .remove-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      color: #f87171;
-      cursor: pointer;
-      font-size: 1rem;
+
+    .success {
+      background: rgba(100, 200, 100, 0.1);
+      border: 1px solid rgba(100, 200, 100, 0.3);
+      color: #99ff99;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      margin: 16px 0;
+      text-align: center;
     }
-    .add-btn {
-      width: 100%;
-      padding: 12px;
-      background: rgba(212,175,55,0.1);
-      border: 1px dashed #d4af37;
-      border-radius: 8px;
-      color: #d4af37;
-      cursor: pointer;
+
+    .loading {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: rgba(212, 175, 55, 0.2);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      text-decoration: none;
       font-size: 0.9rem;
-      margin-bottom: 16px;
+      transition: all 0.3s ease;
     }
-    .add-btn:hover { background: rgba(212,175,55,0.2); }
-    .save-btn {
-      width: 100%;
-      padding: 14px;
-      background: #d4af37;
-      color: #0a0e14;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
+
+    .back-btn:active {
+      transform: scale(0.95);
     }
-    .save-btn:hover { background: #f0c454; }
-    .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 0.875rem; text-align: center; }
-    .msg.error { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .msg.success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-    .share-box {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 12px;
-      word-break: break-all;
-      font-size: 0.85rem;
-      color: #a0aec0;
+
+    .back-btn:hover {
+      background: rgba(212, 175, 55, 0.3);
+      border-color: rgba(212, 175, 55, 0.5);
     }
-    .share-box a { color: #d4af37; }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+        margin-bottom: 16px;
+      }
+
+      .tile-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 10px;
+      }
+
+      .tile {
+        padding: 12px 8px;
+        font-size: 0.85rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <button class="back-btn" onclick="history.back()">←</button>
-    <span class="header-title">🏗️ Workout Builder</span>
-  </header>
+  <div class="container">
+    <img
+      src="/assets/branding/logo.png?v=20260528"
+      onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22900%22 height=%22180%22 viewBox=%220 0 900 180%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 rx=%2220%22 fill=%22%230f172a%22/%3E%3Ctext x=%2250%25%22 y=%2254%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial,sans-serif%22 font-size=%2252%22 font-weight=%22700%22 fill=%22%23d4af37%22%3ERDPs STRENGTH %26 CONDITIONING%3C/text%3E%3C/svg%3E';"
+      alt="RDPs STRENGTH & CONDITIONING"
+      class="brand-logo"
+    />
+    <a href="/" class="back-btn">← Back</a>
 
-  <div class="section">
-    <div class="section-title">Workout Details</div>
-    <div class="form-group">
-      <label for="workoutName">Workout Name</label>
-      <input type="text" id="workoutName" placeholder="e.g. Monday Push Day" />
-    </div>
-    <div class="form-group">
-      <label for="workoutNotes">Notes (optional)</label>
-      <textarea id="workoutNotes" rows="2" placeholder="Any notes for this session…"></textarea>
-    </div>
-  </div>
+    <h1>💪 Build Your Workout</h1>
 
-  <div class="section">
-    <div class="section-title">Exercises</div>
-    <div id="exerciseList"></div>
-    <button class="add-btn" onclick="addExercise()">＋ Add Exercise</button>
-    <button class="save-btn" onclick="saveWorkout()">💾 Save &amp; Share</button>
-    <div id="saveMsg"></div>
-    <div id="shareBox" class="share-box" style="display:none;"></div>
+    <div id="builderForm" class="section">
+      <!-- Workout Type -->
+      <h2>Select Workout Type</h2>
+      <div class="tile-grid" id="workoutTypeGrid">
+        <div class="tile" data-value="muscle">💪 Muscle Workout</div>
+        <div class="tile" data-value="stretch">🧘 Stretch</div>
+      </div>
+
+      <!-- Training Goals -->
+      <h2>Select Training Goal</h2>
+      <div class="tile-grid" id="goalGrid">
+        <div class="tile" data-value="strength">💪 Strength</div>
+        <div class="tile" data-value="hypertrophy">🏋️ Muscle</div>
+        <div class="tile" data-value="fatloss">🔥 Fat Loss</div>
+        <div class="tile" data-value="balance">⚖️ Balance & Coordination</div>
+        <div class="tile" data-value="flexibility">🤸 Flexibility & Mobility</div>
+        <div class="tile" data-value="functional">🏃 Functional Training</div>
+      </div>
+
+      <!-- Muscle Groups -->
+      <h2 id="focusHeading">Select Muscle Group or Stretch Focus</h2>
+      <div class="tile-grid" id="muscleGrid">
+        <div class="tile" data-value="chest" data-category="muscle">Chest</div>
+        <div class="tile" data-value="back" data-category="muscle">Back</div>
+        <div class="tile" data-value="shoulders" data-category="muscle">Shoulders</div>
+        <div class="tile" data-value="biceps" data-category="muscle">Biceps</div>
+        <div class="tile" data-value="triceps" data-category="muscle">Triceps</div>
+        <div class="tile" data-value="legs" data-category="muscle">Legs</div>
+        <div class="tile" data-value="abs" data-category="muscle">Abs</div>
+        <div class="tile" data-value="core" data-category="muscle">Core</div>
+        <div class="tile" data-value="traps" data-category="muscle">Traps</div>
+        <div class="tile" data-value="neck-shoulders" data-category="stretch">🧠 Neck & Shoulders</div>
+        <div class="tile" data-value="arms-wrists" data-category="stretch">🤲 Arms & Wrists</div>
+        <div class="tile" data-value="legs-glutes" data-category="stretch">🦵 Legs & Glutes</div>
+        <div class="tile" data-value="hips-pelvis" data-category="stretch">🫀 Hips & Pelvis</div>
+        <div class="tile" data-value="spine-core" data-category="stretch">🔗 Spine & Core</div>
+      </div>
+
+      <!-- Sport/Activity (Optional) -->
+      <h2>Sport/Activity <span style="font-size: 14px; color: #888; font-weight: normal;">(Optional)</span></h2>
+      <p style="text-align: center; color: #888; font-size: 13px; margin: -8px 0 12px;">Select a sport to optimize your workout, or skip this step</p>
+      <select id="sportSelect" style="width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #333; background: #1a1e27; color: #fff; margin-bottom: 20px;">
+        <option value="">None</option>
+        <option value="hockey">🏒 Hockey</option>
+        <option value="basketball">🏀 Basketball</option>
+        <option value="soccer">⚽ Soccer</option>
+        <option value="football">🏈 Football</option>
+        <option value="baseball">⚾ Baseball</option>
+        <option value="lacrosse">🥍 Lacrosse</option>
+        <option value="rugby">🏉 Rugby</option>
+        <option value="volleyball">🏐 Volleyball</option>
+        <option value="skiing">⛷️ Skiing</option>
+        <option value="snowboarding">🏂 Snowboarding</option>
+        <option value="curling">🥌 Curling</option>
+        <option value="skating">⛸️ Figure Skating</option>
+        <option value="running">🏃 Running</option>
+        <option value="cycling">🚴 Cycling</option>
+        <option value="swimming">🏊 Swimming</option>
+        <option value="tennis">🎾 Tennis</option>
+        <option value="golf">⛳ Golf</option>
+        <option value="martial-arts">🥋 Martial Arts</option>
+        <option value="crossfit">🏋️ CrossFit</option>
+      </select>
+
+      <!-- Time Available -->
+      <h2>Time Available</h2>
+      <div class="tile-grid" id="timeGrid">
+        <div class="tile" data-value="30">⏱️ 30 Min</div>
+        <div class="tile" data-value="45">⏱️ 45 Min</div>
+        <div class="tile" data-value="60">⏱️ 60 Min</div>
+        <div class="tile" data-value="90">⏱️ 90 Min</div>
+        <div class="tile" data-value="120">⏱️ 120 Min</div>
+      </div>
+
+      <button class="button" id="generateBtn" disabled>Generate Workout</button>
+    </div>
+
+    <div id="resultContainer" class="result-container">
+      <h2>Your Workout</h2>
+      <ul class="exercise-list" id="exerciseList"></ul>
+      <button class="button secondary" id="resetBtn">← Start Over</button>
+    </div>
+
+    <div id="errorMsg" class="error" style="display: none;"></div>
+    <div id="loadingMsg" class="loading" style="display: none;">Loading exercises...</div>
   </div>
 
   <script>
-    let exercises = [];
+    // Exercise data - will be loaded from server or use local data
+    let exercises = {};
+    let selectedWorkoutType = null;
+    let selectedMuscle = null;
+    let selectedGoal = null;
+    let selectedTime = null;
+    let selectedSport = ''; // Optional sport selection
 
-    function addExercise() {
-      const id = Date.now();
-      exercises.push({ id, name: '', sets: '', reps: '', weight: '' });
-      renderExercises();
+    // Load exercise data from server
+    async function loadExercises() {
+      try {
+        const response = await fetch('/api/exercises');
+        if (response.ok) {
+          exercises = await response.json();
+          console.log('Loaded exercises from server:', exercises);
+        } else {
+          loadLocalExercises();
+        }
+      } catch (err) {
+        console.warn('Failed to load exercises from server, using local data:', err);
+        loadLocalExercises();
+      }
     }
 
-    function removeExercise(id) {
-      exercises = exercises.filter(e => e.id !== id);
-      renderExercises();
+    // Fallback local exercise data
+    function loadLocalExercises() {
+      exercises = {
+        chest: [
+          { name: "Push-Up", howTo: ["Position body in plank", "Lower body to ground", "Push back to start"], primary: ["Chest", "Triceps"], secondary: ["Shoulders"] },
+          { name: "Bench Press", howTo: ["Lie flat on bench", "Grip bar slightly wider than shoulders", "Press bar up to full extension"], primary: ["Chest"], secondary: ["Triceps", "Shoulders"] },
+          { name: "Incline Bench Press", howTo: ["Set bench to incline angle", "Lie back and grip bar", "Press upward and slightly forward"], primary: ["Upper Chest"], secondary: ["Shoulders"] }
+        ],
+        back: [
+          { name: "Pull-Up", howTo: ["Grip bar with hands shoulder-width apart", "Pull body up until chin clears bar", "Lower with control"], primary: ["Back", "Lats"], secondary: ["Biceps"] },
+          { name: "Bent Over Row", howTo: ["Bend at hips with slight knee bend", "Pull bar to chest", "Control descent"], primary: ["Back"], secondary: ["Biceps"] }
+        ],
+        shoulders: [
+          { name: "Shoulder Press", howTo: ["Stand with feet shoulder-width apart", "Press weight overhead", "Lower back to shoulder height"], primary: ["Shoulders"], secondary: ["Triceps"] },
+          { name: "Lateral Raise", howTo: ["Stand with dumbbells at sides", "Raise arms to shoulder height", "Lower with control"], primary: ["Shoulders"], secondary: [] }
+        ],
+        biceps: [
+          { name: "Barbell Curl", howTo: ["Stand with feet shoulder-width apart", "Curl bar up to chest", "Lower with control"], primary: ["Biceps"], secondary: [] },
+          { name: "Dumbbell Curl", howTo: ["Stand with dumbbells at sides", "Curl dumbbells up", "Lower with control"], primary: ["Biceps"], secondary: [] }
+        ],
+        triceps: [
+          { name: "Tricep Dip", howTo: ["Position on dip station", "Lower body by bending elbows", "Push back to start"], primary: ["Triceps"], secondary: ["Chest"] },
+          { name: "Overhead Extension", howTo: ["Hold weight overhead with both hands", "Lower behind head", "Extend back up"], primary: ["Triceps"], secondary: [] }
+        ],
+        legs: [
+          { name: "Squat", howTo: ["Stand with feet shoulder-width apart", "Lower by bending knees", "Return to standing"], primary: ["Legs"], secondary: ["Glutes"] },
+          { name: "Leg Press", howTo: ["Sit on machine with back against pad", "Push platform away", "Return with control"], primary: ["Legs"], secondary: ["Glutes"] }
+        ],
+        abs: [
+          { name: "Crunch", howTo: ["Lie on back with knees bent", "Curl upper body toward knees", "Lower back down"], primary: ["Abs"], secondary: [] },
+          { name: "Plank", howTo: ["Start in push-up position with straight arms", "Keep body in straight line", "Engage core and hold"], primary: ["Abs", "Core"], secondary: ["Shoulders"] }
+        ],
+        core: [
+          { name: "Plank", howTo: ["Start in push-up position", "Hold body straight", "Engage entire core"], primary: ["Core"], secondary: ["Shoulders"] },
+          { name: "Dead Bug", howTo: ["Lie on back with arms and legs extended", "Lower opposite arm and leg", "Return and alternate"], primary: ["Core"], secondary: [] }
+        ],
+        traps: [
+          { name: "Shrug", howTo: ["Stand with dumbbells at sides", "Raise shoulders toward ears", "Lower back down"], primary: ["Traps"], secondary: [] },
+          { name: "Upright Row", howTo: ["Stand with bar in front", "Pull bar up to chin", "Lower with control"], primary: ["Traps"], secondary: ["Shoulders"] }
+        ]
+      };
     }
 
-    function renderExercises() {
-      const container = document.getElementById('exerciseList');
-      if (!exercises.length) {
-        container.innerHTML = '<div style="color:#a0aec0;text-align:center;padding:20px;font-size:0.9rem;">No exercises yet. Add one above.</div>';
+    // Initialize tile selection
+    function initTiles() {
+      const workoutTypeGrid = document.getElementById('workoutTypeGrid');
+      const muscleGrid = document.getElementById('muscleGrid');
+      const goalGrid = document.getElementById('goalGrid');
+      const sportSelect = document.getElementById('sportSelect');
+      const timeGrid = document.getElementById('timeGrid');
+
+      workoutTypeGrid.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          workoutTypeGrid.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+          tile.classList.add('selected');
+          selectedWorkoutType = tile.dataset.value;
+          applyFocusFilter();
+          updateGenerateBtn();
+        });
+      });
+
+      muscleGrid.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          muscleGrid.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+          tile.classList.add('selected');
+          selectedMuscle = tile.dataset.value;
+          updateGenerateBtn();
+        });
+      });
+
+      goalGrid.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          goalGrid.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+          tile.classList.add('selected');
+          selectedGoal = tile.dataset.value;
+          updateGenerateBtn();
+        });
+      });
+
+      // Sport selection (optional dropdown)
+      sportSelect.addEventListener('change', () => {
+        selectedSport = sportSelect.value;
+        // Don't update button - sport is optional
+      });
+
+      timeGrid.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+          timeGrid.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+          tile.classList.add('selected');
+          selectedTime = parseInt(tile.dataset.value);
+          updateGenerateBtn();
+        });
+      });
+
+      applyFocusFilter();
+    }
+
+    function applyFocusFilter() {
+      const focusHeading = document.getElementById('focusHeading');
+      const focusTiles = document.querySelectorAll('#muscleGrid .tile');
+
+      if (selectedWorkoutType === 'muscle') {
+        focusHeading.textContent = 'Select Muscle Group';
+      } else if (selectedWorkoutType === 'stretch') {
+        focusHeading.textContent = 'Select Stretch Focus';
+      } else {
+        focusHeading.textContent = 'Select Muscle Group or Stretch Focus';
+      }
+
+      focusTiles.forEach(tile => {
+        const tileCategory = tile.dataset.category || 'muscle';
+        const shouldShow = !selectedWorkoutType || tileCategory === selectedWorkoutType;
+
+        tile.classList.toggle('hidden-option', !shouldShow);
+
+        if (!shouldShow && tile.classList.contains('selected')) {
+          tile.classList.remove('selected');
+          if (selectedMuscle === tile.dataset.value) {
+            selectedMuscle = null;
+          }
+        }
+      });
+    }
+
+    function updateGenerateBtn() {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = !(selectedWorkoutType && selectedMuscle && selectedGoal && selectedTime);
+    }
+
+    function getWorkoutConfig(goal, time) {
+      const configs = {
+        strength: { 
+          30: { count: 3, sets: 5, reps: '3–5' }, 
+          45: { count: 4, sets: 5, reps: '3–5' }, 
+          60: { count: 5, sets: 5, reps: '3–5' },
+          90: { count: 7, sets: 5, reps: '3–5' },
+          120: { count: 9, sets: 5, reps: '3–5' }
+        },
+        hypertrophy: { 
+          30: { count: 4, sets: 4, reps: '8–12' }, 
+          45: { count: 5, sets: 4, reps: '8–12' }, 
+          60: { count: 6, sets: 4, reps: '8–12' },
+          90: { count: 8, sets: 4, reps: '8–12' },
+          120: { count: 10, sets: 4, reps: '8–12' }
+        },
+        fatloss: { 
+          30: { count: 5, sets: 3, reps: '12–20' }, 
+          45: { count: 6, sets: 3, reps: '12–20' }, 
+          60: { count: 7, sets: 3, reps: '12–20' },
+          90: { count: 9, sets: 3, reps: '12–20' },
+          120: { count: 12, sets: 3, reps: '12–20' }
+        },
+        balance: {
+          30: { count: 4, sets: 3, reps: '10–15' },
+          45: { count: 5, sets: 3, reps: '10–15' },
+          60: { count: 6, sets: 3, reps: '10–15' },
+          90: { count: 8, sets: 3, reps: '10–15' },
+          120: { count: 10, sets: 3, reps: '10–15' }
+        },
+        flexibility: {
+          30: { count: 5, sets: 3, reps: '30s hold' },
+          45: { count: 6, sets: 3, reps: '30s hold' },
+          60: { count: 7, sets: 3, reps: '30s hold' },
+          90: { count: 9, sets: 3, reps: '45s hold' },
+          120: { count: 12, sets: 3, reps: '45s hold' }
+        },
+        functional: {
+          30: { count: 4, sets: 3, reps: '8–12' },
+          45: { count: 5, sets: 3, reps: '8–12' },
+          60: { count: 6, sets: 3, reps: '8–12' },
+          90: { count: 8, sets: 3, reps: '8–12' },
+          120: { count: 10, sets: 3, reps: '8–12' }
+        }
+      };
+      return configs[goal]?.[time] || { count: 4, sets: 3, reps: '8–12' };
+    }
+
+    function scoreExercise(ex, goal) {
+      let score = Math.random() * 10;
+      if (goal === 'strength') score += 5;
+      if (goal === 'hypertrophy') score += 3;
+      if (goal === 'fatloss') score += 2;
+      if (goal === 'balance') score += 4;
+      if (goal === 'flexibility') score += 3;
+      if (goal === 'functional') score += 4;
+      return score;
+    }
+
+    function generateWorkout() {
+      if (!selectedWorkoutType || !selectedMuscle || !selectedGoal || !selectedTime) {
+        showError('Please select all options');
         return;
       }
-      container.innerHTML = exercises.map((ex, i) => `
-        <div class="exercise-card">
-          <button class="remove-btn" onclick="removeExercise(${ex.id})">✕</button>
-          <h3>Exercise ${i + 1}</h3>
-          <div class="form-group">
-            <input type="text" class="mini-input" style="text-align:left;padding:8px 10px;"
-              placeholder="Exercise name"
-              value="${ex.name}"
-              onchange="updateExercise(${ex.id}, 'name', this.value)" />
-          </div>
-          <div class="exercise-row">
-            <div>
-              <div class="mini-label">Sets</div>
-              <input type="text" class="mini-input" placeholder="3"
-                value="${ex.sets}"
-                onchange="updateExercise(${ex.id}, 'sets', this.value)" />
-            </div>
-            <div>
-              <div class="mini-label">Reps</div>
-              <input type="text" class="mini-input" placeholder="10"
-                value="${ex.reps}"
-                onchange="updateExercise(${ex.id}, 'reps', this.value)" />
-            </div>
-            <div>
-              <div class="mini-label">Weight</div>
-              <input type="text" class="mini-input" placeholder="lbs"
-                value="${ex.weight}"
-                onchange="updateExercise(${ex.id}, 'weight', this.value)" />
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
 
-    function updateExercise(id, field, value) {
-      const ex = exercises.find(e => e.id === id);
-      if (ex) ex[field] = value;
-    }
-
-    async function saveWorkout() {
-      const name = document.getElementById('workoutName').value.trim() || 'My Workout';
-      const notes = document.getElementById('workoutNotes').value.trim();
-      if (!exercises.length) return showMsg('saveMsg', 'Add at least one exercise.', 'error');
-      const workoutId = 'mob-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
-      const payload = {
-        workoutId,
-        data: { name, notes, exercises, created: new Date().toISOString(), source: 'mobile' }
-      };
-      try {
-        const res = await fetch('/api/workouts/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) return showMsg('saveMsg', data.error || 'Save failed.', 'error');
-        showMsg('saveMsg', 'Workout saved!', 'success');
-        const url = window.location.origin + data.shareUrl;
-        const shareBox = document.getElementById('shareBox');
-        shareBox.style.display = 'block';
-        shareBox.innerHTML = `Share link: <a href="${data.shareUrl}">${url}</a>`;
-      } catch {
-        showMsg('saveMsg', 'Network error. Please try again.', 'error');
+      const muscleExercises = exercises[selectedMuscle] || [];
+      if (!muscleExercises.length) {
+        showError('No exercises found for this muscle group');
+        return;
       }
+
+      const config = getWorkoutConfig(selectedGoal, selectedTime);
+      const scored = muscleExercises.map(ex => ({
+        ...ex,
+        score: scoreExercise(ex, selectedGoal)
+      }));
+
+      scored.sort((a, b) => b.score - a.score);
+      const plan = scored.slice(0, config.count).map(ex => ({
+        name: ex.name,
+        sets: config.sets,
+        reps: config.reps,
+        howTo: ex.howTo || [],
+        primary: ex.primary || [],
+        secondary: ex.secondary || []
+      }));
+
+      displayWorkout(plan);
     }
 
-    function showMsg(id, text, type) {
-      const el = document.getElementById(id);
-      el.textContent = text;
-      el.className = 'msg ' + type;
+    function displayWorkout(plan) {
+      const list = document.getElementById('exerciseList');
+      list.innerHTML = '';
+
+      plan.forEach((ex, idx) => {
+        const li = document.createElement('li');
+        li.className = 'exercise-item';
+
+        const primaryMuscles = Array.isArray(ex.primary) ? ex.primary.join(', ') : ex.primary;
+        const secondaryMuscles = Array.isArray(ex.secondary) && ex.secondary.length > 0
+          ? ex.secondary.join(', ')
+          : '';
+
+        // Generate video path - convert exercise name to filename format
+        const videoFileName = ex.name.toLowerCase().replace(/\s+/g, '-');
+        const videoPath = `/assets/videos/${selectedMuscle}/${videoFileName}.mp4`;
+
+        let howToHtml = '';
+        if (ex.howTo && ex.howTo.length > 0) {
+          howToHtml = '<p><strong>How to perform:</strong></p><ol>';
+          ex.howTo.forEach(step => {
+            howToHtml += `<li>${step}</li>`;
+          });
+          howToHtml += '</ol>';
+        }
+
+        let videoHtml = '';
+        videoHtml = `<video class="exercise-video" controls>
+          <source src="${videoPath}" type="video/mp4">
+        </video>`;
+
+        li.innerHTML = `
+          <div class="exercise-header">
+            <div class="exercise-name">
+              <h3>${ex.name}</h3>
+              <p class="exercise-meta">${primaryMuscles} • ${ex.sets} sets × ${ex.reps}</p>
+            </div>
+          </div>
+          <div class="exercise-details">
+            ${videoHtml}
+            ${howToHtml}
+            ${secondaryMuscles ? `<p><strong>Secondary Muscles:</strong> ${secondaryMuscles}</p>` : ''}
+          </div>
+        `;
+
+        li.addEventListener('click', () => {
+          li.querySelector('.exercise-details').classList.toggle('show');
+        });
+
+        list.appendChild(li);
+      });
+
+      document.getElementById('builderForm').style.display = 'none';
+      document.getElementById('resultContainer').classList.add('show');
+      window.scrollTo(0, 0);
     }
 
-    // Init with one empty exercise
-    addExercise();
+    function showError(msg) {
+      const errorEl = document.getElementById('errorMsg');
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      setTimeout(() => {
+        errorEl.style.display = 'none';
+      }, 4000);
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generateWorkout);
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      selectedWorkoutType = null;
+      selectedMuscle = null;
+      selectedGoal = null;
+      selectedTime = null;
+      document.getElementById('workoutTypeGrid').querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+      document.getElementById('muscleGrid').querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+      document.getElementById('goalGrid').querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+      document.getElementById('timeGrid').querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+      document.getElementById('builderForm').style.display = 'block';
+      document.getElementById('resultContainer').classList.remove('show');
+      applyFocusFilter();
+      updateGenerateBtn();
+      window.scrollTo(0, 0);
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadExercises();
+      initTiles();
+      updateGenerateBtn();
+    });
   </script>
 </body>
 </html>

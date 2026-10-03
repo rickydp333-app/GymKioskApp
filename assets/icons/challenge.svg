@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <path d="M32 8L36 20L48 22L38 30L42 42L32 36L22 42L26 30L16 22L28 20L32 8Z" fill="url(#fire-gradient)" stroke="#FF6432" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 24C32 24 28 28 28 32C28 36 30 38 32 38C34 38 36 36 36 32C36 28 32 24 32 24Z" fill="#FFD700"/>
+  <path d="M32 38C32 38 30 40 30 42C30 44 31 45 32 45C33 45 34 44 34 42C34 40 32 38 32 38Z" fill="#FF8C42"/>
+  <circle cx="28" cy="28" r="1.5" fill="#FFD700"/>
+  <circle cx="36" cy="28" r="1.5" fill="#FFD700"/>
+  <circle cx="24" cy="32" r="1.5" fill="#FF6432"/>
+  <circle cx="40" cy="32" r="1.5" fill="#FF6432"/>
+  <defs>
+    <linearGradient id="fire-gradient" x1="32" y1="8" x2="32" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FF8C42"/>
+      <stop offset="100%" stop-color="#FF6432"/>
+    </linearGradient>
+  </defs>
+</svg>

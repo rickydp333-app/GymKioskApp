@@ -21,6 +21,8 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const TRUST_PROXY_HOPS = Math.max(0, Math.floor(Number(process.env.GYMKIOSK_TRUST_PROXY_HOPS) || 0));
+app.set('trust proxy', TRUST_PROXY_HOPS);
 const STATIC_MOBILE_DIR_CANDIDATES = [
   path.join(__dirname, 'mobile'),
   path.join(__dirname, 'public', 'mobile')
@@ -257,11 +259,6 @@ monitorServerLogFileForCriticalErrors();
 const apiRateLimiterState = new Map();
 
 function getRequestClientKey(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) {
-    return forwarded.split(',')[0].trim();
-  }
-
   return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
@@ -477,8 +474,10 @@ function saveUsers() {
 function saveCalendars() {
   try {
     persistentStore.writeMap('calendars', calendars);
+    return true;
   } catch (err) {
     console.error('✗ Error saving calendars:', err.message);
+    return false;
   }
 }
 
@@ -486,9 +485,17 @@ function saveCalendars() {
 function saveFriendChallenges() {
   try {
     persistentStore.writeList('friend-challenges', friendChallenges);
+    return true;
   } catch (err) {
     console.error('✗ Error saving friend challenges:', err.message);
+    return false;
   }
+}
+
+function saveCollections(res, ...saveFunctions) {
+  if (saveFunctions.every((save) => save())) return true;
+  res.status(500).json({ error: 'Unable to save changes. Please retry.' });
+  return false;
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -747,7 +754,7 @@ app.post('/api/auth/register', (req, res) => {
   });
 
   // Save to file
-  saveUsers();
+  if (!saveCollections(res, saveUsers)) return;
 
   const sessionId = uuidv4();
   sessions.set(sessionId, { userId, expiresAt: Date.now() + SESSION_TTL_MS });
@@ -787,7 +794,7 @@ app.post('/api/auth/login', (req, res) => {
       user.passwordSalt = passwordInfo.salt;
       delete user.password;
       users.set(id, user);
-      saveUsers();
+      if (!saveCollections(res, saveUsers)) return;
       userId = id;
       break;
     }
@@ -816,23 +823,29 @@ app.post('/api/auth/login', (req, res) => {
 
 // Create workout from kiosk (no authentication required)
 app.post('/api/workouts/create', requireKioskMutationAuth, (req, res) => {
-  const { workoutId, data } = req.body;
+  const { workoutId, data, analyticsSyncToken } = req.body;
 
   if (!isValidIdentifier(workoutId) || !isPlainObject(data)) {
     return res.status(400).json({ error: 'Workout ID and data required' });
   }
+  if (analyticsSyncToken !== undefined && (typeof analyticsSyncToken !== 'string' || !/^[a-f0-9]{64}$/.test(analyticsSyncToken))) {
+    return res.status(400).json({ error: 'Invalid analytics sync credential' });
+  }
+  const analyticsSyncTokenHash = analyticsSyncToken
+    ? crypto.createHash('sha256').update(analyticsSyncToken).digest('hex') : undefined;
 
   // Store workout with auto-generated ID to match the kiosk-generated ID
   workouts.set(workoutId, {
     userId: null, // Kiosk workouts have no user
     data: data,
+    analyticsSyncTokenHash,
     created: new Date(),
     completed: false
   });
 
   // Save to file
-  saveWorkouts();
-  websiteSync.enqueue('workout.created', { workoutId, data, created: new Date().toISOString() });
+  if (!saveCollections(res, saveWorkouts)) return;
+  websiteSync.enqueue('workout.created', { workoutId, data, analyticsSyncTokenHash, created: new Date().toISOString() });
 
   res.json({
     success: true,
@@ -868,9 +881,8 @@ app.post('/api/workouts', (req, res) => {
   user.workouts.push(workoutId);
 
   // Save to file
-  saveWorkouts();
+  if (!saveCollections(res, saveWorkouts, saveUsers)) return;
   websiteSync.enqueue('workout.created', { workoutId, userId: session.userId, data: workoutData, created: new Date().toISOString() });
-  saveUsers();
 
   res.json({
     success: true,
@@ -900,7 +912,7 @@ app.post('/api/favorites/create', requireKioskMutationAuth, (req, res) => {
     username: data.username
   });
 
-  saveWorkouts();
+  if (!saveCollections(res, saveWorkouts)) return;
   websiteSync.enqueue('favorites.created', { favoritesId, data, created: new Date().toISOString() });
 
   res.json({
@@ -930,6 +942,18 @@ app.get('/api/favorites/:favoritesId', (req, res) => {
   });
 });
 
+
+app.get('/api/workouts/:workoutId/analytics', (req, res) => {
+  const workout = workouts.get(req.params.workoutId);
+  const token = String(req.headers['x-workout-analytics-token'] || '');
+  const suppliedHash = crypto.createHash('sha256').update(token).digest('hex');
+  if (!workout?.analyticsSyncTokenHash || !/^[a-f0-9]{64}$/.test(token) ||
+      !crypto.timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(workout.analyticsSyncTokenHash, 'hex'))) {
+    return res.status(403).json({ error: 'Workout analytics authorization required' });
+  }
+  res.set('Cache-Control', 'no-store');
+  return res.json({ success: true, workoutId: req.params.workoutId, exerciseLogs: workout.exerciseLogs || [] });
+});
 
 app.get('/api/workouts/:workoutId', (req, res) => {
   const { workoutId } = req.params;
@@ -1018,9 +1042,7 @@ app.put('/api/workouts/:workoutId', (req, res) => {
   }
 
   // Save to file
-  if (!saveWorkouts() || !saveUsers()) {
-    return res.status(500).json({ error: 'Unable to save changes. Please retry.' });
-  }
+  if (!saveCollections(res, saveWorkouts, saveUsers)) return;
 
   res.json({
     success: true,
@@ -1095,7 +1117,7 @@ app.post('/api/calendar/create', requireKioskMutationAuth, (req, res) => {
     created: new Date()
   });
 
-  saveCalendars();
+  if (!saveCollections(res, saveCalendars)) return;
   websiteSync.enqueue('calendar.created', { calendarId, userName: userName || 'User', data, created: new Date().toISOString() });
 
   res.json({
@@ -1185,7 +1207,7 @@ app.post('/api/friend-challenges', requireKioskMutationAuth, (req, res) => {
   if (friendChallenges.length > 500) {
     friendChallenges.length = 500;
   }
-  saveFriendChallenges();
+  if (!saveCollections(res, saveFriendChallenges)) return;
   websiteSync.enqueue('challenge.created', entry);
 
   res.json({
@@ -1213,7 +1235,7 @@ app.delete('/api/friend-challenges/:challengeId', requireKioskMutationAuth, (req
   }
   
   const removedChallenge = friendChallenges.splice(index, 1)[0];
-  saveFriendChallenges();
+  if (!saveCollections(res, saveFriendChallenges)) return;
   websiteSync.enqueue('challenge.deleted', { id: removedChallenge.id, deletedAt: new Date().toISOString() });
   
   console.log(`✅ Declined and removed challenge: ${JSON.stringify(removedChallenge)}`);
@@ -1264,20 +1286,23 @@ app.post('/api/kiosk-sync', (req, res) => {
   validEvents.forEach((event) => {
     if (event.event_type !== 'workout.created' && event.event_type !== 'workout.updated') return;
 
-    const { workoutId, data, userId, created } = event.payload;
+    const { workoutId, data, userId, created, analyticsSyncTokenHash } = event.payload;
     if (!isValidIdentifier(workoutId) || !isPlainObject(data)) return;
 
     const existing = workouts.get(workoutId);
     workouts.set(workoutId, {
+      ...existing,
       userId: userId || existing?.userId || null,
       data,
+      analyticsSyncTokenHash: typeof analyticsSyncTokenHash === 'string' && /^[a-f0-9]{64}$/.test(analyticsSyncTokenHash)
+        ? analyticsSyncTokenHash : existing?.analyticsSyncTokenHash,
       created: created || existing?.created || new Date().toISOString(),
       completed: existing?.completed || false
     });
     workoutsChanged = true;
   });
 
-  if (workoutsChanged) saveWorkouts();
+  if (workoutsChanged && !saveCollections(res, saveWorkouts)) return;
   return res.json({ success: true, accepted, received: validEvents.length });
 });
 

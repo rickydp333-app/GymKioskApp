@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <path d="M32 12L38 18L44 12L50 18L44 24L38 18L32 24L26 18L20 24L14 18L20 12L26 18L32 12Z" fill="url(#lightning-gradient)" stroke="#00D4FF" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 24V32M32 32L24 44M32 32L40 44" stroke="#D4AF37" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="24" cy="50" r="4" fill="#00D4FF"/>
+  <circle cx="40" cy="50" r="4" fill="#00D4FF"/>
+  <path d="M28 24L24 32L20 28" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 24L40 32L44 28" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="lightning-gradient" x1="32" y1="12" x2="32" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#D4AF37"/>
+    </linearGradient>
+  </defs>
+</svg>

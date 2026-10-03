@@ -1,225 +1,404 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnostics – RDP's Gym</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Diagnostic Test</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0e14; color: #f5f7fa; min-height: 100vh; }
-    header {
-      background: #1a1e28;
-      border-bottom: 1px solid #3d4a5c;
-      padding: 14px 20px;
+    * {
+      box-sizing: border-box;
     }
-    .header-title { color: #d4af37; font-weight: bold; font-size: 1.1rem; }
-    .content { padding: 16px; max-width: 680px; margin: 0 auto; }
-    .section-title {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #a0aec0;
-      margin: 20px 0 8px;
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #0a0e14 0%, #1a1f2e 50%);
+      color: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
     }
-    .info-card {
-      background: #1a1e28;
-      border: 1px solid #3d4a5c;
-      border-radius: 10px;
-      overflow: hidden;
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
     }
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      border-bottom: 1px solid #2a3040;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-key { font-size: 0.85rem; color: #a0aec0; }
-    .info-value { font-size: 0.85rem; font-weight: bold; color: #f5f7fa; text-align: right; max-width: 60%; word-break: break-all; }
-    .status-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: bold;
-    }
-    .status-ok { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-    .status-err { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .spinner { text-align: center; padding: 40px; color: #a0aec0; }
-    .refresh-btn {
-      display: block;
-      width: 100%;
-      padding: 13px;
-      background: rgba(212,175,55,0.1);
-      border: 1px solid #d4af37;
-      border-radius: 8px;
+
+    h1 {
+      text-align: center;
       color: #d4af37;
-      cursor: pointer;
-      font-size: 0.9rem;
-      margin-top: 16px;
-      font-weight: bold;
+      margin-bottom: 30px;
     }
-    .refresh-btn:hover { background: rgba(212,175,55,0.2); }
-    .network-item { padding: 10px 16px; border-bottom: 1px solid #2a3040; }
-    .network-item:last-child { border-bottom: none; }
-    .network-name { font-size: 0.8rem; color: #a0aec0; }
-    .network-addr { font-size: 0.85rem; font-weight: bold; }
+
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 900px) {
+      .diagnostic-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(45, 55, 72, 0.6);
+      border: 2px solid rgba(212, 175, 55, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      color: #00d4ff;
+      border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+      padding-bottom: 10px;
+    }
+
+    .status-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .status-good {
+      border-left: 4px solid #00d400;
+      color: #90ee90;
+    }
+
+    .status-bad {
+      border-left: 4px solid #ff6b6b;
+      color: #ff9999;
+    }
+
+    .status-neutral {
+      border-left: 4px solid #ffa500;
+      color: #ffcc99;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #00d4ff 0%, #0088cc 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 212, 255, 0.3);
+    }
+
+    button.secondary {
+      background: rgba(45, 55, 72, 0.8);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      color: #f5f7fa;
+    }
+
+    .log-section {
+      background: rgba(20, 30, 50, 0.8);
+      border: 2px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      color: #00d4ff;
+    }
+
+    .log-item {
+      margin: 5px 0;
+      padding: 5px;
+    }
+
+    .log-error {
+      color: #ff9999;
+    }
+
+    .log-success {
+      color: #90ee90;
+    }
+
+    .log-info {
+      color: #ffcc99;
+    }
+
+    .workout-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .workout-item {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .workout-item:hover {
+      background: rgba(0, 212, 255, 0.1);
+      border-left: 3px solid #00d4ff;
+    }
+
+    .section-title {
+      color: #d4af37;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="header-title">🔧 System Diagnostics</div>
-  </header>
+  <div class="container">
+    <h1>🔧 GymKiosk QR Code Diagnostics</h1>
 
-  <div class="content" id="diagContent">
-    <div class="spinner">Running diagnostics…</div>
+    <div class="diagnostic-grid">
+      <!-- Server Status -->
+      <div class="card">
+        <h2>📡 Server Status</h2>
+        <div id="serverStatus"></div>
+        <div class="button-group">
+          <button onclick="checkServerHealth()">Check Server</button>
+          <button onclick="checkDiagnostics()" class="secondary">Full Diagnostics</button>
+        </div>
+      </div>
+
+      <!-- Network Info -->
+      <div class="card">
+        <h2>🌐 Network Configuration</h2>
+        <div id="networkStatus"></div>
+        <div class="button-group">
+          <button onclick="getNetworkIP()">Get Network IP</button>
+          <button onclick="getLocalIP()" class="secondary">Local IP</button>
+        </div>
+      </div>
+
+      <!-- Saved Workouts -->
+      <div class="card">
+        <h2>💾 Saved Workouts</h2>
+        <div id="workoutsList"></div>
+        <div class="button-group">
+          <button onclick="loadWorkouts()">Refresh</button>
+        </div>
+      </div>
+
+      <!-- URL Test -->
+      <div class="card">
+        <h2>🔗 URL Testing</h2>
+        <div id="urlTest"></div>
+        <div class="button-group">
+          <button onclick="testURLs()">Test URLs</button>
+          <button onclick="openDiagnosticsAPI()" class="secondary">Open /api/diagnostics</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">📋 Event Log</div>
+    <div class="log-section" id="eventLog">
+      <div class="log-item log-info">System ready. Click buttons above to run diagnostics.</div>
+    </div>
   </div>
 
   <script>
-    async function loadDiagnostics() {
-      const content = document.getElementById('diagContent');
+    let eventLog = [];
+
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = `[${timestamp}] ${message}`;
+      eventLog.push({ time: timestamp, message, type });
+      
+      const logElement = document.getElementById('eventLog');
+      const div = document.createElement('div');
+      div.className = `log-item log-${type}`;
+      div.textContent = logEntry;
+      logElement.appendChild(div);
+      logElement.scrollTop = logElement.scrollHeight;
+
+      // Limit log entries
+      while (eventLog.length > 100) eventLog.shift();
+    }
+
+    async function checkServerHealth() {
+      addLog('Checking server health...');
       try {
-        const [diagRes, healthRes] = await Promise.all([
-          fetch('/api/diagnostics'),
-          fetch('/api/health')
-        ]);
-
-        const diag = await diagRes.json();
-        const health = await healthRes.json();
-
-        const uptime = formatUptime(diag.server?.uptime || health.uptime || 0);
-
-        content.innerHTML = '';
-
-        // Server status
-        const statusTitle = document.createElement('div');
-        statusTitle.className = 'section-title';
-        statusTitle.textContent = 'Server Status';
-        content.appendChild(statusTitle);
-
-        const statusCard = document.createElement('div');
-        statusCard.className = 'info-card';
-        statusCard.innerHTML = `
-          <div class="info-row">
-            <span class="info-key">Status</span>
-            <span class="info-value"><span class="status-badge status-ok">● Online</span></span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Uptime</span>
-            <span class="info-value">${uptime}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Port</span>
-            <span class="info-value">${diag.server?.port || '—'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">IP Address</span>
-            <span class="info-value">${diag.server?.ipAddress || '—'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Timestamp</span>
-            <span class="info-value">${diag.server?.timestamp ? new Date(diag.server.timestamp).toLocaleString() : '—'}</span>
-          </div>
-        `;
-        content.appendChild(statusCard);
-
-        // Storage
-        const storageTitle = document.createElement('div');
-        storageTitle.className = 'section-title';
-        storageTitle.textContent = 'Storage';
-        content.appendChild(storageTitle);
-
-        const storageCard = document.createElement('div');
-        storageCard.className = 'info-card';
-        storageCard.innerHTML = `
-          <div class="info-row">
-            <span class="info-key">Workouts</span>
-            <span class="info-value">${diag.storage?.workoutCount ?? '—'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Users</span>
-            <span class="info-value">${diag.storage?.userCount ?? '—'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Calendars</span>
-            <span class="info-value">${diag.storage?.calendarCount ?? '—'}</span>
-          </div>
-        `;
-        content.appendChild(storageCard);
-
-        // Network
-        const netTitle = document.createElement('div');
-        netTitle.className = 'section-title';
-        netTitle.textContent = 'Network Interfaces';
-        content.appendChild(netTitle);
-
-        const netCard = document.createElement('div');
-        netCard.className = 'info-card';
-        const interfaces = diag.networkInfo?.networkInterfaces || [];
-        if (!interfaces.length) {
-          netCard.innerHTML = '<div class="network-item" style="color:#a0aec0;">No interfaces found.</div>';
-        } else {
-          interfaces.forEach(iface => {
-            iface.addresses.forEach(addr => {
-              const item = document.createElement('div');
-              item.className = 'network-item';
-              item.innerHTML = `<div class="network-name">${iface.name}${addr.internal ? ' (internal)' : ''}</div><div class="network-addr">${addr.address}</div>`;
-              netCard.appendChild(item);
-            });
-          });
+        const response = await fetch('http://localhost:3001/api/health');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Server is running. Uptime: ${(data.uptime / 60).toFixed(1)} minutes`, 'success');
+          document.getElementById('serverStatus').innerHTML = `
+            <div class="status-item status-good">✓ Server Running</div>
+            <div class="status-item status-good">✓ Port 3001 Active</div>
+            <div class="status-item status-good">Uptime: ${(data.uptime / 60).toFixed(1)} min</div>
+          `;
         }
-        content.appendChild(netCard);
-
-        // System
-        const sysTitle = document.createElement('div');
-        sysTitle.className = 'section-title';
-        sysTitle.textContent = 'System';
-        content.appendChild(sysTitle);
-
-        const sysCard = document.createElement('div');
-        sysCard.className = 'info-card';
-        sysCard.innerHTML = `
-          <div class="info-row">
-            <span class="info-key">Hostname</span>
-            <span class="info-value">${diag.networkInfo?.hostname || '—'}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Platform</span>
-            <span class="info-value">${diag.networkInfo?.platform || '—'}</span>
-          </div>
-        `;
-        content.appendChild(sysCard);
-
-        const refreshBtn = document.createElement('button');
-        refreshBtn.className = 'refresh-btn';
-        refreshBtn.textContent = '↻ Refresh';
-        refreshBtn.onclick = () => {
-          content.innerHTML = '<div class="spinner">Running diagnostics…</div>';
-          loadDiagnostics();
-        };
-        content.appendChild(refreshBtn);
-
-      } catch (err) {
-        content.innerHTML = `
-          <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:20px;color:#f87171;text-align:center;margin-top:20px;">
-            <div style="font-size:2rem;margin-bottom:8px;">⚠️</div>
-            <div>Could not reach server.</div>
-            <div style="font-size:0.8rem;margin-top:8px;color:#a0aec0;">${err.message}</div>
-          </div>
-          <button class="refresh-btn" onclick="loadDiagnostics()" style="margin-top:16px;">↻ Retry</button>
+      } catch (error) {
+        addLog(`✗ Server not responding: ${error.message}`, 'error');
+        document.getElementById('serverStatus').innerHTML = `
+          <div class="status-item status-bad">✗ Server Not Running</div>
+          <div class="status-item status-bad">Cannot connect to port 3001</div>
+          <div class="status-item status-neutral">Run: npm run server</div>
         `;
       }
     }
 
-    function formatUptime(seconds) {
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.floor(seconds % 60);
-      return [h && `${h}h`, m && `${m}m`, `${s}s`].filter(Boolean).join(' ');
+    async function checkDiagnostics() {
+      addLog('Fetching full diagnostics...');
+      try {
+        const response = await fetch('http://localhost:3001/api/diagnostics');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Diagnostics retrieved`, 'success');
+          
+          const serverInfo = `
+            <div class="status-item status-good">✓ Network IP: ${data.server.ipAddress}</div>
+            <div class="status-item status-good">Port: ${data.server.port}</div>
+            <div class="status-item status-good">Workouts Stored: ${data.storage.workoutCount}</div>
+            <div class="status-item status-good">Users: ${data.storage.userCount}</div>
+          `;
+          document.getElementById('serverStatus').innerHTML = serverInfo;
+
+          const networkInfo = `
+            <div class="status-item status-good">Hostname: ${data.networkInfo.hostname}</div>
+            <div class="status-item status-good">Platform: ${data.networkInfo.platform}</div>
+            <div class="status-item status-good">Server IP: ${data.server.ipAddress}</div>
+          `;
+          document.getElementById('networkStatus').innerHTML = networkInfo;
+        }
+      } catch (error) {
+        addLog(`✗ Failed to get diagnostics: ${error.message}`, 'error');
+      }
     }
 
-    loadDiagnostics();
+    async function getNetworkIP() {
+      addLog('Requesting network IP from server...');
+      try {
+        const response = await fetch('http://localhost:3001/api/info');
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Network IP: ${data.ipAddress}`, 'success');
+          document.getElementById('networkStatus').innerHTML = `
+            <div class="status-item status-good">✓ Network IP: ${data.ipAddress}</div>
+            <div class="status-item status-good">Use in QR codes: http://${data.ipAddress}:3001</div>
+          `;
+        }
+      } catch (error) {
+        addLog(`✗ Could not get network IP: ${error.message}`, 'error');
+        document.getElementById('networkStatus').innerHTML = `
+          <div class="status-item status-bad">✗ Server not accessible</div>
+        `;
+      }
+    }
+
+    function getLocalIP() {
+      const ip = window.location.hostname;
+      addLog(`Local IP (browser): ${ip}`);
+      document.getElementById('networkStatus').innerHTML += `
+        <div class="status-item status-neutral">Browser hostname: ${ip}</div>
+      `;
+    }
+
+    async function loadWorkouts() {
+      addLog('Loading saved workouts...');
+      try {
+        const response = await fetch('http://localhost:3001/api/diagnostics');
+        if (response.ok) {
+          const data = await response.json();
+          const workoutsList = document.getElementById('workoutsList');
+          
+          if (data.storage.recentWorkouts.length === 0) {
+            workoutsList.innerHTML = '<div class="status-item status-neutral">No workouts saved yet</div>';
+            addLog('No workouts found');
+          } else {
+            let html = `<div class="workout-list">`;
+            data.storage.recentWorkouts.forEach(w => {
+              html += `
+                <div class="workout-item" onClick="testWorkoutAccess('${w.id}')">
+                  📋 ID: ${w.id.substring(0, 8)}...
+                  <br>Exercises: ${w.exerciseCount}
+                  <br>Created: ${new Date(w.created).toLocaleString()}
+                </div>
+              `;
+            });
+            html += '</div>';
+            workoutsList.innerHTML = html;
+            addLog(`✓ Found ${data.storage.recentWorkouts.length} recent workouts`, 'success');
+          }
+        }
+      } catch (error) {
+        addLog(`✗ Failed to load workouts: ${error.message}`, 'error');
+      }
+    }
+
+    async function testWorkoutAccess(workoutId) {
+      addLog(`Testing access to workout: ${workoutId}...`);
+      try {
+        const response = await fetch(`http://localhost:3001/api/workouts/${workoutId}`);
+        if (response.ok) {
+          const data = await response.json();
+          addLog(`✓ Workout accessible! Exercises: ${data.data.exercises.length}`, 'success');
+          addLog(`  QR URL would be: http://[IP]:3001/workout/${workoutId}`, 'info');
+        } else {
+          addLog(`✗ Workout not found (${response.status})`, 'error');
+        }
+      } catch (error) {
+        addLog(`✗ Failed to access workout: ${error.message}`, 'error');
+      }
+    }
+
+    async function testURLs() {
+      addLog('Testing key URLs...');
+      
+      const urls = [
+        { name: 'Server Health', url: 'http://localhost:3001/api/health' },
+        { name: 'Server Info', url: 'http://localhost:3001/api/info' },
+        { name: 'Diagnostics', url: 'http://localhost:3001/api/diagnostics' },
+        { name: 'Home Page', url: 'http://localhost:3001/' }
+      ];
+
+      let results = '';
+      for (const test of urls) {
+        try {
+          const response = await fetch(test.url);
+          results += `<div class="status-item status-good">✓ ${test.name}: ${response.status}</div>`;
+          addLog(`✓ ${test.name}: ${response.status}`, 'success');
+        } catch (error) {
+          results += `<div class="status-item status-bad">✗ ${test.name}: Connection failed</div>`;
+          addLog(`✗ ${test.name}: ${error.message}`, 'error');
+        }
+      }
+
+      document.getElementById('urlTest').innerHTML = results;
+    }
+
+    function openDiagnosticsAPI() {
+      window.open('http://localhost:3001/api/diagnostics', '_blank');
+    }
+
+    // Run initial checks
+    window.addEventListener('load', () => {
+      addLog('Page loaded');
+      checkServerHealth();
+    });
   </script>
 </body>
 </html>

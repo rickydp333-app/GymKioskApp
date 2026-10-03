@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; media-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:3001 http://localhost:3001 https://gymkioskapp.onrender.com https://www.rdpsstrengthandconditioning.ca https://app.rdpsplace.me; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta charset="UTF-8" />
   <title>RDPs STRENGTH & CONDITIONING</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -8,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/calendar.css" />
+  <link rel="stylesheet" href="css/kiosk-tutorial.css" />
 </head>
 
 <body>
@@ -16,8 +18,11 @@
   TOP CONTROLS BAR
 ================================ -->
 <div id="topControlsBar">
-  <button id="startOverBtn" class="control-btn danger">
-    ⟳ Start Over
+  <button id="startOverBtn" class="control-btn">
+    ⎋ Log Out
+  </button>
+  <button id="homeBtn" class="control-btn home-btn">
+    🏠 Home
   </button>
   <button id="openAdminBtn" class="control-btn">
     🔐 Admin
@@ -56,13 +61,37 @@
   USER SELECTION SCREEN
 ================================ -->
 <div id="userScreen" class="screen" style="display: block !important;">
+  <div class="user-screen-intro-row">
+    <aside class="prototype-feedback-panel" aria-label="Prototype feedback information">
+      <h2 class="prototype-feedback-title">Prototype Feedback &amp; Improvement Program</h2>
+      <p>
+        Thank you for using our fitness application. This version is currently a prototype, and your feedback is extremely valuable in helping us create the best possible experience for our members.
+      </p>
+      <p>
+        We welcome your suggestions for new features, improvements, and enhancements that could make the app more effective, intuitive, and user-friendly. If you encounter any bugs, technical issues, or functionality concerns, please let us know so we can address them promptly.
+      </p>
+      <p>To submit feedback or report an issue, you may:</p>
+      <p>📧 Email: rickyp3@me.com<br>📱 Text: 519-427-9922</p>
+      <div class="prototype-feedback-qr">
+        <div class="prototype-feedback-qr-title">Scan To Open Email On Your Phone</div>
+        <img
+          src="https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=mailto%3Arickyp3%40me.com%3Fsubject%3DGymKioskApp%2520Prototype%2520Feedback"
+          alt="QR code to email rickyp3@me.com"
+          class="prototype-feedback-qr-image"
+        />
+      </div>
+    </aside>
+  </div>
+
   <div class="user-screen-header">
     <h2 class="title">Select Your Profile</h2>
     <button id="openCreateUserHeaderBtn" class="control-btn">＋ Create User</button>
   </div>
+
   <div class="user-search">
     <input id="userSearchInput" class="user-search-input" type="text" placeholder="Search users..." autocomplete="off" />
   </div>
+
   <div id="userGrid" class="user-grid"></div>
 </div>
 
@@ -71,35 +100,39 @@
 ================================ -->
 <div id="mainActionsScreen" class="screen hidden">
   <h2 class="title">Welcome <span id="currentUserDisplay"></span></h2>
-  
+  <button id="startKioskTutorial" class="primary-btn" type="button" style="display:block;margin:0 auto 24px;">Show me how to use</button>
+
   <div class="actions-grid">
     <button id="muscleGroupsBtn" class="action-btn">
       <img src="assets/icons/muscle-groups.svg" class="action-icon" alt="Muscle Groups">
       <span class="action-text">Muscle Groups</span>
     </button>
-    
+
     <button id="stretchesBtn" class="action-btn">
       <img src="assets/icons/stretches.svg" class="action-icon" alt="Stretches">
       <span class="action-text">Stretches</span>
     </button>
-    
+
     <button id="buildPlanBtn" class="action-btn">
       <img src="assets/icons/build-workout.svg" class="action-icon" alt="Build Workout">
       <span class="action-text">Build a Workout</span>
     </button>
 
     <button id="fullBodyGeneratorBtn" class="action-btn">
-      <img src="assets/icons/full-body.svg" class="action-icon" alt="Full-Body">
+      <img src="assets/icons/full-body.svg" class="action-icon" alt="Full-Body Workout">
       <span class="action-text">Full-Body Workout</span>
     </button>
+
     <button id="buildNutritionBtn" class="action-btn">
       <img src="assets/icons/nutrition.svg" class="action-icon" alt="Nutrition">
       <span class="action-text">Training Nutrition & Fuel Guide</span>
     </button>
+
     <button id="myCalendarBtn" class="action-btn">
       <img src="assets/icons/calendar.svg" class="action-icon" alt="Calendar">
       <span class="action-text">My Workout Calendar</span>
     </button>
+
     <button id="dailyChallengeBtn" class="action-btn challenge-btn">
       <img src="assets/icons/challenge.svg" class="action-icon" alt="Challenge">
       <span class="action-text">Daily Challenge<br>or<br><span style="font-size: 2rem; opacity: 0.8;">Challenge a friend</span></span>
@@ -111,25 +144,71 @@
       <span class="action-text">My Analytics</span>
     </button>
 
-    <button id="myPRsBtn" class="action-btn">
-      <span class="action-icon" style="font-size: 3rem; display: block;">🏆</span>
-      <span class="action-text">My Personal Records</span>
-    </button>
-
-    <button id="shareStatsBtn" class="action-btn">
-      <span class="action-icon" style="font-size: 3rem; display: block;">📲</span>
-      <span class="action-text">Check My Stats</span>
+    <button id="interactiveCoachBtn" class="action-btn">
+      <span class="action-icon" style="font-size: 3rem; display: block;">🤖</span>
+      <span class="action-text">Interactive Coach</span>
     </button>
   </div>
 
-  <div id="activityLeaderboard" class="activity-panel">
-    <div class="activity-panel-header">🔥 Most Active This Week</div>
-    <div class="activity-panel-title">🏆 Gym Grind Board</div>
-    <div class="activity-panel-top">
-      <span id="topUserName">—</span>
-      <span id="topUserCount"></span>
+  <section id="activityLeaderboard" class="main-login-leaderboard" aria-labelledby="mainLoginLeaderboardHeading">
+    <h2 id="mainLoginLeaderboardHeading">Top 5 Most Logged-In Users</h2>
+    <ol id="mainLoginLeaderboardList" class="main-login-leaderboard-list"></ol>
+    <p id="mainLoginLeaderboardEmpty">No login days recorded yet.</p>
+  </section>
+</div>
+
+<!-- ===============================
+  GUIDED ENTRY SCREEN
+================================ -->
+<div id="guidedEntryScreen" class="screen hidden">
+  <h2 class="title">Choose Your Workout Path</h2>
+  <p class="guided-entry-subtitle">Jump straight into muscle groups or answer three quick prompts for a more guided recommendation.</p>
+
+  <div class="guided-path-grid">
+    <button id="guidedDirectPathBtn" class="guided-path-card" type="button">
+      <span class="guided-path-icon">🎯</span>
+      <span class="guided-path-title">Direct Navigation</span>
+      <span class="guided-path-copy">Keep the current flow and browse every muscle group yourself.</span>
+    </button>
+
+    <button id="guidedPromptToggleBtn" class="guided-path-card guided-path-card-accent" type="button">
+      <span class="guided-path-icon">🧭</span>
+      <span class="guided-path-title">Guided Discovery</span>
+      <span class="guided-path-copy">Tell the kiosk what you want today and get a focused recommendation.</span>
+    </button>
+  </div>
+
+  <div id="guidedPromptPanel" class="guided-prompt-panel hidden">
+    <div class="builder-section">
+      <h3 class="builder-section-title">1. What do you want to focus on?</h3>
+      <div class="builder-goal-grid guided-option-grid">
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="goal" data-value="strength">💪 Build Strength</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="goal" data-value="upper-body">🏋️ Upper Body</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="goal" data-value="lower-body">🦵 Lower Body</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="goal" data-value="posture-core">🧱 Posture & Core</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="goal" data-value="recovery">🧘 Recovery & Mobility</button>
+      </div>
     </div>
-    <div class="activity-panel-footer">⚡ Active Members Today: <span id="activeMembersToday">0</span></div>
+
+    <div class="builder-section">
+      <h3 class="builder-section-title">2. How much time do you have?</h3>
+      <div class="builder-time-grid guided-option-grid">
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="time" data-value="5">5 Minutes</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="time" data-value="10">10 Minutes</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="time" data-value="20">20+ Minutes</button>
+      </div>
+    </div>
+
+    <div class="builder-section">
+      <h3 class="builder-section-title">3. What level feels right today?</h3>
+      <div class="builder-time-grid guided-option-grid">
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="difficulty" data-value="beginner">🟢 Beginner</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="difficulty" data-value="intermediate">🟡 Intermediate</button>
+        <button class="builder-tile guided-option-tile" type="button" data-guided-group="difficulty" data-value="advanced">🔴 Advanced</button>
+      </div>
+    </div>
+
+    <div id="guidedRecommendationCard" class="guided-recommendation-card hidden"></div>
   </div>
 </div>
 
@@ -214,7 +293,9 @@
   <div class="builder-section">
     <h3 class="builder-section-title">Choose a topic</h3>
     <div class="builder-goal-grid" id="howToTopicGrid" style="max-width: 900px; margin: 0 auto;">
+      <div class="builder-tile" data-topic="loginChoices">👋 After Login: Choose What to Do</div>
       <div class="builder-tile" data-topic="trackWorkout">📊 How to Track Your Workouts</div>
+      <div class="builder-tile" data-topic="exerciseProgress">📈 Update Progress and PRs</div>
       <div class="builder-tile" data-topic="buildWorkout">🏋️ How to Build a Workout</div>
       <div class="builder-tile" data-topic="fullBodyWorkout">⚡ How to Build a Full-Body Workout</div>
       <div class="builder-tile" data-topic="nutritionPlan">🥗 How to Build a Nutrition Plan</div>
@@ -231,11 +312,11 @@
   </button>
 </div>
 
-<!-- ==============================
+<!-- ===============================
   MUSCLE GROUP SCREEN
 ================================ -->
 <div id="muscleScreen" class="screen hidden">
-  <h2 class="title">Select Muscle Group</h2>
+  <h2 id="muscleScreenHeading" class="title">Select Muscle Group</h2>
 
   <div class="muscle-grid">
     <div class="muscle" data-muscle="chest">
@@ -292,13 +373,13 @@
   <h2 id="exerciseTitle" class="title"></h2>
   
   <div style="text-align: center; margin: 12px auto;">
-    <button id="shareWorkoutBtn" class="primary-btn" style="display: none;">
-      📱 Share QR
+    <button id="shareWorkoutBtn" class="primary-btn qr-workout-share-btn" style="display: none;">
+      📱 Send your workout to your phone by scanning the QR code with your camera
     </button>
   </div>
   
   <p style="text-align: center; color: #888; font-size: 14px; margin: 8px 0 16px;">
-    Complete each exercise individually to track your progress
+    Select Update Progress and PRs on any exercise to record weight, reps, and completion date
   </p>
   
   <!-- Difficulty Filter -->
@@ -321,6 +402,9 @@
 <div id="analyticsScreen" class="screen hidden">
   <button id="backFromAnalytics" class="back-btn">⬅ Back</button>
   <h2 class="title">📊 My Workout Analytics</h2>
+  <div class="analytics-reset-controls">
+    <button id="clearUserAnalyticsBtn" class="danger-btn" type="button" onclick="confirmClearUserAnalytics()">Clear Data and Start Over</button>
+  </div>
 
   <!-- Stats Overview -->
   <div class="analytics-stats-grid">
@@ -347,6 +431,13 @@
   </div>
 
   <!-- Favorite Muscle Groups -->
+  <section id="musclePersonalBestsSection" class="analytics-section muscle-personal-bests"></section>
+  <section class="analytics-section">
+    <h3>Exercise Progress Log</h3>
+    <button id="refreshQrAnalyticsBtn" class="primary-btn" type="button" onclick="syncQrWorkoutAnalytics()">🔄 Refresh Phone Logs</button>
+    <p id="qrAnalyticsSyncStatus" role="status" aria-live="polite"></p>
+    <div id="exerciseProgressLogContainer" class="exercise-progress-log"></div>
+  </section>
   <div class="analytics-section">
     <h3>💪 Favorite Muscle Groups</h3>
     <div id="favoriteMusclesContainer" class="favorite-muscles"></div>
@@ -384,6 +475,18 @@
 </div>
 
 <!-- ===============================
+  INTERACTIVE COACH SCREEN
+================================ -->
+<div id="interactiveCoachScreen" class="screen hidden">
+  <button id="backFromCoach" class="back-btn">⬅ Back</button>
+  <h2 id="coachScreenHeading" class="title">🤖 Interactive Coach</h2>
+  <div id="coachInsightsContainer" style="max-width: 980px; margin: 0 auto; padding: 0 16px 24px;"></div>
+  <div style="text-align: center; margin: 8px auto 24px;">
+    <button id="coachRefreshBtn" class="primary-btn">🔄 Start Over</button>
+  </div>
+</div>
+
+<!-- ===============================
   PERSONAL RECORDS SCREEN
 ================================ -->
 <div id="personalRecordsScreen" class="screen hidden">
@@ -398,7 +501,7 @@
   STRETCHES BODY PARTS SCREEN
 ================================ -->
 <div id="stretchScreen" class="screen hidden">
-  <h2 class="title">Select Body Part to Stretch</h2>
+  <h2 id="stretchScreenHeading" class="title">Select Body Part to Stretch</h2>
   
   <div class="muscle-grid">
     <div class="muscle" data-body-part="neck-shoulders">
@@ -432,7 +535,7 @@
   <button id="backFromCalendar" class="back-btn">⬅ Back</button>
   <h2 class="title">📅 My Workout Calendar</h2>
   <div style="text-align: center; margin-bottom: 16px;">
-    <button id="shareCalendarBtn" class="primary-btn">📲 Share Calendar QR</button>
+    <button id="shareCalendarBtn" class="primary-btn">📲 Send Calendar to Phone with QR Code</button>
   </div>
   
   <div class="calendar-container">
@@ -494,19 +597,19 @@
   <h2 class="title">Admin Panel</h2>
 
   <div class="admin-actions">
-    <button id="resetApp" class="primary-btn">
+    <button id="resetApp" class="control-btn">
       🔄 Return to Profile Screen
     </button>
 
-    <button id="adminToggleAutoLogout" class="back-btn admin-small-option">
+    <button id="adminToggleAutoLogout" class="control-btn">
       🔒 Screensaver Auto-Logout: ON
     </button>
 
-    <button id="adminTestScreensaverBtn" class="back-btn admin-small-option">
+    <button id="adminTestScreensaverBtn" class="control-btn">
       🧪 Test Screensaver Now
     </button>
 
-    <button id="adminToggleQrMode" class="back-btn admin-small-option">
+    <button id="adminToggleQrMode" class="control-btn">
       🌐 QR Mode: PUBLIC
     </button>
 
@@ -518,15 +621,41 @@
       Current status: ON
     </div>
 
-    <button id="adminResetDisclaimer" class="back-btn admin-small-option">
+    <div class="admin-face-threshold-row">
+      <label class="admin-face-threshold-label">🔐 Change Administrator PIN</label>
+      <div class="admin-face-threshold-controls">
+        <input id="adminCurrentPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="Current PIN">
+        <input id="adminNewPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN (4–8 digits)">
+        <input id="adminConfirmPin" class="admin-face-threshold-input" type="password" inputmode="numeric" maxlength="8" placeholder="Confirm new PIN">
+        <button id="adminChangePin" class="control-btn">Save New PIN</button>
+      </div>
+      <div id="adminChangePinStatus" class="admin-auto-logout-status">The initial PIN remains 3333 until changed here.</div>
+    </div>
+
+    <div class="admin-face-threshold-row">
+      <label for="adminRunDiagnostics" class="admin-face-threshold-label">🩺 Device Diagnostics</label>
+      <button id="adminRunDiagnostics" class="control-btn">Run Device Diagnostics</button>
+      <div id="adminDiagnosticsStatus" class="admin-auto-logout-status">No diagnostics run yet.</div>
+    </div>
+
+    <div class="admin-face-threshold-row">
+      <label for="adminCheckWebsiteSync" class="admin-face-threshold-label">🌐 Website Synchronization</label>
+      <button id="adminCheckWebsiteSync" class="control-btn">Check Sync Status</button>
+      <div id="adminWebsiteSyncStatus" class="admin-auto-logout-status">Saved locally first; web updates retry automatically.</div>
+    </div>
+
+    <button id="adminResetDisclaimer" class="control-btn">
       ⚠ Re-show Disclaimer Next Visit
     </button>
 
-    <button id="adminResetActivityStats" class="back-btn admin-small-option">
+    <button id="adminResetActivityStats" class="control-btn">
       📈 Clear Activity Leaderboard
     </button>
 
-    <button id="exitAdmin" class="back-btn">
+    <button id="exitKioskApp" class="control-btn">
+      🛑 Exit Kiosk App
+    </button>
+    <button id="exitAdmin" class="control-btn">
       ⬅ Exit Admin
     </button>
 
@@ -582,7 +711,7 @@
 <div id="favoritesScreen" class="screen hidden">
   <h2 class="title">My Favorite Exercises</h2>
   <button id="backFromFavorites" class="back-btn">⬅ Back</button>
-  <button id="shareFavoritesQR" class="primary-btn" style="position: fixed; bottom: 100px; right: 40px; padding: 16px 24px; font-size: 16px; z-index: 100;">📱 Share to Phone</button>
+  <button id="shareFavoritesQR" class="primary-btn" style="position: fixed; bottom: 100px; right: 40px; padding: 16px 24px; font-size: 16px; z-index: 100;">📱 Send Favorites to Phone with QR Code</button>
   <div id="favoritesGrid" class="exercise-grid"></div>
 </div>
 
@@ -612,6 +741,7 @@
     <button id="cancelUserPin" class="back-btn">Cancel</button>
   </div>
 </div>
+
 <!-- ===============================
   ADMIN EDIT USER 
 ================================ -->
@@ -650,6 +780,7 @@
   <div class="modal-card">
     <h3>Admin Access</h3>
     <div id="adminPinDisplay" class="pin-display">••••</div>
+    <p id="adminPinStatus" role="status" aria-live="polite" style="min-height:1.5em;color:#ffe078;text-align:center;"></p>
 
     <div class="keypad">
       <button data-key="1">1</button>
@@ -916,7 +1047,7 @@
   NUTRITION BUILDER SCREEN
 ================================ -->
 <div id="nutritionBuilderScreen" class="screen hidden">
-  <h2 class="title">🥗 Training Nutrition & Fuel Guide</h2>
+  <h2 id="nutritionBuilderHeading" class="title">🥗 Training Nutrition & Fuel Guide</h2>
 
   <div class="builder-section">
     <h3 class="builder-section-title">Plan Type</h3>
@@ -1312,7 +1443,7 @@
 ================================ -->
 <div id="fullBodyGeneratorScreen" class="screen hidden">
   <button id="backFromGenerator" class="back-btn">⬅ Back</button>
-  <h2 class="title">🏋️ Full-Body Workout Generator</h2>
+  <h2 id="fullBodyGeneratorHeading" class="title">🏋️ Full-Body Workout Generator</h2>
   
   <div class="builder-section" style="max-width: 600px; margin: 0 auto; padding: 20px;">
     
@@ -1396,7 +1527,8 @@
 <script src="js/admin-module.js"></script>
 <script src="js/calendar-module.js"></script>
 <script src="js/challenges-module.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/ui.js?v=20260528-builder-filter"></script>
+<script src="js/kiosk-tutorial.js"></script>
 <script src="js/reset.js"></script>
 <script src="renderer.js"></script>
 </body>

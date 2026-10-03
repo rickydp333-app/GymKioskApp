@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <path d="M32 8C28.5 8 25.5 10 24 13C22.5 10 19.5 8 16 8C11.5 8 8 11.5 8 16V20C8 22 9 24 10.5 25L8 32L10.5 39C9 40 8 42 8 44V48C8 52.5 11.5 56 16 56C19.5 56 22.5 54 24 51C25.5 54 28.5 56 32 56C36.5 56 40 52.5 40 48V44C40 42 39 40 37.5 39L40 32L37.5 25C39 24 40 22 40 20V16C40 11.5 36.5 8 32 8Z" fill="url(#muscle-gradient)" stroke="#00D4FF" stroke-width="2"/>
+  <circle cx="24" cy="28" r="3" fill="#00D4FF"/>
+  <circle cx="40" cy="28" r="3" fill="#00D4FF"/>
+  <path d="M20 38C20 38 24 42 32 42C40 42 44 38 44 38" stroke="#D4AF37" stroke-width="2" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="muscle-gradient" x1="24" y1="8" x2="24" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a1f2e"/>
+      <stop offset="100%" stop-color="#2d3748"/>
+    </linearGradient>
+  </defs>
+</svg>

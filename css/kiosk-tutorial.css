@@ -1,0 +1,30 @@
+.kiosk-tour-overlay { position: fixed; inset: 0; z-index: 10020; display: flex; align-items: flex-start; justify-content: center; padding: 20px; background: rgba(2, 6, 15, .62); }
+.kiosk-tour-centered { align-items: center; }
+.kiosk-tour-guided { background: rgba(2, 6, 15, .28); }
+.kiosk-tour-frame { position: fixed; border: 4px solid #ffe078; border-radius: 12px; box-shadow: 0 0 24px #ffe07888; pointer-events: none; }
+.kiosk-tour-panel { position: relative; z-index: 1; }
+.kiosk-tour-panel { width: min(980px, 100%); max-height: 48vh; overflow: auto; background: #101b2c; color: #f5f7fa; border: 2px solid #d4af37; border-radius: 20px; padding: 24px 30px; box-shadow: 0 18px 60px #0009; font-family: 'Segoe UI', sans-serif; }
+.kiosk-tour-centered .kiosk-tour-panel { max-height: 90vh; }
+.kiosk-tour-panel h2 { margin: 8px 0 14px; font-size: clamp(24px, 2.5vw, 38px); color: #ffe078; line-height: 1.15; }
+.kiosk-tour-progress { font-size: 16px; color: #91d9ff; font-weight: 700; }
+.kiosk-tour-copy { font-size: clamp(18px, 1.6vw, 24px); line-height: 1.5; white-space: pre-line; margin: 12px 0; }
+.kiosk-tour-hint { font-size: 18px; line-height: 1.4; background: #20334c; padding: 14px; border-radius: 10px; margin: 14px 0; }
+.kiosk-tour-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 18px; }
+.kiosk-tour-controls button { min-height: 56px; padding: 12px 24px; border-radius: 12px; font: 700 19px 'Segoe UI', sans-serif; cursor: pointer; }
+.kiosk-tour-primary { background: #ffe078; color: #101b2c; border: 2px solid #ffe078; }
+.kiosk-tour-secondary { background: #22344d; color: white; border: 2px solid #9aafca; }
+.kiosk-tour-controls button:focus-visible { outline: 3px solid #7de6ff; outline-offset: 4px; }
+.kiosk-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0 4px; }
+.kiosk-login-choices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kiosk-workout-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kiosk-choice-button { display: flex; flex-direction: column; justify-content: center; gap: 7px; min-height: 90px; padding: 16px 18px; border: 2px solid #64809e; border-radius: 12px; background: #20334c; color: #f5f7fa; text-align: left; cursor: pointer; }
+.kiosk-choice-button strong { color: #fff1b8; font-size: 20px; line-height: 1.2; }
+.kiosk-choice-button span { color: #d5e1ef; font-size: 15px; line-height: 1.35; }
+.kiosk-choice-button:hover, .kiosk-choice-button:focus-visible { border-color: #7de6ff; background: #294465; outline: none; }
+.kiosk-choice-primary { border-color: #ffe078; background: #35465d; }
+.kiosk-choice-primary strong { color: #ffe078; }
+.kiosk-choice-button:focus-visible { box-shadow: 0 0 0 3px #7de6ff88; }
+.kiosk-tour-highlight { outline: 5px solid #ffe078 !important; outline-offset: 7px; position: relative; z-index: 10021; pointer-events: none; box-shadow: 0 0 40px #ffe07866 !important; }
+@media (max-width: 900px) { .kiosk-login-choices { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .kiosk-choice-grid, .kiosk-workout-choices { grid-template-columns: 1fr; gap: 8px; } .kiosk-choice-button { min-height: 72px; padding: 12px 14px; } .kiosk-choice-button strong { font-size: 18px; } .kiosk-choice-button span { font-size: 14px; } }
+@media (max-height: 700px) { .kiosk-tour-panel { padding: 12px 18px; } .kiosk-tour-hint { margin: 8px 0; padding: 8px; font-size: 16px; } .kiosk-tour-copy { font-size: 17px; } }
