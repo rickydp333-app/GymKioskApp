@@ -415,6 +415,7 @@ function testDeviceKeyAndCustomWorkoutSetup() {
   const main = read('main.js');
   assert.ok(html.includes('id="adminKioskDeviceKey"') && html.includes('id="adminSaveKioskDeviceKey"'), 'Admin Settings should expose device-key configuration');
   assert.ok(source.includes('window.electron?.saveKioskDeviceKey?.({ token: window.getAdminSessionToken?.(), key })'), 'device key save should require the admin session');
+  assert.ok(source.includes('/^[A-Za-z0-9+/]{43}=$/.test(key)'), 'Admin Settings should accept the exact Render-generated base64 key');
   assert.ok(source.includes('function openCustomWorkoutPersonalBest('), 'Analytics should allow custom exercise logging');
   assert.ok(source.includes('showWeightRepsModal(muscle, { name: exerciseName }'), 'custom exercise should collect multiple sets and completion date with the on-screen keypad');
   assert.ok(source.includes('saveMusclePersonalBest(username, muscle, exerciseName'), 'custom exercise best should be saved per muscle');

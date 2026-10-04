@@ -29,10 +29,14 @@ function run() {
     assert.strictEqual(admin.setKioskDeviceKey('not-a-key', safeStorage).success, false, 'invalid kiosk device keys should be rejected');
     assert.strictEqual(admin.setKioskDeviceKey(deviceKey, safeStorage).success, true, 'valid device keys should be saved');
     assert.strictEqual(admin.getKioskDeviceKey(safeStorage), deviceKey, 'saved kiosk key should decrypt for main-process use');
+    const renderGeneratedKey = Buffer.alloc(32, 0x5a).toString('base64');
+    assert.strictEqual(admin.setKioskDeviceKey(renderGeneratedKey, safeStorage).success, true, 'Render-generated base64 device keys should be accepted');
+    assert.strictEqual(admin.getKioskDeviceKey(safeStorage), renderGeneratedKey, 'Render key bytes must be preserved exactly');
 
     const settingsText = fs.readFileSync(admin.settingsPath, 'utf8');
     assert.ok(!settingsText.includes('3333') && !settingsText.includes('8642'), 'PINs must not be stored in plain text');
     assert.ok(!settingsText.includes(deviceKey), 'kiosk device key must be encrypted at rest');
+    assert.ok(!settingsText.includes(renderGeneratedKey), 'Render-generated device key must be encrypted at rest');
 
     const store = createPersistentStore({ dataDir: path.join(tempRoot, 'data'), sourceDataDir: path.join(ROOT, 'data') });
     assert.ok(fs.existsSync(store.databasePath), 'SQLite database should be created');

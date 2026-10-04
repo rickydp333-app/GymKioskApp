@@ -8120,8 +8120,8 @@ function initializeApp() {
     const input = document.getElementById('adminKioskDeviceKey');
     const status = document.getElementById('adminKioskDeviceKeyStatus');
     const key = String(input?.value || '').trim();
-    if (!/^[a-f0-9]{64}$/i.test(key)) {
-      if (status) status.textContent = 'Enter a valid 64-character hexadecimal device key.';
+    if (!(/^[a-f0-9]{64}$/i.test(key) || /^[A-Za-z0-9+/]{43}=$/.test(key))) {
+      if (status) status.textContent = 'Enter the Render-generated 256-bit device key or a 64-character hexadecimal key.';
       return;
     }
     const result = await window.electron?.saveKioskDeviceKey?.({ token: window.getAdminSessionToken?.(), key });
