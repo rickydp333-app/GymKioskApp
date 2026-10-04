@@ -3358,35 +3358,27 @@ async function saveWorkoutToServer(workoutId, workoutData) {
     console.log('UI.JS: Saving workout to server - ID:', workoutId);
     console.log('UI.JS: Workout data exercises count:', workoutData.exercises?.length);
     
-    // Save workout so it can be accessed via QR code from mobile
-    // Send the full exercise objects with all properties
-    const response = await fetchApiWithFallback('/api/workouts/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workoutId,
-        analyticsSyncToken,
-        data: {
-          exercises: workoutData.exercises, // Pass full exercise objects with howTo, primary, secondary, etc
-          created: workoutData.created,
-          user: workoutData.user,
-          type: workoutData.type || 'workout',
-          title: workoutData.title || '',
-          muscle: workoutData.muscle || '',
-          bodyPart: workoutData.bodyPart || ''
-        }
-      })
+    if (!window.electron?.createKioskQrWorkout) {
+      throw new Error('Secure QR export is available only in the installed kiosk app.');
+    }
+    const result = await window.electron.createKioskQrWorkout({
+      workoutId,
+      baseUrl: getServerBaseUrl(),
+      analyticsSyncToken,
+      data: {
+        exercises: workoutData.exercises,
+        created: workoutData.created,
+        user: workoutData.user,
+        type: workoutData.type || 'workout',
+        title: workoutData.title || '',
+        muscle: workoutData.muscle || '',
+        bodyPart: workoutData.bodyPart || ''
+      }
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('UI.JS: Failed to save workout to server - Status:', response.status);
-      console.error('UI.JS: Server response:', errorText);
-      console.error('UI.JS: ⚠️  Is Express server running? Check: npm run server');
+    if (!result?.success) {
+      console.error('UI.JS: Failed to save workout to server:', result?.error || 'Unknown export error');
       return false;
     }
-
-    const result = await response.json();
     if (analyticsSyncToken) {
       const users = getUsers();
       const user = users.find(user => user.username === exportingUser);
@@ -3401,8 +3393,6 @@ async function saveWorkoutToServer(workoutId, workoutData) {
     return true;
   } catch (error) {
     console.error('UI.JS: Error saving workout to server:', error);
-    console.error('UI.JS: ⚠️  Make sure Express server is running on port 3001');
-    console.error('UI.JS: Run: npm run server');
     return false;
   }
 }
@@ -6170,7 +6160,7 @@ function populateAdminUserList() {
 /**
  * Show modal for logging weight/reps when completing an exercise
  */
-function showWeightRepsModal(muscle, exercise, onComplete) {
+function showWeightRepsModal(muscle, exercise, onComplete, options = {}) {
   const modal = document.createElement('div');
   modal.id = 'weightRepsModal';
   modal.style.cssText = `
@@ -6201,9 +6191,7 @@ function showWeightRepsModal(muscle, exercise, onComplete) {
   const todayDate = getLocalDateString();
   
   content.innerHTML = `
-    <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #333;">
-      ${exercise.name}
-    </div>
+    <div class="weight-reps-exercise-name" style="font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #333;"></div>
     <div style="color: #666; margin-bottom: 20px; font-size: 14px;">
       Log your weight and reps (optional)
     </div>
@@ -6251,13 +6239,14 @@ function showWeightRepsModal(muscle, exercise, onComplete) {
         Skip Logging
       </button>
       <button id="submitBtn" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
-        Track Your Progress
+        ${options.submitLabel || 'Track Your Progress'}
       </button>
     </div>
   `;
   
   modal.appendChild(content);
   document.body.appendChild(modal);
+  content.querySelector('.weight-reps-exercise-name').textContent = `${options.title ? `${options.title}: ` : ''}${exercise.name}`;
   
   const setsContainer = content.querySelector('#setsContainer');
   const addSetBtn = content.querySelector('#addSetBtn');
@@ -6470,6 +6459,55 @@ function saveMusclePersonalBest(username, muscle, exerciseName, weight, reps, da
   return true;
 }
 
+function openCustomWorkoutPersonalBest(username = window.currentUser) {
+  if (!username || username === 'guest' || window.currentUser !== username) return;
+  const groups = Object.keys(window.LOCAL_EXERCISES || {}).filter(muscle => Array.isArray(window.LOCAL_EXERCISES[muscle]));
+  if (!groups.length) return showAlert('Workout unavailable', 'No muscle groups are available for a custom workout.');
+
+  const modal = document.createElement('div');
+  modal.className = 'personal-best-overlay';
+  const form = document.createElement('form');
+  form.className = 'personal-best-form';
+  form.setAttribute('role', 'dialog');
+  form.setAttribute('aria-modal', 'true');
+  form.innerHTML = '<h2>Add Your Own Workout</h2><label>Muscle group<select name="muscle" required></select></label><label>Exercise name<input name="exerciseName" type="text" maxlength="120" required></label><p class="personal-best-error" role="status"></p><div class="personal-best-controls"><button type="button" class="primary-btn custom-workout-cancel">Cancel</button><button type="submit" class="primary-btn">Add Sets</button></div>';
+  const select = form.elements.muscle;
+  groups.forEach(muscle => {
+    const option = document.createElement('option');
+    option.value = muscle;
+    option.textContent = muscle.charAt(0).toUpperCase() + muscle.slice(1);
+    select.appendChild(option);
+  });
+  const close = () => { modal.remove(); document.getElementById('addCustomWorkoutBtn')?.focus(); };
+  form.querySelector('.custom-workout-cancel').addEventListener('click', close);
+  modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    if (window.currentUser !== username) { close(); return; }
+    const muscle = select.value;
+    const exerciseName = form.elements.exerciseName.value.trim();
+    if (!exerciseName || exerciseName.length > 120 || !groups.includes(muscle)) {
+      form.querySelector('.personal-best-error').textContent = 'Enter an exercise name and select a muscle group.';
+      return;
+    }
+    close();
+    showWeightRepsModal(muscle, { name: exerciseName }, (completionDate, sets) => {
+      if (window.currentUser !== username || !sets.length) return;
+      const bestSet = sets.reduce((best, set) => estimateOneRepMax(set.weight, set.reps) > estimateOneRepMax(best.weight, best.reps) ? set : best);
+      saveMusclePersonalBest(username, muscle, exerciseName, bestSet.weight, bestSet.reps, completionDate);
+      recordWorkout([muscle], [exerciseName], 15, completionDate);
+      saveWorkoutToCalendarDate(new Date(`${completionDate}T12:00:00`), {
+        muscle, exercises: [{ name: exerciseName, sets }], completedDate: completionDate, user: username
+      });
+      renderAnalyticsScreen();
+    }, { title: 'Log Your Custom Workout', submitLabel: 'Save Custom Workout' });
+  });
+  modal.appendChild(form);
+  document.body.appendChild(modal);
+  form.elements.exerciseName.focus();
+}
+
 function createPersonalBestButton(muscle, exercise) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -6481,52 +6519,14 @@ function createPersonalBestButton(muscle, exercise) {
       showAlert('Notice', 'Please sign in to save your personal best.');
       return;
     }
-    const saved = getUsers().find(user => user.username === window.currentUser)?.musclePersonalBests?.[muscle];
-    const modal = document.createElement('div');
-    modal.className = 'personal-best-overlay';
-    const form = document.createElement('form');
-    form.className = 'personal-best-form';
-    form.setAttribute('role', 'dialog');
-    form.setAttribute('aria-modal', 'true');
-    form.setAttribute('aria-labelledby', 'personalBestHeading');
-    form.innerHTML = `
-      <h2 id="personalBestHeading">Personal Best</h2>
-      <p class="personal-best-exercise"></p>
-      <label>Weight (lbs)<input name="weight" type="number" min="0" max="10000" step="0.1" required></label>
-      <label>Reps<input name="reps" type="number" min="1" max="1000" step="1" required></label>
-      <label>Date<input name="date" type="date" required></label>
-      <p class="personal-best-error" role="status"></p>
-      <div class="personal-best-controls"><button type="button" class="primary-btn personal-best-cancel">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
-    `;
-    form.querySelector('.personal-best-exercise').textContent = `${muscle}: ${exercise.name}`;
-    form.elements.weight.value = saved?.weight ?? '';
-    form.elements.reps.value = saved?.reps ?? '';
-    form.elements.date.value = saved?.date || getLocalDateString();
     const username = window.currentUser;
-    const close = () => { modal.remove(); button.focus(); };
-    form.querySelector('.personal-best-cancel').addEventListener('click', close);
-    modal.addEventListener('click', event => { if (event.target === modal) close(); });
-    form.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { event.preventDefault(); close(); }
-      if (event.key === 'Tab') {
-        const inputs = [...form.querySelectorAll('input, button')];
-        const first = inputs[0], last = inputs[inputs.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-      }
-    });
-    form.addEventListener('submit', event => {
-      event.preventDefault();
-      if (window.currentUser !== username) { close(); return; }
-      if (!saveMusclePersonalBest(username, muscle, exercise.name, Number(form.elements.weight.value), Number(form.elements.reps.value), form.elements.date.value)) {
-        form.querySelector('.personal-best-error').textContent = 'Enter a valid weight, reps, and date.';
-        return;
-      }
-      close();
-    });
-    modal.appendChild(form);
-    document.body.appendChild(modal);
-    form.elements.weight.focus();
+    showWeightRepsModal(muscle, exercise, (date, sets) => {
+      if (window.currentUser !== username || !sets.length) return;
+      const bestSet = sets.reduce((best, set) => estimateOneRepMax(set.weight, set.reps) > estimateOneRepMax(best.weight, best.reps) ? set : best);
+      saveMusclePersonalBest(username, muscle, exercise.name, bestSet.weight, bestSet.reps, date);
+      renderMusclePersonalBests(username);
+      button.focus();
+    }, { title: 'Personal Best', submitLabel: 'Save Personal Best' });
   });
   return button;
 }
@@ -8116,6 +8116,21 @@ function initializeApp() {
     }
   });
 
+  document.getElementById('adminSaveKioskDeviceKey')?.addEventListener('click', async () => {
+    const input = document.getElementById('adminKioskDeviceKey');
+    const status = document.getElementById('adminKioskDeviceKeyStatus');
+    const key = String(input?.value || '').trim();
+    if (!/^[a-f0-9]{64}$/i.test(key)) {
+      if (status) status.textContent = 'Enter a valid 64-character hexadecimal device key.';
+      return;
+    }
+    const result = await window.electron?.saveKioskDeviceKey?.({ token: window.getAdminSessionToken?.(), key });
+    if (status) status.textContent = result?.success
+      ? 'Device key saved encrypted on this kiosk.'
+      : (result?.error || 'Unable to save the device key.');
+    if (result?.success && input) input.value = '';
+  });
+
   document.getElementById('adminCheckWebsiteSync')?.addEventListener('click', async () => {
     const status = document.getElementById('adminWebsiteSyncStatus');
     if (status) status.textContent = 'Checking website synchronization…';
@@ -9398,6 +9413,7 @@ function saveFriendChallengeToHistory(entry) {
       historyKey: FRIEND_CHALLENGE_HISTORY_KEY,
       entry,
       limit: 20
+
     });
   }
 }
@@ -9421,7 +9437,6 @@ function renderFriendChallengeHistory() {
     container.innerHTML = '<div style="color: var(--text-secondary); text-align: center;">No challenges sent yet.</div>';
     return;
   }
-
   container.innerHTML = history.map(entry => {
     const date = new Date(entry.created).toLocaleString();
     
@@ -10201,11 +10216,12 @@ function renderAnalyticsScreen() {
   renderSmartRecommendations(username);
   renderProgressionSuggestions(username);
 
-  // Render badges
-  renderBadges(username);
-
-  // Render progress badges
-  renderProgressBadges(username);
+  document.getElementById('earnedBadgesSection')?.classList.toggle('hidden', !BADGES_ENABLED);
+  document.getElementById('badgeProgressSection')?.classList.toggle('hidden', !BADGES_ENABLED);
+  if (BADGES_ENABLED) {
+    renderBadges(username);
+    renderProgressBadges(username);
+  }
 
   // Render recent workouts
   const history = getWorkoutHistory(username);
@@ -10377,6 +10393,13 @@ function renderMusclePersonalBests(username) {
   const heading = document.createElement('h3');
   heading.textContent = 'Personal Bests by Muscle Group';
   section.appendChild(heading);
+  const customWorkoutButton = document.createElement('button');
+  customWorkoutButton.id = 'addCustomWorkoutBtn';
+  customWorkoutButton.type = 'button';
+  customWorkoutButton.className = 'primary-btn';
+  customWorkoutButton.textContent = 'Add Your Own Workout';
+  customWorkoutButton.addEventListener('click', () => openCustomWorkoutPersonalBest(username));
+  section.appendChild(customWorkoutButton);
   const bests = getUsers().find(user => user.username === username)?.musclePersonalBests || {};
   const groups = [...new Set([...document.querySelectorAll('#muscleScreen [data-muscle]')].map(element => element.dataset.muscle))];
   groups.forEach(muscle => {

@@ -376,6 +376,53 @@ function testDailyLoginLeaderboard() {
   assert.ok(read('js/reset.js').includes("type: 'gymkiosk-login-leaderboard'"), 'parent should send only leaderboard data to the iframe');
 }
 
+function testBadgesArePaused() {
+  const source = read('js/gamification.js');
+  const html = read('index.html');
+  assert.ok(html.includes('id="earnedBadgesSection" class="analytics-section hidden"'), 'earned badges should be hidden by default');
+  assert.ok(html.includes('id="badgeProgressSection" class="analytics-section hidden"'), 'badge progress should be hidden by default');
+  const context = { console: { log() {} } };
+  vm.createContext(context);
+  vm.runInContext(source, context);
+  const user = { username: 'Rick', badges: [{ id: 'firstWorkout', earnedDate: '2026-10-01' }], workoutHistory: Array(100).fill({}) };
+  const before = JSON.stringify(user);
+  context.checkAndAwardBadges(user);
+  assert.strictEqual(JSON.stringify(user), before, 'paused awards must not modify existing badges or workout history');
+  const newUser = { username: 'Other', workoutHistory: [{}] };
+  context.checkAndAwardBadges(newUser);
+  assert.strictEqual(newUser.badges, undefined, 'paused awards should not initialize or award badges');
+  assert.ok(read('js/ui.js').includes('if (BADGES_ENABLED) {\n    renderBadges(username);\n    renderProgressBadges(username);'), 'Analytics should skip badge calculations and rendering while paused');
+}
+
+function testPersonalBestUsesWorkoutKeypadAndSupportsCustomExercises() {
+  const source = read('js/ui.js');
+  const html = read('index.html');
+  assert.ok(source.includes("showWeightRepsModal(muscle, exercise, (date, sets) =>") && source.includes("{ title: 'Personal Best', submitLabel: 'Save Personal Best' }"), 'Personal Best should use the existing multi-set on-screen keypad and date logger');
+  assert.ok(source.includes('function openCustomWorkoutPersonalBest('), 'Analytics should provide a custom workout entry form');
+  const customStart = source.indexOf('function openCustomWorkoutPersonalBest(');
+  const customEnd = source.indexOf('\nfunction createPersonalBestButton(', customStart);
+  const customCode = source.slice(customStart, customEnd);
+  assert.ok(customCode.includes('form.elements.exerciseName'), 'custom workout should accept an exercise name');
+  assert.ok(customCode.includes('form.elements.muscle'), 'custom workout should select a muscle group');
+  assert.ok(customCode.includes('showWeightRepsModal(muscle, { name: exerciseName }'), 'custom workout should use the multi-set keypad and date logger');
+  assert.ok(customCode.includes('recordWorkout([muscle], [exerciseName]'), 'custom workout should appear in workout analytics');
+  assert.ok(html.includes('GYMKIOSK_DEVICE_KEY') && html.includes('adminSaveKioskDeviceKey'), 'Admin Settings should configure the kiosk device key');
+}
+
+function testDeviceKeyAndCustomWorkoutSetup() {
+  const html = read('index.html');
+  const source = read('js/ui.js');
+  const main = read('main.js');
+  assert.ok(html.includes('id="adminKioskDeviceKey"') && html.includes('id="adminSaveKioskDeviceKey"'), 'Admin Settings should expose device-key configuration');
+  assert.ok(source.includes('window.electron?.saveKioskDeviceKey?.({ token: window.getAdminSessionToken?.(), key })'), 'device key save should require the admin session');
+  assert.ok(source.includes('function openCustomWorkoutPersonalBest('), 'Analytics should allow custom exercise logging');
+  assert.ok(source.includes('showWeightRepsModal(muscle, { name: exerciseName }'), 'custom exercise should collect multiple sets and completion date with the on-screen keypad');
+  assert.ok(source.includes('saveMusclePersonalBest(username, muscle, exerciseName'), 'custom exercise best should be saved per muscle');
+  assert.ok(main.includes('BrowserWindow.fromWebContents(event.sender) !== mainWindow'), 'only the kiosk window should create QR exports');
+  assert.ok(main.includes('safeStorage') && main.includes('getKioskDeviceKey(safeStorage)'), 'device key should be decrypted only in the main process');
+  assert.ok(main.includes('publicHosts.has(baseUrl.hostname)'), 'QR exports should be restricted to approved hosts');
+}
+
 function testPhoneWorkoutInstructionsAndLogging() {
   const viewer = read('mobile/viewer.html');
   const server = read('server.js');
@@ -587,6 +634,9 @@ async function run() {
     testQrWorkoutAnalyticsMerge();
     testQrAnalyticsAutoRefresh();
     testDailyLoginLeaderboard();
+    testPersonalBestUsesWorkoutKeypadAndSupportsCustomExercises();
+    testDeviceKeyAndCustomWorkoutSetup();
+    testBadgesArePaused();
     await testClearUserAnalyticsData();
     testPhoneWorkoutInstructionsAndLogging();
     testPostLoginActivityChoicesAndPanelTour();

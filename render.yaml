@@ -13,6 +13,8 @@ services:
       mountPath: /var/data
       sizeGB: 1
     envVars:
+      - key: GYMKIOSK_DEVICE_KEY
+        generateValue: true
       - key: GYMKIOSK_DATA_DIR
         value: /var/data/gymkiosk
       - key: NODE_VERSION

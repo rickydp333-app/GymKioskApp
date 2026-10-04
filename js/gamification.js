@@ -3,6 +3,7 @@
 ========================================= */
 
 console.log('GAMIFICATION.JS LOADED');
+const BADGES_ENABLED = false;
 
 // Badge definitions
 const BADGES = {
@@ -94,6 +95,7 @@ function getBadges(username) {
 
 // Check and award new badges
 function checkAndAwardBadges(user) {
+  if (!BADGES_ENABLED) return;
   if (!user.badges) {
     user.badges = [];
   }

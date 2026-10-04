@@ -28,9 +28,13 @@ try {
   for (const config of ['admin-builder.json', 'kiosk-builder.json']) {
     const c = require('../' + config);
     assert(c.files.includes('!data/**/*'), 'must not ship live development data');
+    assert(c.files.includes('!**/*MacBook Pro*'), 'must not ship stale MacBook-named duplicates');
     assert.equal(c.nsis.deleteAppDataOnUninstall, false);
     assert(c.files.includes('screensaver-tutorial.html'));
   }
+  const renderConfig = fs.readFileSync(path.join(__dirname, '..', 'render.yaml'), 'utf8');
+  assert.match(renderConfig, /key:\s*GYMKIOSK_DEVICE_KEY[\s\S]{0,80}generateValue:\s*true/, 'Render should generate the kiosk device key instead of storing it in source');
+  assert.ok(!renderConfig.includes('REPLACE_WITH_A_RANDOM_64_CHARACTER_HEX_KEY'), 'Render Blueprint must not deploy a placeholder device key');
   const sourceDataDir = path.join(root, 'empty-source');
   fs.mkdirSync(sourceDataDir);
   const opts = { dataDir: path.join(root, 'data'), sourceDataDir };

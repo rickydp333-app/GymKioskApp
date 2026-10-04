@@ -19,7 +19,7 @@
     "server.js",
     "lib/**/*",
     "!assets/face-models/**/*",
-    "!**/*-Rick’s MacBook Pro.js",
+    "!**/*MacBook Pro*",
     "!**/*.bak",
     "!**/*.log",
     "!data/**/*",

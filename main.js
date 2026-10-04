@@ -167,6 +167,48 @@ ipcMain.handle('admin-change-pin', (_event, payload = {}) => {
   return adminSettings.change(payload.currentPin, payload.newPin);
 });
 
+ipcMain.handle('admin-save-kiosk-device-key', (event, payload = {}) => {
+  if (BrowserWindow.fromWebContents(event.sender) !== mainWindow || !isValidAdminSession(payload.token)) {
+    return { success: false, error: 'Administrator authorization required.' };
+  }
+  return adminSettings.setKioskDeviceKey(payload.key, safeStorage);
+});
+
+ipcMain.handle('kiosk-create-qr-workout', async (event, payload = {}) => {
+  if (BrowserWindow.fromWebContents(event.sender) !== mainWindow) {
+    return { success: false, error: 'Kiosk window authorization required.' };
+  }
+  const workoutId = String(payload.workoutId || '');
+  if (!/^[a-zA-Z0-9_-]{8,128}$/.test(workoutId) || !payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) {
+    return { success: false, error: 'Invalid workout export.' };
+  }
+  const key = adminSettings.getKioskDeviceKey(safeStorage);
+  if (!key) return { success: false, error: 'Kiosk device key is not configured. Set it in Render and Admin Settings.' };
+  let baseUrl;
+  try {
+    baseUrl = new URL(String(payload.baseUrl || ''));
+  } catch (_error) {
+    return { success: false, error: 'Invalid QR server address.' };
+  }
+  const publicHosts = new Set(['app.rdpsplace.me', 'www.rdpsstrengthandconditioning.ca', 'rdpsstrengthandconditioning.ca', 'gymkioskapp.onrender.com']);
+  const isLocal = ['localhost', '127.0.0.1'].includes(baseUrl.hostname) && baseUrl.port === '3001';
+  if (!(baseUrl.protocol === 'https:' && publicHosts.has(baseUrl.hostname)) && !(baseUrl.protocol === 'http:' && isLocal)) {
+    return { success: false, error: 'QR server is not an approved GymKiosk address.' };
+  }
+  try {
+    const response = await fetch(new URL('/api/workouts/create', baseUrl), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-gymkiosk-key': key },
+      body: JSON.stringify({ workoutId, data: payload.data, analyticsSyncToken: payload.analyticsSyncToken }),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) return { success: false, error: `Workout export failed (HTTP ${response.status}).` };
+    return { success: true, ...(await response.json()) };
+  } catch (error) {
+    return { success: false, error: 'Unable to reach the workout server.' };
+  }
+});
+
 ipcMain.handle('exit-app', (_event, token) => {
   if (!isValidAdminSession(token)) {
     return { success: false, error: 'Administrator authorization required.' };

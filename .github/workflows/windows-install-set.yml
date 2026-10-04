@@ -4,7 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [.github/workflows/windows-install-set.yml]
+    paths:
+      - .github/workflows/windows-install-set.yml
+      - package.json
+      - package-lock.json
+      - scripts/release-install-set.cjs
+      - admin-builder.json
+      - kiosk-builder.json
 
 permissions:
   contents: write
