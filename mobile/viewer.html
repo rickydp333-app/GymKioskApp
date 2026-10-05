@@ -498,6 +498,7 @@
         </form>
         <div class="exercise-log-history" aria-live="polite"></div>
         <p class="exercise-log-status" role="status" aria-live="polite"></p>
+        <a class="exercise-log-signin" href="/">Sign in to sync</a>
       `;
 
       const form = panel.querySelector('form');
@@ -506,11 +507,14 @@
       const dateInput = form.elements.date;
       const history = panel.querySelector('.exercise-log-history');
       const status = panel.querySelector('.exercise-log-status');
+      const signInLink = panel.querySelector('.exercise-log-signin');
+      signInLink.href = `/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      signInLink.hidden = !!localStorage.getItem('sessionId');
       dateInput.value = getLocalDateString();
       dateInput.max = getLocalDateString();
       renderExerciseLogHistory(history, exerciseKey);
 
-      form.addEventListener('submit', event => {
+      form.addEventListener('submit', async event => {
         event.preventDefault();
         if (!form.reportValidity()) return;
 
@@ -530,6 +534,14 @@
         weightInput.value = '';
         repsInput.value = '';
         weightInput.focus();
+        if (localStorage.getItem('sessionId')) {
+          status.textContent = 'Saved on this phone. Syncing...';
+          const synced = await syncToKiosk({ silent: true });
+          status.textContent = synced
+            ? 'Saved to your account. Open My Analytics on the originating kiosk to update its logs.'
+            : 'Saved on this phone only. Sign in again or choose Save Progress to retry.';
+        }
+        signInLink.hidden = !!localStorage.getItem('sessionId');
       });
 
       return panel;
@@ -545,7 +557,13 @@
         const sessionId = localStorage.getItem('sessionId');
         if (sessionId) headers.Authorization = `Bearer ${sessionId}`;
         const response = await fetch(`/api/workouts/${encodeURIComponent(workoutId)}`, { cache: 'no-store', headers });
-        if (!response.ok) throw new Error('Workout not found');
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          if (response.status === 404) {
+            throw new Error('This QR code is no longer available. Ask the kiosk to generate a new workout QR code.');
+          }
+          throw new Error(result.error || `Unable to load workout (HTTP ${response.status}).`);
+        }
 
         const result = await response.json();
         workoutData = result.data;
@@ -553,6 +571,9 @@
 
         displayWorkout(result);
         restoreProgress(result);
+        if (exerciseLogEntries.length && localStorage.getItem('sessionId')) {
+          await syncToKiosk({ silent: true });
+        }
       } catch (error) {
         showError(error.message);
       }
@@ -779,12 +800,12 @@
       }
     }
 
-    async function syncToKiosk() {
+    async function syncToKiosk({ silent = false } = {}) {
       try {
         const sessionId = localStorage.getItem('sessionId');
         if (!sessionId) {
-          alert('Your exercise logs are saved on this phone. Sign in from the mobile home page to sync them to your workout account.');
-          return;
+          if (!silent) window.location.href = `/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          return false;
         }
 
         const checkboxes = document.querySelectorAll('.exercise-checkbox');
@@ -803,16 +824,25 @@
           })
         });
 
-        if (!response.ok) throw new Error('Failed to save');
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem('sessionId');
+            document.querySelectorAll('.exercise-log-signin').forEach(link => { link.hidden = false; });
+          }
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || `Failed to save (HTTP ${response.status}).`);
+        }
 
         // Show success message
         const message = document.createElement('div');
         message.className = 'success-message';
-        message.textContent = '✅ Progress saved! My Workout Analytics on the kiosk updates automatically when open.';
+        message.textContent = '✅ Saved to your account. My Analytics on the originating kiosk refreshes every 15 seconds while open.';
         document.getElementById('workoutState').insertAdjacentElement('beforeend', message);
         setTimeout(() => message.remove(), 3000);
+        return true;
       } catch (error) {
-        alert(`Error saving: ${error.message}`);
+        if (!silent) alert(`Error saving: ${error.message}`);
+        return false;
       }
     }
 

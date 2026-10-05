@@ -621,6 +621,62 @@ function testMobileViewerScriptsCompile() {
   });
 }
 
+async function testPhoneLogSyncAndLoginReturn() {
+  const viewer = read('mobile/viewer.html');
+  const start = viewer.indexOf('    async function syncToKiosk(');
+  const end = viewer.indexOf('\n    // Load workout on page load', start);
+  let sessionId = 'test-session';
+  let request = null;
+  let responseStatus = 200;
+  let successMessages = 0;
+  const context = {
+    workoutId: 'test-workout-123',
+    exerciseLogEntries: [{ id: 'set-12345', exerciseKey: '0', exerciseName: 'Press', weight: 150, reps: 10, date: '2026-10-04' }],
+    localStorage: { getItem: () => sessionId, removeItem: () => { sessionId = null; } },
+    window: { location: { pathname: '/workout/test-workout-123', search: '?share=123', href: '' } },
+    document: {
+      querySelectorAll: selector => selector === '.exercise-log-signin' ? [{ hidden: true }] : [{ checked: true }],
+      createElement: () => ({ remove() {} }),
+      getElementById: () => ({ insertAdjacentElement() { successMessages++; } })
+    },
+    setTimeout: () => {}, alert: () => {},
+    fetch: async (_url, options) => {
+      request = options;
+      return { ok: responseStatus === 200, status: responseStatus, json: async () => ({ error: 'Session expired' }) };
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(viewer.slice(start, end), context);
+  assert.equal(await context.syncToKiosk({ silent: true }), true);
+  assert.equal(request.headers.Authorization, 'Bearer test-session');
+  assert.equal(JSON.parse(request.body).exerciseLogs[0].weight, 150);
+  responseStatus = 401;
+  assert.equal(await context.syncToKiosk({ silent: true }), false);
+  assert.equal(sessionId, null, 'expired session must allow signing in again');
+  assert.equal(successMessages, 1, 'a rejected upload must not report server-save success');
+  request = null;
+  assert.equal(await context.syncToKiosk(), false);
+  assert.equal(request, null, 'signed-out users must not upload logs');
+  assert(context.window.location.href.startsWith('/?returnTo='));
+  assert.equal(context.exerciseLogEntries.length, 1, 'failed uploads must preserve local entries');
+  assert(viewer.includes('const synced = await syncToKiosk({ silent: true })'), 'adding a signed-in set must sync it');
+
+  const login = read('mobile/index.html');
+  const loginContext = { URL, URLSearchParams, window: { location: { origin: 'https://app.rdpsplace.me', search: '' } } };
+  vm.createContext(loginContext);
+  vm.runInContext(login.slice(login.indexOf('    function getLoginReturnPath()'), login.indexOf('    function toggleForms()')), loginContext);
+  for (const [target, expected] of [
+    ['/workout/test-workout-123?share=123', '/workout/test-workout-123?share=123'],
+    ['/stretch/test-stretch-123', '/stretch/test-stretch-123'],
+    ['https://example.com/workout/test-workout-123', '/dashboard.html'],
+    ['//example.com/workout/test-workout-123', '/dashboard.html'],
+    ['/admin', '/dashboard.html']
+  ]) {
+    loginContext.window.location.search = `?returnTo=${encodeURIComponent(target)}`;
+    assert.equal(loginContext.getLoginReturnPath(), expected, 'login return path must stay on an allowed same-origin workout');
+  }
+}
+
 async function run() {
   try {
     testSingleInstanceLock();
@@ -650,6 +706,7 @@ async function run() {
     testStretchImagesExist();
     testStretchImagePathsPreserveExistingFilenames();
     testMobileViewerScriptsCompile();
+    await testPhoneLogSyncAndLoginReturn();
     console.log('✅ Kiosk operational policy tests passed');
   } catch (error) {
     console.error('❌ Kiosk operational policy tests failed:', error.message);

@@ -290,6 +290,19 @@
   </div>
 
   <script>
+    function getLoginReturnPath() {
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+      if (!returnTo) return '/dashboard.html';
+      try {
+        const target = new URL(returnTo, window.location.origin);
+        if (target.origin === window.location.origin && /^\/(workout|stretch)\/[a-zA-Z0-9_-]{8,128}$/.test(target.pathname)) {
+          return target.pathname + target.search;
+        }
+      } catch (_error) {
+      }
+      return '/dashboard.html';
+    }
+
     function toggleForms() {
       document.getElementById('loginForm').classList.toggle('hidden');
       document.getElementById('registerForm').classList.toggle('hidden');
@@ -326,7 +339,7 @@
 
         showMessage(messageEl, 'Login successful! Redirecting...', 'success');
         setTimeout(() => {
-          window.location.href = '/dashboard.html';
+          window.location.href = getLoginReturnPath();
         }, 1500);
       } catch (error) {
         showMessage(messageEl, error.message, 'error');
@@ -375,7 +388,7 @@
 
         showMessage(messageEl, 'Account created! Redirecting...', 'success');
         setTimeout(() => {
-          window.location.href = '/dashboard.html';
+          window.location.href = getLoginReturnPath();
         }, 1500);
       } catch (error) {
         showMessage(messageEl, error.message, 'error');
@@ -390,7 +403,7 @@
 
     // Check if already logged in
     const sessionId = localStorage.getItem('sessionId');
-    if (sessionId) {
+    if (sessionId && !new URLSearchParams(window.location.search).has('returnTo')) {
       window.location.href = '/dashboard.html';
     }
   </script>
