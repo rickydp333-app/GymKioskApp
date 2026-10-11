@@ -311,7 +311,7 @@ body {
   font-weight: 600;
 }
 
-#openCreateUserHeaderBtn {
+#openCreateUserHeaderBtn, #openRacquetballBtn {
   width: 480px;
   min-width: 480px;
   padding: 12px 24px;
@@ -331,7 +331,7 @@ body {
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.35);
 }
 
-#openCreateUserHeaderBtn:hover {
+#openCreateUserHeaderBtn:hover, #openRacquetballBtn:hover {
   transform: translateY(-2px);
   border-color: rgba(0, 212, 255, 0.7);
   background: linear-gradient(135deg, rgba(0, 229, 255, 0.33) 0%, rgba(28, 49, 74, 0.98) 60%, rgba(0, 153, 221, 0.92) 100%);
@@ -341,7 +341,7 @@ body {
     0 0 24px rgba(0, 212, 255, 0.24);
 }
 
-#openCreateUserHeaderBtn:active {
+#openCreateUserHeaderBtn:active, #openRacquetballBtn:active {
   transform: translateY(0);
 }
 
@@ -2734,7 +2734,7 @@ select:focus {
     min-height: calc(1.7rem * 1.2 + 20px);
   }
 
-  #openCreateUserHeaderBtn {
+  #openCreateUserHeaderBtn, #openRacquetballBtn {
     width: 340px;
     min-width: 340px;
     font-size: 1.7rem;

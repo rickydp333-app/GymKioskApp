@@ -1,0 +1,26 @@
+.league-welcome { max-width: 1100px; margin: 24px auto; text-align: center; }
+.league-logos { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; }
+.league-logos img { width: min(360px, 90%); height: 120px; object-fit: contain; border-radius: 8px; }
+.league-logos img:first-child { background: white; }
+.league-panel { background: #1a1f2e; padding: 20px; margin: 20px 0; border: 1px solid #718c8a; border-radius: 12px; }
+#leaguePortal { max-width: 1100px; margin: auto; color: #f5f7fa; }
+#leaguePortal [hidden] { display: none !important; }
+#leaguePortal .toolbar { display: flex; flex-wrap: wrap; gap: 12px; }
+#leaguePortal button { min-height: 48px; padding: 12px; color: #fff; background: #12694f; border: 1px solid #718c8a; border-radius: 6px; cursor: pointer; font: inherit; }
+#leaguePortal button:disabled { opacity: .5; cursor: default; }
+#leaguePortal label { display: grid; gap: 6px; margin: 12px 0; }
+#leaguePortal input, #leaguePortal select { color: #fff; background: #111e25; border: 1px solid #718c8a; border-radius: 6px; padding: 12px; font: inherit; min-width: 0; max-width: 100%; }
+#leaguePortal a { color: #84e5d4; }
+#leaguePortal h2, #leaguePortal h3 { color: #d4af37; margin: 16px 0; }
+#leaguePortal p { margin: 12px 0; line-height: 1.6; }
+.league-game, .league-slot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.league-slot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.league-table-wrap { overflow-x: auto; }
+.league-table { width: 100%; border-collapse: collapse; text-align: left; }
+.league-table th, .league-table td { padding: 12px; border-bottom: 1px solid #718c8a; }
+.league-match { padding: 16px 0; border-bottom: 1px solid #718c8a; }
+.league-keypad { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.league-keypad button { min-width: 48px; }
+.league-points { line-height: 1.8; padding-left: 24px; list-style: disc; }
+#racquetballScreen .league-welcome h3 { font-size: 28px; color: #d4af37; }
+@media (max-width: 600px) { .league-slot { grid-template-columns: 1fr; } }

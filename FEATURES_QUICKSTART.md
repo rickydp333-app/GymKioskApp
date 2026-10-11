@@ -251,3 +251,92 @@ Consecutive days with at least 1 workout.
 
 Keep crushing those workouts! 💪🔥
 
+
+# Racquetball touch keyboard
+
+Sign Up, Log In, and administrator PIN reset open a keyboard directly below
+the entry form inside the same panel.
+Tap a field to reopen it. Name and email use letters; phone and PIN use numeric
+keys. Next moves between enabled fields, Done hides the keyboard, and Cancel
+closes the form. The panel scrolls to keep the form and keyboard accessible on
+smaller screens. Typed characters follow the cursor, including when inserting
+or replacing text in a field.
+
+## Racquetball website administration
+
+Open https://app.rdpsplace.me/admin/racquetball and sign in with an existing
+gym website account. Render's `GYMKIOSK_RACQUETBALL_ADMIN_EMAILS` setting lists
+the authorized account emails; the Blueprint grants access to `rickyp3@me.com`.
+This setting does not create an account or change its password.
+An absent or empty setting denies all administrator access.
+Only grant access after the account exists. Public registration cannot claim an
+email reserved in the administrator allowlist.
+
+The private page lists each player's name, email, phone, and signup date, with
+search and refresh controls. Player contacts are not available to unauthenticated
+visitors or ordinary gym accounts. Plaintext PINs are never uploaded. Salted
+scrypt verification hashes are synchronized over HTTPS using the private kiosk
+device key so players can sign in online with the same email/PIN.
+
+Kiosk registrations and their upload queue are saved together in SQLite.
+Uploads use the same private Render device key configured in kiosk Admin
+Settings for phone QR exports. Existing registrations are queued on startup.
+New registrations trigger an upload, and failed or offline uploads retry every
+minute while the kiosk is running. A signup succeeds locally even when offline.
+
+Deploy the updated server and synchronize the Render Blueprint settings before
+using the page. Restart the updated kiosk so it can upload players. Contact
+records persist on Render's configured data disk and survive server restarts.
+
+### Racquetball website calendar
+
+The public calendar is at https://app.rdpsplace.me/racquetball, linked from the
+gym website home page and the administrator page. Visitors can browse months,
+select a date for event details, use Today, and refresh for schedule updates.
+The calendar starts empty; no placeholder matches are published.
+
+Sign into the existing Racquetball administrator page to add, edit, or delete
+matches, practices, and other events. Each entry has a title, date, start/end
+time, optional location/court, and public notes. All times are Eastern Time
+(Ontario), not the visitor's local time. End times must be later on the same
+day; split an overnight event into separate dates. Entries are persisted in
+SQLite and visible publicly after saving. Do not enter private player contact
+details in titles or notes. Deletion requires confirmation.
+
+The website is the shared source for kiosk schedules and standings. Kiosks cache
+up to 25 public views for offline use and show their saved-data timestamp. Online
+login, score submission, and rescheduling require internet.
+
+### 2026–27 league play
+
+The branded Racquetball home page includes Norfolk Fitness and RDP logos, league
+points, public standings, and (after player sign-in) a Canadian rules summary and
+My Scheduled Games. The public standings also have a direct URL:
+https://app.rdpsplace.me/racquetball/standings. Only player names and aggregate
+results are public; contact details and credential hashes remain private.
+
+Admins assign two registered players to each match. Scheduling and accepted
+changes reject overlapping player bookings or the same named court. Use
+consistent court names. Matches use best-of-three: games 1/2 to 15, game 3 to 11,
+with a two-point winning margin in every game. Straight wins/forfeits earn 5
+points; tiebreak wins 4; tiebreak losses 2; straight losses scoring at least 20
+total points earn 1, otherwise 0. Forfeiting earns 0 without artificial scores.
+Ranking uses points, wins, then scored-point differential; equal records tie.
+
+Either assigned player can submit a full match result. A durable email queue
+sends the opponent a confirmation link; standings change only after explicit
+approval on the website. Visiting an email link alone does not approve anything.
+Links expire in seven days and cannot be reused. Rejected scores become disputes
+for admin resolution. Admins can confirm/correct a result or clear it to reopen
+a match; edits invalidate old confirmation requests.
+
+Players may suggest one to three alternative date/time slots. The opponent can
+select and accept one, or decline all. Acceptance checks conflicts again and
+updates the shared calendar. Both actions also work from My Scheduled Games
+after sign-in. Confirmation emails use the existing `ALERT_SMTP_*` settings and
+`ALERT_EMAIL_FROM` sender; failed delivery retries every minute. Missing email
+configuration is reported in server logs, and requests remain pending.
+
+The Canadian rules panel is an original summary with official Racquetball Canada
+and IRF links. It explicitly distinguishes this local league's scoring format
+from federation competition rules. Rules were checked October 10, 2026.

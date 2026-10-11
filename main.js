@@ -12,6 +12,8 @@ const crypto = require('crypto');
 const http = require('http');
 const { createAdminSettings } = require('./lib/admin-settings');
 const { resolveDataDirectory } = require('./lib/persistent-store');
+const { createRacquetballStore } = require('./lib/racquetball-store');
+const { createRacquetballSync } = require('./lib/racquetball-sync');
 
 const ROOT_DIR = __dirname;
 const DATA_DIR = resolveDataDirectory();
@@ -28,6 +30,9 @@ try {
 let mainWindow;
 let serverProcess = null;
 let adminSettings = null;
+let racquetballStore = null;
+let racquetballSync = null;
+let leagueBridgeRegistered = false;
 const adminSessions = new Map();
 const failedPinAttempts = new Map();
 const ADMIN_SESSION_TTL_MS = 15 * 60 * 1000;
@@ -160,6 +165,31 @@ ipcMain.handle('admin-validate-pin', (event, pin) => {
   return { success: true, token, expiresInMs: ADMIN_SESSION_TTL_MS };
 });
 
+for (const [channel, method] of [
+  ['racquetball-sign-up', 'signUp'],
+  ['racquetball-log-in', 'logIn'],
+  ['racquetball-list-members', 'listMembers'],
+  ['racquetball-reset-pin', 'resetPin']
+]) {
+  ipcMain.handle(channel, async (event, payload = {}) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== mainWindow || event.senderFrame !== event.sender.mainFrame) {
+      return { success: false, error: 'Kiosk window authorization required.' };
+    }
+    try {
+      initializeRacquetball();
+      const result = racquetballStore[method](method === 'listMembers' ? payload.token : payload);
+      if (method === 'signUp' && result.success) {
+        void racquetballSync.flush();
+        result.websiteSync = 'queued';
+      }
+      return result;
+    } catch (error) {
+      console.error('Racquetball storage request failed:', error.message);
+      return { success: false, error: 'Unable to access league registration storage. Your request was not completed.' };
+    }
+  });
+}
+
 ipcMain.handle('admin-change-pin', (_event, payload = {}) => {
   if (!isValidAdminSession(payload.token)) {
     return { success: false, error: 'Administrator session expired.' };
@@ -277,6 +307,11 @@ async function startLocalServer() {
 
 app.whenReady().then(() => {
   adminSettings = createAdminSettings(path.dirname(resolveDataDirectory()));
+  try {
+    initializeRacquetball();
+  } catch (error) {
+    console.error('Unable to initialize Racquetball player synchronization:', error.message);
+  }
   startLocalServer().catch((error) => console.error('Unable to start local server:', error.message));
   const autoStartEnabled = getKioskAutoStartSetting();
   applyKioskAutoStartOnBoot(autoStartEnabled);
@@ -296,5 +331,74 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true;
+  racquetballSync?.stop();
+  if (racquetballStore) racquetballStore.close();
   if (serverProcess && !serverProcess.killed) serverProcess.kill();
 });
+
+function initializeRacquetball() {
+  if (!racquetballStore) racquetballStore = createRacquetballStore({ dataDir: DATA_DIR, isAdmin: isValidAdminSession });
+  if (!racquetballSync) {
+    racquetballSync = createRacquetballSync({
+      store: racquetballStore,
+      getDeviceKey: () => adminSettings?.getKioskDeviceKey(safeStorage)
+    });
+    racquetballSync.start();
+  }
+
+  if (leagueBridgeRegistered) return;
+  const leagueCachePath = path.join(DATA_DIR, 'league-public-cache.json');
+  const publicLeaguePath = value => value === '/api/racquetball/standings' || /^\/api\/racquetball\/schedule\?month=(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(value);
+  ipcMain.handle('racquetball-league-request', async (event, payload = {}) => {
+    if (BrowserWindow.fromWebContents(event.sender) !== mainWindow || event.senderFrame !== event.sender.mainFrame) {
+      return { success: false, error: 'Kiosk window authorization required.' };
+    }
+    const requestPath = String(payload.path || ''), method = payload.method || 'GET';
+    const allowed = publicLeaguePath(requestPath) && method === 'GET' ||
+      ['/api/racquetball/login', '/api/racquetball/logout'].includes(requestPath) && method === 'POST' ||
+      requestPath === '/api/racquetball/my-matches' && method === 'GET' ||
+      /^\/api\/racquetball\/matches\/[a-zA-Z0-9_-]+\/(scores|reschedule)$/.test(requestPath) && method === 'POST' ||
+      /^\/api\/racquetball\/requests\/[a-zA-Z0-9_-]+\/respond$/.test(requestPath) && method === 'POST';
+    if (!allowed) return { success: false, error: 'Invalid league request.' };
+    const readCache = () => {
+      if (!fs.existsSync(leagueCachePath)) return {};
+      return JSON.parse(fs.readFileSync(leagueCachePath, 'utf8'));
+    };
+    let response;
+    try {
+      response = await fetch(`https://app.rdpsplace.me${requestPath}`, {
+        method, headers: { 'Content-Type': 'application/json', ...(payload.token ? { Authorization: `Bearer ${payload.token}` } : {}) },
+        ...(payload.body ? { body: JSON.stringify(payload.body) } : {}), signal: AbortSignal.timeout(15000)
+      });
+    } catch (error) {
+      console.error('Hosted Racquetball request unavailable:', error.message);
+      if (publicLeaguePath(requestPath)) {
+        try {
+          const cached = readCache()[requestPath];
+          if (cached) return { success: true, data: cached.data, cached: true, cachedAt: cached.savedAt };
+        } catch (cacheError) { console.error('Unable to read league cache:', cacheError.message); }
+      }
+      return { success: false, error: 'Internet is required for this league action. No saved data is available for this view.' };
+    }
+    try {
+      const data = await response.json();
+      if (!response.ok || !data.success) return { success: false, status: response.status, error: data.error || 'League request failed.' };
+      if (publicLeaguePath(requestPath)) {
+        try {
+          const cache = readCache();
+          cache[requestPath] = { data, savedAt: new Date().toISOString() };
+          const keys = Object.keys(cache);
+          while (keys.length > 25) delete cache[keys.shift()];
+          const temp = `${leagueCachePath}.tmp`;
+          fs.writeFileSync(temp, JSON.stringify(cache));
+          fs.renameSync(temp, leagueCachePath);
+        } catch (error) { console.error('Unable to save public league cache:', error.message); }
+      }
+      return { success: true, data };
+    } catch (error) {
+      console.error('Invalid hosted league response:', error.message);
+      return { success: false, error: 'The league server returned an invalid response.' };
+    }
+  });
+  leagueBridgeRegistered = true;
+}

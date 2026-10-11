@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Racquetball Schedule - RDPs</title>
+  <link rel="stylesheet" href="/css/racquetball-web.css">
+  <link rel="stylesheet" href="/css/racquetball-portal.css">
+</head>
+<body>
+  <main>
+    <nav aria-label="Website"><a href="/">Gym website</a><a href="/admin/racquetball">Administrator</a></nav>
+    <header class="league-welcome">
+      <div class="league-logos"><img src="/assets/branding/norfolk-fitness.png" alt="Norfolk Fitness"><img src="/assets/branding/logo.png" alt="RDPs Strength and Conditioning"></div>
+      <h1>Welcome to Racquetball</h1>
+      <p>Your next rally starts here. Play hard, respect your opponent, and grow stronger together at Norfolk Fitness with RDPs Strength &amp; Conditioning.</p>
+      <p>2026–27 season · All schedule times are Eastern Time (Ontario).</p>
+    </header>
+    <div id="leaguePortal"></div>
+    <section class="card" aria-labelledby="monthHeading">
+      <div class="toolbar">
+        <button id="previousMonth" type="button" aria-label="Previous month">Previous</button>
+        <h2 id="monthHeading" aria-live="polite"></h2>
+        <button id="nextMonth" type="button" aria-label="Next month">Next</button>
+        <button id="today" type="button">Today</button>
+        <button id="refreshSchedule" type="button">Refresh</button>
+      </div>
+      <p id="calendarStatus" role="status" aria-live="polite"></p>
+      <div id="calendar" class="calendar" aria-labelledby="monthHeading"></div>
+    </section>
+    <section class="card" aria-labelledby="selectedDayHeading">
+      <h2 id="selectedDayHeading"></h2>
+      <div id="dayEvents"></div>
+    </section>
+  </main>
+  <script src="/js/racquetball-web.js"></script>
+  <script src="/js/racquetball-portal.js"></script>
+</body>
+</html>

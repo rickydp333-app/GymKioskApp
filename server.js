@@ -7,6 +7,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { createPersistentStore } = require('./lib/persistent-store');
 const { createWebsiteSync } = require('./lib/website-sync');
+const { createRacquetballStore } = require('./lib/racquetball-store');
+const { createLeague, LeagueError } = require('./lib/racquetball-league');
+const { createLeagueMailer } = require('./lib/racquetball-mail');
 
 try {
   require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -52,6 +55,9 @@ const API_RATE_LIMIT_WINDOW_MS = Math.max(10_000, Number(process.env.API_RATE_LI
 const API_RATE_LIMIT_MAX = Math.max(30, Number(process.env.API_RATE_LIMIT_MAX || 240));
 const KIOSK_DEVICE_KEY = String(process.env.GYMKIOSK_DEVICE_KEY || '');
 const WEBSITE_SYNC_KEY = String(process.env.GYMKIOSK_SYNC_KEY || '');
+const RACQUETBALL_ADMIN_EMAILS = new Set(
+  String(process.env.GYMKIOSK_RACQUETBALL_ADMIN_EMAILS || '').split(',').map(email => email.trim().toLowerCase()).filter(Boolean)
+);
 const ALLOWED_ORIGINS = new Set(
   (process.env.ALLOWED_ORIGINS || '')
     .split(',')
@@ -395,6 +401,9 @@ function sendFirstExistingFile(res, absolutePaths = []) {
 const persistentStore = createPersistentStore({ sourceDataDir: path.join(__dirname, 'data') });
 const websiteSync = createWebsiteSync({ store: persistentStore });
 const DATA_DIR = persistentStore.dataDir;
+const racquetballStore = createRacquetballStore({ dataDir: DATA_DIR });
+const league = createLeague({ dataDir: DATA_DIR });
+const leagueMailer = createLeagueMailer({ league, transporter: alertTransporter, from: ALERT_EMAIL_FROM });
 const WORKOUTS_FILE = persistentStore.databasePath;
 const USERS_FILE = persistentStore.databasePath;
 const CALENDARS_FILE = persistentStore.databasePath;
@@ -610,6 +619,123 @@ function isValidIdentifier(value, maxLength = 128) {
   return typeof value === 'string' && value.length >= 8 && value.length <= maxLength && /^[a-zA-Z0-9_-]+$/.test(value);
 }
 
+app.get('/admin/racquetball', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  sendMobileFile(res, 'racquetball-admin.html');
+});
+
+app.get('/racquetball', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  sendMobileFile(res, 'racquetball.html');
+});
+for (const route of ['/racquetball/standings', '/racquetball/rules', '/racquetball/confirm']) {
+  app.get(route, (_req, res) => { res.setHeader('Cache-Control', 'no-store'); sendMobileFile(res, 'racquetball.html'); });
+}
+
+function leagueOperation(res, operation, status = 200) {
+  try { return res.status(status).json(operation()); }
+  catch (error) {
+    if (!(error instanceof LeagueError)) {
+      console.error('Racquetball league operation failed:', error.message);
+      return res.status(500).json({ error: 'Unable to save league changes. Please retry.' });
+    }
+    return res.status(400).json({ error: error.message });
+  }
+}
+function requireLeaguePlayer(req, res, next) {
+  res.setHeader('Cache-Control', 'no-store');
+  const token = req.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  const email = league.session(token);
+  if (!email) return res.status(401).json({ error: 'Sign into your Racquetball account again.' });
+  req.leagueEmail = email;
+  next();
+}
+app.post('/api/racquetball/login', (req, res) => leagueOperation(res, () => league.logIn(req.body)));
+app.post('/api/racquetball/logout', (req, res) => {
+  league.logOut(req.get('Authorization')?.replace(/^Bearer\s+/i, ''));
+  res.json({ success: true });
+});
+app.get('/api/racquetball/my-matches', requireLeaguePlayer, (req, res) => res.json({ success: true, matches: league.myMatches(req.leagueEmail) }));
+app.get('/api/racquetball/standings', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(league.standings());
+});
+app.post('/api/racquetball/matches/:id/scores', requireLeaguePlayer, (req, res) => leagueOperation(res, () => {
+  const result = league.submitScore(req.params.id, req.leagueEmail, req.body);
+  void leagueMailer.flush();
+  return result;
+}));
+app.post('/api/racquetball/matches/:id/reschedule', requireLeaguePlayer, (req, res) => leagueOperation(res, () => {
+  const result = league.propose(req.params.id, req.leagueEmail, req.body);
+  void leagueMailer.flush();
+  return result;
+}));
+app.post('/api/racquetball/confirmation/review', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  leagueOperation(res, () => league.review(String(req.body?.token || '')));
+});
+app.post('/api/racquetball/confirmation/respond', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  leagueOperation(res, () => league.respond({ ...req.body, token: String(req.body?.token || ''), requestId: undefined, email: undefined }));
+});
+app.post('/api/racquetball/requests/:id/respond', requireLeaguePlayer, (req, res) => leagueOperation(res, () => league.respond({
+  requestId: req.params.id, email: req.leagueEmail, decision: req.body.decision, option: req.body.option
+})));
+
+function requireRacquetballAdmin(req, res, next) {
+  res.setHeader('Cache-Control', 'no-store');
+  const session = getAuthenticatedUser(req, res);
+  if (!session) return;
+  if (!RACQUETBALL_ADMIN_EMAILS.has(String(session.user.email).trim().toLowerCase())) {
+    return res.status(403).json({ error: 'This account is not authorized to manage Racquetball.' });
+  }
+  next();
+}
+
+app.get('/api/racquetball/schedule', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const month = req.query.month;
+  if (typeof month !== 'string' || !/^(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(month)) {
+    return res.status(400).json({ error: 'Choose a month between 2000-01 and 2100-12.' });
+  }
+  res.json({ success: true, timeZone: 'America/Toronto', events: league.schedule(month) });
+});
+
+app.post('/api/admin/racquetball/schedule', requireRacquetballAdmin, (req, res) => {
+  leagueOperation(res, () => league.saveSchedule(req.body), 201);
+});
+
+app.put('/api/admin/racquetball/schedule/:id', requireRacquetballAdmin, (req, res) => {
+  leagueOperation(res, () => league.saveSchedule(req.body, req.params.id, true));
+});
+
+app.delete('/api/admin/racquetball/schedule/:id', requireRacquetballAdmin, (req, res) => {
+  leagueOperation(res, () => league.deleteSchedule(req.params.id));
+});
+app.get('/api/admin/racquetball/matches', requireRacquetballAdmin, (_req, res) => res.json({ success: true, matches: league.adminMatches() }));
+app.get('/api/admin/racquetball/schedule', requireRacquetballAdmin, (req, res) => {
+  const month = req.query.month;
+  if (typeof month !== 'string' || !/^(20\d{2}|2100)-(0[1-9]|1[0-2])$/.test(month)) return res.status(400).json({ error: 'Choose a valid month.' });
+  res.json({ success: true, events: league.adminSchedule(month) });
+});
+app.post('/api/admin/racquetball/matches/:id/result', requireRacquetballAdmin, (req, res) => leagueOperation(res, () => league.correctResult(req.params.id, req.body)));
+
+app.post('/api/racquetball/players/sync', (req, res) => {
+  // Unlike local kiosk operations, hosted contact imports always require a device key.
+  const supplied = req.get('x-gymkiosk-key') || '';
+  const expected = Buffer.from(KIOSK_DEVICE_KEY);
+  const candidate = Buffer.from(supplied);
+  if (!expected.length || candidate.length !== expected.length || !crypto.timingSafeEqual(candidate, expected)) {
+    return res.status(401).json({ error: 'Kiosk device authorization required' });
+  }
+  const result = racquetballStore.receivePlayers(req.body.players);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+app.get('/api/admin/racquetball/players', requireRacquetballAdmin, (req, res) => {
+  res.json({ success: true, players: racquetballStore.websitePlayers() });
+});
+
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -742,6 +868,9 @@ app.post('/api/auth/register', (req, res) => {
     if (String(user.email).toLowerCase() === normalizedEmail) {
       return res.status(409).json({ error: 'Email already registered' });
     }
+  }
+  if (RACQUETBALL_ADMIN_EMAILS.has(normalizedEmail)) {
+    return res.status(403).json({ error: 'Administrator accounts must already exist before access is granted. Contact the site administrator.' });
   }
 
   const userId = uuidv4();
@@ -1452,6 +1581,7 @@ const server = app.listen(PORT, () => {
 
 cleanupRuntimeData();
 websiteSync.start();
+leagueMailer.start();
 const cleanupTimer = setInterval(cleanupRuntimeData, CLEANUP_INTERVAL_MS);
 cleanupTimer.unref();
 
@@ -1465,10 +1595,12 @@ process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
   clearInterval(cleanupTimer);
   websiteSync.stop();
+  leagueMailer.stop();
   server.close(() => {
+    racquetballStore.close();
+    league.close();
     persistentStore.close();
     console.log('Server closed');
     process.exit(0);
   });
 });
-

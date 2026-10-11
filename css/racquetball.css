@@ -1,0 +1,45 @@
+.racquetball-entry { display: flex; justify-content: center; margin: 0 16px 20px; }
+
+.racquetball-member-bar, .racquetball-schedule { max-width: 1100px; margin: 24px auto; }
+.racquetball-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.racquetball-actions[hidden], .racquetball-keyboard[hidden], #racquetballMemberForm label[hidden] { display: none; }
+.racquetball-actions button { min-height: 48px; padding: 12px 24px; }
+.racquetball-schedule h3 { color: var(--color-gold); margin-bottom: 16px; }
+.racquetball-calendar-toolbar { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px auto; gap: 8px; align-items: center; margin-bottom: 16px; }
+.racquetball-calendar-toolbar h4 { font-size: 22px; text-align: center; margin: 0; }
+.racquetball-calendar-toolbar button { min-width: 0; width: 100%; min-height: 48px; padding: 8px; }
+#racquetballTodayBtn { min-width: 80px; }
+.racquetball-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid #718c8a; border-left: 1px solid #718c8a; }
+.racquetball-weekday { padding: 10px 2px; font-weight: 700; text-align: center; background: #173b32; border-right: 1px solid #718c8a; border-bottom: 1px solid #718c8a; }
+.racquetball-day { min-width: 0; height: 80px; padding: 10px; border: 0; border-right: 1px solid #718c8a; border-bottom: 1px solid #718c8a; background: #17222b; color: #f5f7fa; font-size: 20px; text-align: left; cursor: pointer; }
+.racquetball-day:disabled { background: #11181d; cursor: default; }
+.racquetball-day.is-today { box-shadow: inset 0 0 0 2px #ffe078; }
+.racquetball-day.is-selected { background: #12694f; }
+.racquetball-day:focus-visible { outline: 3px solid #84e5d4; outline-offset: -4px; }
+.racquetball-selected-date { color: #84e5d4; margin: 16px 0 8px; font-weight: 700; }
+.racquetball-empty, #racquetballStatus { color: var(--text-secondary); min-height: 24px; margin-top: 10px; }
+.racquetball-modal { z-index: 10035; padding: 12px; }
+.racquetball-form-card { width: min(700px, 100%); max-height: 92vh; overflow-y: auto; border-radius: 8px; padding: 24px; }
+#racquetballMemberForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+#racquetballMemberForm label { display: grid; gap: 6px; min-width: 0; }
+#racquetballMemberForm input { width: 100%; min-width: 0; padding: 12px; font-size: 20px; border-radius: 6px; }
+#racquetballMemberForm .racquetball-actions, .racquetball-form-error { grid-column: 1 / -1; }
+.racquetball-form-error { color: #ffb4b4; min-height: 24px; margin: 0; }
+.racquetball-keyboard { margin-top: 18px; padding: 14px 0 0; border-top: 2px solid #718c8a; background: #111e25; }
+.racquetball-keyboard h4 { margin: 0 0 8px; }
+.racquetball-keyboard-row { display: flex; justify-content: center; gap: 4px; margin: 4px 0; }
+.racquetball-key { flex: 1; min-width: 0; min-height: 44px; padding: 4px; background: #23453d; color: white; border: 1px solid #84a69b; border-radius: 6px; font-size: 18px; cursor: pointer; }
+.racquetball-key.is-command { flex: 2; }
+.racquetball-admin-settings { display: grid; gap: 10px; padding: 18px 0; border-bottom: 1px solid #718c8a; }
+.racquetball-admin-settings select { width: 100%; max-width: 600px; padding: 12px; font-size: 18px; }
+@media (max-width: 600px) {
+  #racquetballMemberForm { grid-template-columns: minmax(0, 1fr); }
+  .racquetball-form-card { padding: 16px; }
+  .racquetball-calendar-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  #racquetballTodayBtn { grid-column: 1 / -1; }
+  .racquetball-calendar-toolbar h4 { font-size: 18px; }
+  .racquetball-day { height: 52px; font-size: 16px; padding: 6px; }
+  .racquetball-weekday { font-size: 12px; }
+  .racquetball-key { font-size: 14px; }
+  .racquetball-command-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -7,6 +7,7 @@ const asar = require('@electron/asar');
 const repoRoot = path.resolve(__dirname, '..');
 const packageJson = require(path.join(repoRoot, 'package.json'));
 const version = packageJson.version || '0.0.0';
+const buildCreatedAt = new Date().toISOString();
 const installsRoot = path.join(repoRoot, '..', 'installs');
 const outputDir = path.join(installsRoot, `gymkiosk-install-set-v${version}`);
 const zipPath = path.join(installsRoot, `gymkiosk-install-set-v${version}.zip`);
@@ -47,7 +48,7 @@ function runBuild(configFile) {
   });
 
   if (result.status !== 0) {
-    process.exit(result.status || 1);
+    throw new Error(`Installer build failed for ${configFile} (exit ${result.status || 1})`);
   }
 }
 
@@ -86,6 +87,21 @@ function verifyPackagedApp(target) {
     '/mobile/viewer.html',
     '/screensaver-tutorial.html',
     '/js/kiosk-tutorial.js',
+    '/js/racquetball.js',
+    '/css/racquetball.css',
+    '/lib/racquetball-store.js',
+    '/lib/racquetball-sync.js',
+    '/lib/racquetball-league.js',
+    '/lib/racquetball-mail.js',
+    '/js/racquetball-portal.js',
+    '/css/racquetball-portal.css',
+    '/assets/branding/norfolk-fitness.png',
+    '/preload.js',
+    '/js/racquetball-admin.js',
+    '/mobile/racquetball-admin.html',
+    '/mobile/racquetball.html',
+    '/js/racquetball-web.js',
+    '/css/racquetball-web.css',
     '/css/kiosk-tutorial.css',
     '/lib/user-pin-vault.js',
     '/assets/branding/logo.png',
@@ -106,9 +122,10 @@ function verifyPackagedApp(target) {
   }
   const packagedVersion = JSON.parse(asar.extractFile(asarPath, 'package.json').toString('utf8')).version;
   if (packagedVersion !== version) throw new Error(`${target.label} package has incorrect version ${packagedVersion}`);
-  const sourceFiles = ['server.js', 'index.html', 'js/ui.js', 'js/analytics.js', 'js/reset.js', 'js/kiosk-tutorial.js', 'mobile/viewer.html', 'screensaver-tutorial.html', 'css/style.css', 'lib/user-pin-vault.js', target.name === 'kiosk' ? 'main.js' : 'main-admin.js'];
+  const sourceFiles = ['server.js', 'index.html', 'js/ui.js', 'js/analytics.js', 'js/reset.js', 'js/kiosk-tutorial.js', 'js/racquetball.js', 'css/racquetball.css', 'lib/racquetball-store.js', 'lib/racquetball-sync.js', 'js/racquetball-admin.js', 'mobile/racquetball-admin.html', 'mobile/racquetball.html', 'js/racquetball-web.js', 'css/racquetball-web.css', 'mobile/index.html', 'mobile/viewer.html', 'screensaver-tutorial.html', 'css/style.css', 'lib/user-pin-vault.js', target.name === 'kiosk' ? 'main.js' : 'main-admin.js'];
+  sourceFiles.push('lib/racquetball-league.js', 'lib/racquetball-mail.js', 'js/racquetball-portal.js', 'css/racquetball-portal.css', 'assets/branding/norfolk-fitness.png', 'preload.js');
   for (const file of sourceFiles) {
-    if (!asar.extractFile(asarPath, file).equals(fs.readFileSync(path.join(repoRoot, file)))) {
+    if (!asar.extractFile(asarPath, path.normalize(file)).equals(fs.readFileSync(path.join(repoRoot, file)))) {
       throw new Error(`${target.label} package does not match current source: ${file}`);
     }
   }
@@ -174,7 +191,7 @@ function copyInstaller(target, installerPath) {
 function writeBundleNotes(entries) {
   const readmePath = path.join(outputDir, 'INSTALL_SET_README.txt');
   const manifestPath = path.join(outputDir, 'install-set-manifest.json');
-  const createdAt = new Date().toISOString();
+  const createdAt = buildCreatedAt;
   const readmeLines = [
     'GymKiosk Install Set',
     `Version: ${version}`,
@@ -208,13 +225,20 @@ function createZipBundle() {
     '-NoProfile',
     '-NonInteractive',
     '-Command',
-    '& { param([string]$source, [string]$destination) Compress-Archive -LiteralPath $source -DestinationPath $destination -CompressionLevel Optimal -Force }',
+    '& { param([string]$source, [string]$destination) $ErrorActionPreference = "Stop"; try { Compress-Archive -LiteralPath $source -DestinationPath $destination -CompressionLevel Optimal -Force -ErrorAction Stop; if (-not (Test-Path -LiteralPath $destination)) { throw "Archive was not created" } } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 } }',
     outputDir,
     zipPath
   ], { cwd: installsRoot, stdio: 'inherit' });
 
   if (result.status !== 0 || !fs.existsSync(zipPath)) {
+    fs.rmSync(zipPath, { force: true });
     throw new Error('Unable to create the complete install-set ZIP');
+  }
+
+  const archiveTest = spawnSync('tar.exe', ['-tf', zipPath], { stdio: 'ignore' });
+  if (archiveTest.status !== 0) {
+    fs.rmSync(zipPath, { force: true });
+    throw new Error('Install-set ZIP failed its archive integrity check');
   }
 
   const hash = computeSha256(zipPath);

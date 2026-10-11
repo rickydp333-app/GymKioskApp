@@ -17,6 +17,8 @@ services:
         generateValue: true
       - key: GYMKIOSK_DATA_DIR
         value: /var/data/gymkiosk
+      - key: GYMKIOSK_RACQUETBALL_ADMIN_EMAILS
+        value: rickyp3@me.com
       - key: NODE_VERSION
         value: "24.19.0"
       - key: NODE_ENV

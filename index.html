@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/calendar.css" />
   <link rel="stylesheet" href="css/kiosk-tutorial.css" />
+  <link rel="stylesheet" href="css/racquetball.css" />
+  <link rel="stylesheet" href="css/racquetball-portal.css" />
 </head>
 
 <body>
@@ -87,6 +89,9 @@
     <h2 class="title">Select Your Profile</h2>
     <button id="openCreateUserHeaderBtn" class="control-btn">＋ Create User</button>
   </div>
+  <div class="racquetball-entry">
+    <button id="openRacquetballBtn" class="control-btn" type="button">Racquetball</button>
+  </div>
 
   <div class="user-search">
     <input id="userSearchInput" class="user-search-input" type="text" placeholder="Search users..." autocomplete="off" />
@@ -98,6 +103,72 @@
 <!-- ===============================
   MAIN ACTIONS SCREEN (After Profile Selection)
 ================================ -->
+<section id="racquetballScreen" class="screen hidden" aria-labelledby="racquetballHeading">
+  <button id="racquetballBackBtn" class="back-btn" type="button">Back to Profiles</button>
+  <h2 id="racquetballHeading" class="title">Racquetball</h2>
+  <header class="league-welcome">
+    <div class="league-logos"><img src="assets/branding/norfolk-fitness.png" alt="Norfolk Fitness"><img src="assets/branding/logo.png" alt="RDPs Strength and Conditioning"></div>
+    <h3>Welcome to Racquetball</h3>
+    <p>Your next rally starts here. Play hard, respect your opponent, and grow stronger together at Norfolk Fitness with RDPs Strength &amp; Conditioning.</p>
+  </header>
+  <div class="racquetball-member-bar">
+    <div id="racquetballAuthActions" class="racquetball-actions">
+      <button id="racquetballSignUpBtn" class="primary-btn" type="button">Sign Up</button>
+      <button id="racquetballLogInBtn" class="control-btn" type="button">Log In</button>
+    </div>
+    <div id="leaguePortal" data-kiosk="true"></div>
+    <div id="racquetballSignedIn" class="racquetball-actions" hidden>
+      <span id="racquetballMemberName"></span>
+      <button id="racquetballLogOutBtn" class="control-btn" type="button">Log Out</button>
+    </div>
+    <p id="racquetballStatus" role="status" aria-live="polite"></p>
+  </div>
+  <section class="racquetball-schedule" aria-labelledby="racquetballScheduleHeading">
+    <h3 id="racquetballScheduleHeading">League Schedule</h3>
+    <div class="racquetball-calendar-toolbar">
+      <button id="racquetballPreviousMonth" class="control-btn" type="button" aria-label="Previous month" title="Previous month">&larr;</button>
+      <h4 id="racquetballMonthHeading" aria-live="polite"></h4>
+      <button id="racquetballNextMonth" class="control-btn" type="button" aria-label="Next month" title="Next month">&rarr;</button>
+      <button id="racquetballTodayBtn" class="control-btn" type="button">Today</button>
+    </div>
+    <div id="racquetballCalendar" class="racquetball-calendar" aria-labelledby="racquetballMonthHeading"></div>
+    <p id="racquetballSelectedDate" class="racquetball-selected-date"></p>
+    <p id="racquetballScheduleEmpty" class="racquetball-empty" role="status">No league matches scheduled yet.</p>
+  </section>
+</section>
+
+<div id="racquetballMemberModal" class="modal hidden racquetball-modal" role="dialog" aria-modal="true" aria-labelledby="racquetballFormHeading">
+  <div class="modal-card racquetball-form-card">
+    <h3 id="racquetballFormHeading">Racquetball Sign Up</h3>
+    <form id="racquetballMemberForm">
+      <label id="racquetballFullNameLabel" for="racquetballFullName">Full Name
+        <input id="racquetballFullName" name="fullName" type="text" autocomplete="off" maxlength="120">
+      </label>
+      <label id="racquetballEmailLabel" for="racquetballEmail">Email
+        <input id="racquetballEmail" name="email" type="text" inputmode="email" autocomplete="off" maxlength="254" required>
+      </label>
+      <label id="racquetballPhoneLabel" for="racquetballPhone">Phone Number
+        <input id="racquetballPhone" name="phone" type="text" inputmode="tel" autocomplete="off" maxlength="40">
+      </label>
+      <label for="racquetballPin">4-Digit PIN
+        <input id="racquetballPin" name="pin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{4}" maxlength="4" required>
+      </label>
+      <label id="racquetballConfirmPinLabel" for="racquetballConfirmPin">Confirm PIN
+        <input id="racquetballConfirmPin" name="confirmPin" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{4}" maxlength="4">
+      </label>
+      <p id="racquetballFormError" class="racquetball-form-error" role="alert"></p>
+      <div class="racquetball-actions">
+        <button id="racquetballSaveMemberBtn" class="primary-btn" type="submit">Save Registration</button>
+        <button id="racquetballCancelMemberBtn" class="control-btn" type="button">Cancel</button>
+      </div>
+    </form>
+    <section id="racquetballKeyboard" class="racquetball-keyboard" aria-label="On-screen keyboard" hidden>
+      <h4 id="racquetballKeyboardLabel">Keyboard</h4>
+      <div id="racquetballKeyboardKeys"></div>
+    </section>
+  </div>
+</div>
+
 <div id="mainActionsScreen" class="screen hidden">
   <h2 class="title">Welcome <span id="currentUserDisplay"></span></h2>
   <button id="startKioskTutorial" class="primary-btn" type="button" style="display:block;margin:0 auto 24px;">Show me how to use</button>
@@ -597,6 +668,14 @@
   <h2 class="title">Admin Panel</h2>
 
   <div class="admin-actions">
+    <section class="racquetball-admin-settings" aria-labelledby="racquetballRecoveryHeading">
+      <h3 id="racquetballRecoveryHeading">Racquetball PIN Recovery</h3>
+      <button id="racquetballLoadMembersBtn" class="control-btn" type="button">Load League Members</button>
+      <label for="racquetballResetMember">League Member</label>
+      <select id="racquetballResetMember"><option value="">Select a member</option></select>
+      <button id="racquetballResetPinBtn" class="control-btn" type="button">Reset Member PIN</button>
+      <p id="racquetballRecoveryStatus" role="status" aria-live="polite"></p>
+    </section>
     <button id="resetApp" class="control-btn">
       🔄 Return to Profile Screen
     </button>
@@ -1538,6 +1617,8 @@
 <script src="js/challenges-module.js"></script>
 <script src="js/ui.js?v=20260528-builder-filter"></script>
 <script src="js/kiosk-tutorial.js"></script>
+<script src="js/racquetball.js"></script>
+<script src="js/racquetball-portal.js"></script>
 <script src="js/reset.js"></script>
 <script src="renderer.js"></script>
 </body>

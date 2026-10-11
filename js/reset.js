@@ -117,6 +117,7 @@ function showScreensaverFallback() {
 
 function startScreensaver(options = {}) {
   window.kioskTutorial?.close();
+  window.racquetball?.logOut();
   const { skipAutoLogout = false } = options;
   console.log('RESET.JS: Starting screensaver rotation');
 

@@ -1,11 +1,10 @@
 {
   "name": "gym-kiosk-app",
-  "version": "1.3.8",
+  "version": "1.4.0",
   "engines": {
     "node": "24.19.0"
   },
   "description": "Gym kiosk and admin desktop application for workout selection and QR sharing.",
-    "version": "1.3.9",
   "main": "main.js",
   "scripts": {
     "start": "node scripts/start.cjs",
@@ -24,7 +23,9 @@
     "test:kiosk-ops": "node tests/kiosk-ops.cjs",
     "test:security": "node tests/security-regression.cjs",
     "test:release-safety": "node tests/release-safety.cjs",
-    "test:all": "npm run test:smoke && npm run test:ops && npm run test:kiosk-ops && npm run test:security && npm run test:release-safety"
+    "test:racquetball-admin": "node tests/racquetball-admin.cjs",
+    "test:racquetball-league": "node tests/racquetball-league.cjs && node tests/racquetball-kiosk.cjs && node tests/racquetball-keyboard.cjs",
+    "test:all": "npm run test:smoke && npm run test:ops && npm run test:kiosk-ops && npm run test:security && npm run test:release-safety && npm run test:racquetball-admin && npm run test:racquetball-league"
   },
   "devDependencies": {
     "app-builder-bin": "^4.2.0",

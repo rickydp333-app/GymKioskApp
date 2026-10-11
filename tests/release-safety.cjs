@@ -49,9 +49,15 @@ try {
   store.close();
   const releaseSource = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'release-install-set.cjs'), 'utf8');
   assert(/'--publish',\s*'never'/.test(releaseSource), 'builder must not publish unverified CI installers automatically');
+  assert.match(releaseSource, /Compress-Archive[\s\S]*-ErrorAction Stop/, 'archive compression errors must stop the release build');
+  assert.match(releaseSource, /spawnSync\('tar\.exe', \['-tf', zipPath\]/, 'release ZIP must pass an archive integrity check');
   const verifyStart = releaseSource.indexOf('function verifyPackagedApp(');
   const verifyEnd = releaseSource.indexOf('\nfunction cleanTargetBuildArtifacts(', verifyStart);
-  const packageFiles = ['/server.js', '/js/data/exercises.js', '/mobile/viewer.html', '/screensaver-tutorial.html', '/js/kiosk-tutorial.js', '/css/kiosk-tutorial.css', '/lib/user-pin-vault.js', '/assets/branding/logo.png', '/main.js'];
+  const packageFiles = ['/server.js', '/js/data/exercises.js', '/mobile/viewer.html', '/screensaver-tutorial.html', '/build-info.json', '/js/kiosk-tutorial.js', '/css/kiosk-tutorial.css', '/lib/user-pin-vault.js', '/assets/branding/logo.png', '/main.js'];
+  packageFiles.push('/js/racquetball.js', '/css/racquetball.css', '/lib/racquetball-store.js');
+  packageFiles.push('/lib/racquetball-sync.js', '/js/racquetball-admin.js', '/mobile/racquetball-admin.html');
+  packageFiles.push('/mobile/racquetball.html', '/js/racquetball-web.js', '/css/racquetball-web.css');
+  packageFiles.push('/lib/racquetball-league.js', '/lib/racquetball-mail.js', '/js/racquetball-portal.js', '/css/racquetball-portal.css', '/assets/branding/norfolk-fitness.png', '/preload.js');
   for (let index = 0; index < 97; index++) packageFiles.push(`/assets/stretches/test-${index}.png`);
   let wrongSource = false;
   let packagedVersion = require('../package.json').version;
@@ -62,13 +68,15 @@ try {
       listPackage: () => packageFiles,
       extractFile: (_archive, name) => name === 'package.json'
         ? Buffer.from(JSON.stringify({ version: packagedVersion }))
-        : Buffer.from(wrongSource ? 'stale-source' : 'current-source')
+        : name === 'build-info.json'
+          ? Buffer.from(JSON.stringify({ createdAt: '2026-10-04T19:33:05.796Z' }))
+          : Buffer.from(wrongSource ? 'stale-source' : 'current-source')
     }
   };
   vm.createContext(verifierContext);
   vm.runInContext(releaseSource.slice(verifyStart, verifyEnd), verifierContext);
   const target = { name: 'kiosk', label: 'Kiosk', outputDir: '/test-output' };
-  assert.equal(verifierContext.verifyPackagedApp(target).verifiedSourceFiles, 11);
+  assert.equal(verifierContext.verifyPackagedApp(target).verifiedSourceFiles, 27);
   wrongSource = true;
   assert.throws(() => verifierContext.verifyPackagedApp(target), /does not match current source/);
   wrongSource = false;
@@ -77,6 +85,31 @@ try {
   packageFiles.pop();
   packagedVersion = '0.0.0';
   assert.throws(() => verifierContext.verifyPackagedApp(target), /incorrect version/);
+  const { createRacquetballStore } = require('../lib/racquetball-store');
+  const leagueOptions = { dataDir: path.join(root, 'league'), isAdmin: token => token === 'authorized', now: () => 100000 };
+  let league = createRacquetballStore(leagueOptions);
+  const registration = { fullName: 'League Member', email: 'member@example.com', phone: '519-555-0123', pin: '0042' };
+  assert.equal(league.signUp({ ...registration, email: 'invalid' }).success, false);
+  assert.equal(league.signUp({ ...registration, pin: '42' }).success, false);
+  assert.equal(league.signUp({ ...registration, phone: 'bad' }).success, false);
+  const signedUp = league.signUp(registration);
+  assert.equal(signedUp.success, true);
+  assert.equal(signedUp.member.pin, undefined, 'league PINs must never be returned');
+  assert.equal(signedUp.member.pin_hash, undefined);
+  assert.equal(league.signUp({ ...registration, email: ' MEMBER@EXAMPLE.COM ' }).success, false, 'league email should be unique ignoring case');
+  league.close();
+  league = createRacquetballStore(leagueOptions);
+  assert.equal(league.logIn({ email: registration.email, pin: registration.pin }).success, true, 'league registration must survive reopening');
+  for (let attempt = 0; attempt < 5; attempt++) assert.equal(league.logIn({ email: registration.email, pin: '1111' }).success, false);
+  league.close();
+  league = createRacquetballStore(leagueOptions);
+  assert.equal(league.logIn({ email: registration.email, pin: registration.pin }).success, false, 'league PIN attempts must lock after five failures');
+  assert.equal(league.listMembers('expired').success, false);
+  assert.equal(league.listMembers('authorized').members.length, 1);
+  assert.equal(league.resetPin({ memberId: signedUp.member.id, pin: '1234', token: 'expired' }).success, false);
+  assert.equal(league.resetPin({ memberId: signedUp.member.id, pin: '1234', token: 'authorized' }).success, true);
+  assert.equal(league.logIn({ email: registration.email, pin: '1234' }).success, true);
+  league.close();
   console.log('PASS: profile migration, preserved data on reopen, clean new install, authorized PIN reveal, package safeguards');
 } finally {
   fs.rmSync(root, { recursive: true, force: true });
